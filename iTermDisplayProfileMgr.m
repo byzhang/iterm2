@@ -24,7 +24,6 @@
  **  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#import "ITAddressBookMgr.h"
 #import <iTerm/iTermDisplayProfileMgr.h>
 
 static iTermDisplayProfileMgr *singleInstance = nil;
@@ -135,7 +134,6 @@ static iTermDisplayProfileMgr *singleInstance = nil;
 		[self setWindowColumns: 80 forProfile: defaultName];
 		[self setWindowRows: 24 forProfile: defaultName];
 		[self setWindowAntiAlias: YES forProfile: defaultName];
-		[self setWindowBlur: NO forProfile: defaultName];
 		[self setWindowHorizontalCharSpacing: 1.0 forProfile: defaultName];
 		[self setWindowVerticalCharSpacing: 1.0 forProfile: defaultName];
 						
@@ -184,7 +182,6 @@ static iTermDisplayProfileMgr *singleInstance = nil;
 	if([profileName length] <= 0)
 		return;
 	
-	[self updateBookmarkProfile: profileName with:@"Default"];
 	[profiles removeObjectForKey: profileName];
 }
 
@@ -381,35 +378,6 @@ static iTermDisplayProfileMgr *singleInstance = nil;
 	[self _setFloatValue: transparency forKey: @"Transparency" inProfile: profileName];
 }
 
-- (NSString *) COLORFGBGForProfile: (NSString *) profileName
-{
-	if([profileName length] <= 0)
-		return (nil);
-
-	NSColor *fgColor;
-	NSColor *bgColor;
-	fgColor = [self color:TYPE_FOREGROUND_COLOR forProfile:profileName];
-	bgColor = [self color:TYPE_BACKGROUND_COLOR forProfile:profileName];
-	if(fgColor == nil || bgColor == nil)
-		return (nil);
-
-	int bgNum = -1;
-	int fgNum = -1; 
-	for(int i = TYPE_ANSI_0_COLOR; i <= TYPE_ANSI_15_COLOR; ++i) {
-		if([fgColor isEqual: [self color:i forProfile:profileName]]) {
-			fgNum = i;
-		}
-		if([bgColor isEqual: [self color:i forProfile:profileName]]) {
-			bgNum = i;
-		}
-	}
-
-	if(bgNum < 0 || fgNum < 0)
-		return (nil);
-
-	return ([[NSString alloc] initWithFormat:@"%d;%d", fgNum, bgNum]);
-}
-
 - (NSString *) backgroundImageForProfile: (NSString *) profileName
 {
 	NSDictionary *aProfile;
@@ -466,8 +434,6 @@ static iTermDisplayProfileMgr *singleInstance = nil;
 	sscanf(utf8String, "%s %g", utf8FontName, &fontSize);
 	
 	aFont = [NSFont fontWithName: [NSString stringWithFormat: @"%s", utf8FontName] size: fontSize];
-	if (aFont == nil)
-		return ([NSFont userFixedPitchFontOfSize: 0.0]);
 	
 	return (aFont);
 }
@@ -512,8 +478,6 @@ static iTermDisplayProfileMgr *singleInstance = nil;
 	sscanf(utf8String, "%s %g", utf8FontName, &fontSize);
 	
 	aFont = [NSFont fontWithName: [NSString stringWithFormat: @"%s", utf8FontName] size: fontSize];
-	if (aFont == nil)
-		return ([NSFont userFixedPitchFontOfSize: 0.0]);
 	
 	return (aFont);
 }
@@ -585,16 +549,6 @@ static iTermDisplayProfileMgr *singleInstance = nil;
 	[self _setIntValue: antiAlias forKey: @"Anti Alias" inProfile: profileName];
 }
 
-- (BOOL) windowBlurForProfile: (NSString *) profileName
-{
-	return ([self _intValueForKey: @"Blur" inProfile: profileName]);
-}
-
-- (void) setWindowBlur: (BOOL) blur forProfile: (NSString *) profileName
-{
-	[self _setIntValue: blur forKey: @"Blur" inProfile: profileName];
-}
-
 - (BOOL) disableBoldForProfile: (NSString *) profileName
 {
 	return ([self _intValueForKey: @"Disable Bold" inProfile: profileName]);
@@ -605,37 +559,7 @@ static iTermDisplayProfileMgr *singleInstance = nil;
 	[self _setIntValue: bFlag forKey: @"Disable Bold" inProfile: profileName];
 }
 
-- (void) updateBookmarkNode: (TreeNode *)node forProfile: (NSString*) oldProfile with:(NSString*)newProfile
-{
-	int i;
-	TreeNode *child;
-	NSDictionary *aDict;
-	int n = [node numberOfChildren];
-	
-	for (i=0;i<n;i++) {
-		child = [node childAtIndex:i];
-		if ([child isLeaf]) {
-			aDict = [child nodeData];
-			if ([[aDict objectForKey:KEY_DISPLAY_PROFILE] isEqualToString: oldProfile]) {
-				NSMutableDictionary *newBookmark= [[NSMutableDictionary alloc] initWithDictionary: aDict];
-				[newBookmark setObject: newProfile forKey: KEY_DISPLAY_PROFILE];
-				[child setNodeData: newBookmark];
-				[newBookmark release];
-			}
-		}
-		else {
-			[self updateBookmarkNode: child forProfile: oldProfile with:newProfile];
-		}
-	}
-}
 
-- (void) updateBookmarkProfile: (NSString*) oldProfile with:(NSString*)newProfile
-{
-	[self updateBookmarkNode: [[ITAddressBookMgr sharedInstance] rootNode] forProfile: oldProfile with:newProfile];
-
-	// Post a notification for all listeners that bookmarks have changed
-	[[NSNotificationCenter defaultCenter] postNotificationName: @"iTermReloadAddressBook" object: nil userInfo: nil];    		
-}
 
 @end
 

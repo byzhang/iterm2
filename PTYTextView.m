@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PTYTextView.m,v 1.325 2009-02-06 14:33:17 delx Exp $
+// $Id: PTYTextView.m,v 1.242 2006-02-22 00:16:58 ujwal Exp $
 /*
  **  PTYTextView.m
  **
@@ -33,44 +33,25 @@
 
 #import <iTerm/iTerm.h>
 #import <iTerm/PTYTextView.h>
-#import <iTerm/PseudoTerminal.h>
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Screen.h>
 #import <iTerm/FindPanelWindowController.h>
 #import <iTerm/PreferencePanel.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTask.h>
-#import <iTerm/iTermController.h>
-#import "ITConfigPanelController.h"
-#import <iTerm/Tree.h>
 
-#include <sys/time.h>
-#include <math.h>
+#define  SELECT_CODE 0x40
+#define  CURSOR_CODE 0x80
 
-static NSCursor* textViewCursor =  nil;
+static SInt32 systemVersion;
 
 @implementation PTYTextView
 
 + (void) initialize
 {
-    NSImage *ibeamImage = [[NSCursor IBeamCursor] image];
-    NSPoint hotspot = [[NSCursor IBeamCursor] hotSpot];
-    NSImage *aCursorImage = [ibeamImage copy];
-    NSImage *reverseCursorImage = [ibeamImage copy];
-    [reverseCursorImage lockFocus];
-    [[NSColor whiteColor] set];
-    NSRectFill(NSMakeRect(0,0,[reverseCursorImage size].width,[reverseCursorImage size].height));
-    [ibeamImage compositeToPoint:NSMakePoint(0,0) operation:NSCompositeDestinationIn];
-    [reverseCursorImage unlockFocus];
-    [aCursorImage lockFocus];
-    [reverseCursorImage compositeToPoint:NSMakePoint(2,0) operation:NSCompositePlusLighter];
-    [aCursorImage unlockFocus];
-    textViewCursor = [[NSCursor alloc] initWithImage:aCursorImage hotSpot:hotspot];
-}
-
-+ (NSCursor *) textViewCursor
-{
-    return textViewCursor;
+	// get system version number
+	// get the system version since there is a useful call in 10.3 and up for getting a blod stroke
+	Gestalt(gestaltSystemVersion,&systemVersion);
 }
 
 - (id)initWithFrame: (NSRect) aRect
@@ -81,27 +62,31 @@ static NSCursor* textViewCursor =  nil;
     	
     self = [super initWithFrame: aRect];
     dataSource=_delegate=markedTextAttributes=NULL;
-
+    
     [self setMarkedTextAttributes:
         [NSDictionary dictionaryWithObjectsAndKeys:
             [NSColor yellowColor], NSBackgroundColorAttributeName,
             [NSColor blackColor], NSForegroundColorAttributeName,
-            nafont, NSFontAttributeName,
+            font, NSFontAttributeName,
             [NSNumber numberWithInt:2],NSUnderlineStyleAttributeName,
             NULL]];
 	CURSOR=YES;
-	drawAllowed = YES;
-	lastFindX = oldStartX = startX = -1;
-	markedText=nil;
-	gettimeofday(&lastBlink, NULL);
+	lastFindX = startX = -1;
+    markedText=nil;
 	[[self window] useOptimizedDrawing:YES];
-
+	    	
 	// register for drag and drop
 	[self registerForDraggedTypes: [NSArray arrayWithObjects:
         NSFilenamesPboardType,
         NSStringPboardType,
         nil]];
-
+	
+	// init the cache
+	memset(charImages, 0, CACHESIZE*sizeof(CharCache));	
+    charWidth = 12;
+    
+    [self setUseTransparency: YES];
+		
     return (self);
 }
 
@@ -109,6 +94,9 @@ static NSCursor* textViewCursor =  nil;
 {
 	
 	//NSLog(@"0x%x: %s", self, __PRETTY_FUNCTION__);
+	if(trackingRectTag)
+		[self removeTrackingRect:trackingRectTag];
+	trackingRectTag = 0;
 		
 	return (YES);
 }
@@ -117,30 +105,12 @@ static NSCursor* textViewCursor =  nil;
 {
 	
 	//NSLog(@"0x%x: %s", self, __PRETTY_FUNCTION__);
+	// reset tracking rect
+	if(trackingRectTag)
+		[self removeTrackingRect:trackingRectTag];
+	trackingRectTag = [self addTrackingRect:[self frame] owner: self userData: nil assumeInside: NO];
 		
 	return (YES);
-}
-
-- (void)viewWillMoveToWindow:(NSWindow *)win 
-{
-    
-    //NSLog(@"0x%x: %s, will move view from %@ to %@", self, __PRETTY_FUNCTION__, [self window], win);
-    if (!win && [self window] && trackingRectTag) {
-        //NSLog(@"remove tracking");
-        [self removeTrackingRect:trackingRectTag];
-        trackingRectTag = 0;
-    }
-    [super viewWillMoveToWindow:win];
-}
-
-- (void)viewDidMoveToWindow
-{
-    //NSLog(@"0x%x: %s, moved view to %@", self, __PRETTY_FUNCTION__, [self window]);
-    if ([self window]) {
-        //NSLog(@"add tracking");
-        trackingRectTag = [self addTrackingRect:[self frame] owner: self userData: nil assumeInside: NO];
-    }
-    
 }
 
 - (void) dealloc
@@ -155,13 +125,10 @@ static NSCursor* textViewCursor =  nil;
 		[mouseDownEvent release];
 		mouseDownEvent = nil;
     }
-	 
-    //NSLog(@"remove tracking");
-    if(trackingRectTag)
-		[self removeTrackingRect:trackingRectTag];
+	
 	
     [[NSNotificationCenter defaultCenter] removeObserver:self];    
-    for(i=0;i<256;i++) {
+    for(i=0;i<16;i++) {
         [colorTable[i] release];
     }
     [defaultFGColor release];
@@ -170,16 +137,15 @@ static NSCursor* textViewCursor =  nil;
     [selectionColor release];
 	[defaultCursorColor release];
 	
+    [dataSource release];
+    [_delegate release];
     [font release];
 	[nafont release];
     [markedTextAttributes release];
 	[markedText release];
 	
+    [self resetCharCache];
     [super dealloc];
-    
-#if DEBUG_ALLOC
-    NSLog(@"%s: 0x%x, done", __PRETTY_FUNCTION__, self);
-#endif
 }
 
 - (BOOL)shouldDrawInsertionPoint
@@ -210,11 +176,13 @@ static NSCursor* textViewCursor =  nil;
 - (void) setAntiAlias: (BOOL) antiAliasFlag
 {
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTextView setAntiAlias: %d]",
-		  __FILE__, __LINE__, antiAliasFlag);
+    NSLog(@"%s(%d):-[PTYTextView setAntiAlias: %d]",
+          __FILE__, __LINE__, antiAliasFlag);
 #endif
-	antiAlias = antiAliasFlag;
-	[self setNeedsDisplay:YES];
+    antiAlias = antiAliasFlag;
+	forceUpdate = YES;
+	[self resetCharCache];
+	[self setNeedsDisplay: YES];
 }
 
 - (BOOL) disableBold
@@ -225,7 +193,9 @@ static NSCursor* textViewCursor =  nil;
 - (void) setDisableBold: (BOOL) boldFlag
 {
 	disableBold = boldFlag;
-	[self setNeedsDisplay:YES];
+	forceUpdate = YES;
+	[self resetCharCache];
+	[self setNeedsDisplay: YES];
 }
 
 
@@ -238,6 +208,7 @@ static NSCursor* textViewCursor =  nil;
 {
 	blinkingCursor = bFlag;
 }
+
 
 - (NSDictionary*) markedTextAttributes
 {
@@ -261,10 +232,12 @@ static NSCursor* textViewCursor =  nil;
 
 - (void) setFGColor:(NSColor*)color
 {
-	[defaultFGColor release];
-	[color retain];
-	defaultFGColor=color;
-	[self setNeedsDisplay:YES];
+    [defaultFGColor release];
+    [color retain];
+    defaultFGColor=color;
+	[self resetCharCache];
+	forceUpdate = YES;
+	[self setNeedsDisplay: YES];
 	// reset our default character attributes    
 }
 
@@ -275,23 +248,27 @@ static NSCursor* textViewCursor =  nil;
     defaultBGColor=color;
 	//    bg = [bg colorWithAlphaComponent: [[SESSION backgroundColor] alphaComponent]];
 	//    fg = [fg colorWithAlphaComponent: [[SESSION foregroundColor] alphaComponent]];
-	[self setNeedsDisplay:YES];
+	forceUpdate = YES;
+	[self setNeedsDisplay: YES];
 }
 
 - (void) setBoldColor: (NSColor*)color
 {
-	[defaultBoldColor release];
-	[color retain];
-	defaultBoldColor=color;
-	[self setNeedsDisplay:YES];
+    [defaultBoldColor release];
+    [color retain];
+    defaultBoldColor=color;
+	[self resetCharCache];
+	forceUpdate = YES;
+	[self setNeedsDisplay: YES];
 }
 
 - (void) setCursorColor: (NSColor*)color
 {
-	[defaultCursorColor release];
-	[color retain];
-	defaultCursorColor=color;
-	[self setNeedsDisplay:YES];
+    [defaultCursorColor release];
+    [color retain];
+    defaultCursorColor=color;
+	forceUpdate = YES;
+	[self setNeedsDisplay: YES];
 }
 
 - (void) setSelectedTextColor: (NSColor *) aColor
@@ -299,7 +276,11 @@ static NSCursor* textViewCursor =  nil;
 	[selectedTextColor release];
 	[aColor retain];
 	selectedTextColor = aColor;
-	[self setNeedsDisplay:YES];
+	[self _clearCacheForColor: SELECT_CODE];
+	[self _clearCacheForColor: SELECT_CODE | BOLD_MASK];
+	forceUpdate = YES;
+
+	[self setNeedsDisplay: YES];
 }
 
 - (void) setCursorTextColor:(NSColor*) aColor
@@ -307,7 +288,11 @@ static NSCursor* textViewCursor =  nil;
 	[cursorTextColor release];
 	[aColor retain];
 	cursorTextColor = aColor;
-	[self setNeedsDisplay:YES];
+	[self _clearCacheForColor: CURSOR_CODE];
+	[self _clearCacheForColor: CURSOR_CODE | BOLD_MASK];
+	
+	forceUpdate = YES;
+	[self setNeedsDisplay: YES];
 }
 
 - (NSColor *) cursorTextColor
@@ -340,47 +325,51 @@ static NSCursor* textViewCursor =  nil;
     return defaultCursorColor;
 }
 
-- (void) setColorTable:(int) index color:(NSColor *) c
+- (void) setColorTable:(int) index highLight:(BOOL)hili color:(NSColor *) c
 {
-	[colorTable[index] release];
-	[c retain];
-	colorTable[index]=c;
-	[self setNeedsDisplay:YES];
+	int idx=(hili?1:0)*8+index;
+	
+    [colorTable[idx] release];
+    [c retain];
+    colorTable[idx]=c;
+	[self _clearCacheForColor: idx];
+	[self _clearCacheForColor: (BOLD_MASK | idx)];
+	
+	[self setNeedsDisplay: YES];
 }
 
-- (NSColor *) colorForCode:(int) index
+- (NSColor *) colorForCode:(unsigned int) index 
 {
-	NSColor *color;
+    NSColor *color;
 	
-	if (index & DEFAULT_FG_COLOR_CODE) {
-		// special colors?
-		switch (index) {
-			case SELECTED_TEXT:
-				color = selectedTextColor;
-				break;
-			case CURSOR_TEXT:
-				color = cursorTextColor;
-				break;
-			case DEFAULT_BG_COLOR_CODE:
-				color = defaultBGColor;
-				break;
-			default:
-				if(index & BOLD_MASK) {
-					color = index-BOLD_MASK == DEFAULT_BG_COLOR_CODE ? defaultBGColor : [self defaultBoldColor];
-				}
-				else {
-					color = defaultFGColor;
-				}
-		}
-	}
-	else {
-		if([self disableBold] && (index & BOLD_MASK) && (index % 256 < 8)) {
-			index = index - BOLD_MASK + 8;
-		}
-		color = colorTable[index & 0xff];
-	}
+	if(index & SELECT_CODE)
+		return (selectedTextColor);
 	
-	return color;
+	if(index & CURSOR_CODE)
+		return (cursorTextColor);
+	
+	if (index&DEFAULT_FG_COLOR_CODE)
+    {
+		if (index&1) // background color?
+		{
+			color=defaultBGColor;
+		}
+		else if(index&BOLD_MASK)
+		{
+			color = [self defaultBoldColor];
+		}
+		else
+		{
+			color = defaultFGColor;
+		}
+    }
+    else
+    {
+        color=colorTable[index&15];
+    }
+	
+    return color;
+    
 }
 
 - (NSColor *) selectionColor
@@ -399,10 +388,12 @@ static NSCursor* textViewCursor =  nil;
     NSLog(@"%s(%d):-[PTYTextView setSelectionColor:%@]",
           __FILE__, __LINE__,aColor);
 #endif
-	[selectionColor release];
-	[aColor retain];
-	selectionColor=aColor;
-	[self setNeedsDisplay:YES];
+    
+    [selectionColor release];
+    [aColor retain];
+    selectionColor=aColor;
+	forceUpdate = YES;
+	[self setNeedsDisplay: YES];
 }
 
 
@@ -437,18 +428,22 @@ static NSCursor* textViewCursor =  nil;
         [NSDictionary dictionaryWithObjectsAndKeys:
             [NSColor yellowColor], NSBackgroundColorAttributeName,
             [NSColor blackColor], NSForegroundColorAttributeName,
-            nafont, NSFontAttributeName,
+            font, NSFontAttributeName,
             [NSNumber numberWithInt:2],NSUnderlineStyleAttributeName,
             NULL]];
-	[self setNeedsDisplay:YES];
+	[self resetCharCache];
+	forceUpdate = YES;
+	[self setNeedsDisplay: YES];
 }
 
-- (void)changeFont:(id)fontManager
+- (void) resetCharCache
 {
-	if ([ITConfigPanelController onScreen])
-		[[ITConfigPanelController singleInstance] changeFont:fontManager];
-	else
-		[super changeFont:fontManager];
+	int loop;
+	for (loop=0;loop<CACHESIZE;loop++)
+    {
+		[charImages[loop].image release];
+		charImages[loop].image=nil;
+    }
 }
 
 - (id) dataSource
@@ -458,6 +453,8 @@ static NSCursor* textViewCursor =  nil;
 
 - (void) setDataSource: (id) aDataSource
 {
+    [dataSource release];
+    [aDataSource retain];
     dataSource = aDataSource;
 }
 
@@ -468,6 +465,8 @@ static NSCursor* textViewCursor =  nil;
 
 - (void) setDelegate: (id) aDelegate
 {
+    [_delegate release];
+    [aDelegate retain];
     _delegate = aDelegate;
 }    
 
@@ -501,189 +500,63 @@ static NSCursor* textViewCursor =  nil;
 	charWidth = width;
 }
 
-- (void)updateDirtyRects
+- (void) setForceUpdate: (BOOL) flag
 {
-	int WIDTH = [dataSource width];
-	char* dirty;
-	int lineStart;
-	int lineEnd;
-
-	// Check each line for dirty selected text
-	// If any is found then deselect everything
-	dirty = [dataSource dirty];
-	lineStart = [dataSource numberOfLines] - [dataSource height];
-	lineEnd = [dataSource numberOfLines];
-	for(int y = lineStart; y < lineEnd && startX > -1; y++) {
-		for(int x = 0; x < WIDTH; x++) {
-			BOOL isSelected = [self _isCharSelectedInRow:y col:x checkOld:NO];
-			int cursorX = [dataSource cursorX] - 1;
-			int cursorY = [dataSource cursorY] + [dataSource numberOfLines] - [dataSource height] - 1;
-			BOOL isCursor = (x == cursorX && y == cursorY);
-			if(dirty[x] && isSelected && !isCursor) {
-				// Don't call [self deselect] as it would recurse back here
-				startX = -1;
-				break;
-			}
-		}
-		dirty += WIDTH;
-	}
-
-	// Time to redraw blinking text?
-	struct timeval now;
-	BOOL redrawBlink = NO;
-	gettimeofday(&now, NULL);
-	if(now.tv_sec*10+now.tv_usec/100000 >= lastBlink.tv_sec*10+lastBlink.tv_usec/100000+7) {
-		blinkShow = !blinkShow;
-		lastBlink = now;
-		redrawBlink = YES;
-	}
-
-	// Visible chars that have changed selection status are dirty
-	// Also mark blinking text as dirty if needed
-	lineStart = [self visibleRect].origin.y / lineHeight;
-	lineEnd = lineStart + ceil([self visibleRect].size.height / lineHeight);
-	if(lineStart < 0) lineStart = 0;
-	if(lineEnd > [dataSource numberOfLines]) lineEnd = [dataSource numberOfLines];
-	for(int y = lineStart; y < lineEnd; y++) {
-		screen_char_t* theLine = [dataSource getLineAtIndex:y];
-		for(int x = 0; x < WIDTH; x++) {
-			BOOL isSelected = [self _isCharSelectedInRow:y col:x checkOld:NO];
-			BOOL wasSelected = [self _isCharSelectedInRow:y col:x checkOld:YES];
-			BOOL blinked = redrawBlink && (theLine[x].fg_color & BLINK_MASK);
-			if(isSelected != wasSelected || blinked) {
-				NSRect dirtyRect = [self visibleRect];
-				dirtyRect.origin.y = y*lineHeight;
-				dirtyRect.size.height = lineHeight;
-				[self setNeedsDisplayInRect:dirtyRect];
-				break;
-			}
-		}
-	}
-	oldStartX=startX; oldStartY=startY; oldEndX=endX; oldEndY=endY;
-
-	// Redraw lines with dirty characters
-	dirty = [dataSource dirty];
-	lineStart = [dataSource numberOfLines] - [dataSource height];
-	lineEnd = [dataSource numberOfLines];
-	for(int y = lineStart; y < lineEnd; y++) {
-		for(int x = 0; x < WIDTH; x++) {
-			if(dirty[x]) {
-				NSRect dirtyRect = [self visibleRect];
-				dirtyRect.origin.y = y*lineHeight;
-				dirtyRect.size.height = lineHeight;
-				[self setNeedsDisplayInRect:dirtyRect];
-				break;
-			}
-		}
-		dirty += WIDTH;
-	}
-	[dataSource resetDirty];
+	forceUpdate = flag;
 }
 
-// We override this method since both refresh and window resize can conflict
-// resulting in this happening twice So we do not allow the size to be set
-// larger than what the data source can fill
-- (void)setFrameSize:(NSSize)frameSize
-{
-	// Force the height to always be correct
-	frameSize.height = [dataSource numberOfLines] * lineHeight;
-	[super setFrameSize:frameSize];
-}
 
-- (void)refresh
+// We override this method since both refresh and window resize can conflict resulting in this happening twice
+// So we do not allow the size to be set larger than what the data source can fill
+- (void) setFrameSize: (NSSize) aSize
 {
-	if(dataSource == nil) return;
+	//NSLog(@"%s (0x%x): setFrameSize to (%f,%f)", __PRETTY_FUNCTION__, self, aSize.width, aSize.height);
 
+	NSSize anotherSize = aSize;
+	
+	anotherSize.height = [dataSource numberOfLines] * lineHeight;
+	
+	[super setFrameSize: anotherSize];
+	
 	// reset tracking rect
-	if(trackingRectTag) {
+	if(trackingRectTag)
 		[self removeTrackingRect:trackingRectTag];
-	}
-	trackingRectTag = [self addTrackingRect:[self visibleRect] owner:self userData:nil assumeInside:NO];
+	trackingRectTag = [self addTrackingRect:[self visibleRect] owner: self userData: nil assumeInside: NO];
+}
 
-	// number of lines that have disappeared if circular buffer is full
-	int scrollbackOverflow = [dataSource scrollbackOverflow];
-	[dataSource resetScrollbackOverflow];
+- (void) refresh
+{
+	//NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
 
-	// frame size changed?
-	int height = [dataSource numberOfLines] * lineHeight;
-	NSRect frame = [self frame];
-
-	if(height != frame.size.height) {
-		// Grow to allow space for drawing the new lines
-		// XXX - EPIC HACK below
-		// NSClipView has setCopiesOnScroll:YES by default. According to Apple
-		// this means it will do a quick copy of all the unchanged portion of
-		// the view when scrolling. It will then expose the new section causing
-		// drawRect to be called with it.
-		// NSClipView does not seem to be doing it's job. The setFrame call below
-		// exposes the *entire* visible rectangle. This has the obvious
-		// performance penalty of forcing a full screen redraw whenever the
-		// frame is extended due to scrolling, eg a new line appears in the
-		// terminal. To work around this we disable drawing during the frame
-		// resize and then manually expose the new portion of the frame.
-		float diff = height - frame.size.height;
-		NSRect old = [self visibleRect];
-		if(diff > 0) {
-			drawAllowed = NO;
-			[self displayIfNeeded];
-		}
-
-		// Resize the frame
-		frame.size.height = height;
-		[self setFrame:frame];
-
-		// XXX - resume hack
-		NSRect new = [self visibleRect];
-		if(diff > 0) {
-			[self display];
-			drawAllowed = YES;
-
-			NSRect dirty = new;
-			dirty.origin.y = old.origin.y + old.size.height;
-			dirty.size.height = new.origin.y + new.size.height - dirty.origin.y;
-			[self setNeedsDisplayInRect:dirty];
-		}
-	}
-	else if(scrollbackOverflow > 0) {
-		NSScrollView* scrollView = [self enclosingScrollView];
-		NSClipView* clipView = [scrollView contentView];
-		float amount = [scrollView verticalLineScroll] * scrollbackOverflow;
-		BOOL userScroll = [(PTYScroller*)([scrollView verticalScroller]) userScroll];
-
-		// Keep correct selection highlighted
-		startY -= scrollbackOverflow;
-		if(startY < 0) startX = -1;
-		endY -= scrollbackOverflow;
-		oldStartY -= scrollbackOverflow;
-		if(oldStartY < 0) oldStartX = -1;
-		oldEndY -= scrollbackOverflow;
-
-		// Keep the users' current scroll position, nothing to redraw
-		if(userScroll) {
-			NSRect scrollRect = [self visibleRect];
-			scrollRect.origin.y -= amount;
-			if(scrollRect.origin.y < 0) scrollRect.origin.y = 0;
-			[clipView setCopiesOnScroll:NO];
-			[self scrollRectToVisible:scrollRect];
-			[clipView setCopiesOnScroll:YES];
-			return;
-		}
-
-		// Shift the old content upwards
-		if(scrollbackOverflow < [dataSource height] && !userScroll) {
-			[self scrollRect:[self visibleRect] by:NSMakeSize(0, -amount)];
-		}
-	}
-
-	[self updateDirtyRects];
+    NSSize aSize;
+	int height;
+    
+    if(dataSource != nil)
+    {
+        numberOfLines = [dataSource numberOfLines];
+        aSize = [self frame].size;
+        height = numberOfLines * lineHeight;
+        if(height != [self frame].size.height)
+        {
+            NSRect aFrame;
+            
+			//NSLog(@"%s: 0x%x; new number of lines = %d; resizing height from %f to %d", 
+			//	  __PRETTY_FUNCTION__, self, numberOfLines, [self frame].size.height, height);
+            aFrame = [self frame];
+            aFrame.size.height = height;
+            [self setFrame: aFrame];
+			if (![(PTYScroller *)([[self enclosingScrollView] verticalScroller]) userScroll]) [self scrollEnd];
+        }
+    }
+	
+	[self setNeedsDisplay: YES];
+	
 }
 
 
 - (NSRect)adjustScroll:(NSRect)proposedVisibleRect
 {
-#if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTextView adjustScroll]", __FILE__, __LINE__ );
-#endif
+	forceUpdate = YES;
 	proposedVisibleRect.origin.y=(int)(proposedVisibleRect.origin.y/lineHeight+0.5)*lineHeight;
 	return proposedVisibleRect;
 }
@@ -694,7 +567,8 @@ static NSCursor* textViewCursor =  nil;
     
     scrollRect= [self visibleRect];
     scrollRect.origin.y-=[[self enclosingScrollView] verticalLineScroll];
-    if (scrollRect.origin.y<0) scrollRect.origin.y=0;
+	//forceUpdate = YES;
+	//[self setNeedsDisplay: YES];
     //NSLog(@"%f/%f",[[self enclosingScrollView] verticalLineScroll],[[self enclosingScrollView] verticalPageScroll]);
     [self scrollRectToVisible: scrollRect];
 }
@@ -705,6 +579,7 @@ static NSCursor* textViewCursor =  nil;
     
     scrollRect= [self visibleRect];
     scrollRect.origin.y+=[[self enclosingScrollView] verticalLineScroll];
+	//forceUpdate = YES;
     [self scrollRectToVisible: scrollRect];
 }
 
@@ -713,7 +588,8 @@ static NSCursor* textViewCursor =  nil;
     NSRect scrollRect;
 	
     scrollRect= [self visibleRect];
-    scrollRect.origin.y-= scrollRect.size.height - [[self enclosingScrollView] verticalPageScroll];
+    scrollRect.origin.y-=[[self enclosingScrollView] verticalPageScroll];
+	//forceUpdate = YES;
     [self scrollRectToVisible: scrollRect];
 }
 
@@ -722,7 +598,8 @@ static NSCursor* textViewCursor =  nil;
     NSRect scrollRect;
     
     scrollRect= [self visibleRect];
-    scrollRect.origin.y+= scrollRect.size.height - [[self enclosingScrollView] verticalPageScroll];
+    scrollRect.origin.y+=[[self enclosingScrollView] verticalPageScroll];
+	//forceUpdate = YES;
     [self scrollRectToVisible: scrollRect];
 }
 
@@ -732,21 +609,26 @@ static NSCursor* textViewCursor =  nil;
     
     scrollRect= [self visibleRect];
     scrollRect.origin.y = 0;
+	//forceUpdate = YES;
     [self scrollRectToVisible: scrollRect];
 }
 
 - (void)scrollEnd
 {
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTextView scrollEnd]", __FILE__, __LINE__ );
+    NSLog(@"%s(%d):-[PTYTextView scrollEnd]", __FILE__, __LINE__ );
 #endif
-
-	if([dataSource numberOfLines] <= 0) return;
-
-	NSRect lastLine = [self visibleRect];
-	lastLine.origin.y = ([dataSource numberOfLines] - 1) * lineHeight;
-	lastLine.size.height = lineHeight;
-	[self scrollRectToVisible:lastLine];
+    
+    if (numberOfLines > 0)
+    {
+        NSRect aFrame;
+		aFrame.origin.x = 0;
+		aFrame.origin.y = (numberOfLines - 1) * lineHeight;
+		aFrame.size.width = [self frame].size.width;
+		aFrame.size.height = lineHeight;
+		//forceUpdate = YES;
+		[self scrollRectToVisible: aFrame];
+    }
 }
 
 - (void)scrollToSelection
@@ -756,6 +638,7 @@ static NSCursor* textViewCursor =  nil;
 	aFrame.origin.y = startY * lineHeight;
 	aFrame.size.width = [self frame].size.width;
 	aFrame.size.height = (endY - startY + 1) *lineHeight;
+	//forceUpdate = YES;
 	[self scrollRectToVisible: aFrame];
 }
 
@@ -772,74 +655,359 @@ static NSCursor* textViewCursor =  nil;
 - (void)drawRect:(NSRect)rect
 {
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(0x%x):-[PTYTextView drawRect:(%f,%f,%f,%f) frameRect: (%f,%f,%f,%f)]",
-		__PRETTY_FUNCTION__, self,
-		rect.origin.x, rect.origin.y, rect.size.width, rect.size.height,
-		[self frame].origin.x, [self frame].origin.y, [self frame].size.width, [self frame].size.height);
+    NSLog(@"%s(0x%x):-[PTYTextView drawRect:(%f,%f,%f,%f) frameRect: (%f,%f,%f,%f)]",
+          __PRETTY_FUNCTION__, self,
+          rect.origin.x, rect.origin.y, rect.size.width, rect.size.height,
+		  [self frame].origin.x, [self frame].origin.y, [self frame].size.width, [self frame].size.height);
 #endif
-
-	if(!drawAllowed) return;
-	if(lineHeight <= 0 || lineWidth <= 0) return;
-
-	// Configure graphics
-	[[NSGraphicsContext currentContext] setShouldAntialias: antiAlias];
-	[[NSGraphicsContext currentContext] setCompositingOperation: NSCompositeCopy];
-
-	// Where to start drawing?
-	int lineStart = rect.origin.y / lineHeight;
-	int lineEnd = lineStart + ceil(rect.size.height / lineHeight);
-
-	// Ensure valid line ranges
-	if(lineStart < 0) lineStart = 0;
-	if(lineEnd > [dataSource numberOfLines]) lineEnd = [dataSource numberOfLines];
-
-	// Draw each line
-	for(int line = lineStart; line < lineEnd; line++) {
-		NSRect lineRect = [self visibleRect];
-		lineRect.origin.y = line*lineHeight;
-		lineRect.size.height = lineHeight;
-		if([self needsToDrawRect:lineRect]) {
-///			NSLog(@"drawing %d", line);
-			[self _drawLine:line AtY:line*lineHeight];
+		
+    int numLines, i, j, lineOffset, WIDTH;
+	int startScreenLineIndex,line, lineIndex;
+    unichar *buf;
+	NSRect bgRect;
+	NSColor *aColor;
+	char  *fg, *bg, *dirty = NULL;
+	BOOL need_draw;
+	int bgstart, ulstart;
+    float curX, curY;
+	unsigned int bgcode = 0, fgcode = 0;
+	int y1, x1;
+	BOOL double_width;
+	BOOL reversed = [[dataSource terminal] screenMode]; 
+	
+    float trans = useTransparency ? 1.0 - transparency : 1.0;
+    
+    if(lineHeight <= 0 || lineWidth <= 0)
+        return;
+    
+    [dataSource acquireLock];
+	// make sure margins are filled in
+	if (forceUpdate) {
+		if([(PTYScrollView *)[self enclosingScrollView] backgroundImage] != nil)
+		{
+			[(PTYScrollView *)[self enclosingScrollView] drawBackgroundImageRect: rect];
+		}
+		else {
+			aColor = [self colorForCode:(reversed ? DEFAULT_FG_COLOR_CODE : DEFAULT_BG_COLOR_CODE)];
+			aColor = [aColor colorWithAlphaComponent: trans];
+			[aColor set];
+			NSRectFill(rect);
 		}
 	}
+		
+	WIDTH=[dataSource width];
 
-	// Draw cursor
-	[self _drawCursor];
+	// Starting from which line?
+	lineOffset = rect.origin.y/lineHeight;
+    
+	// How many lines do we need to draw?
+	numLines = rect.size.height/lineHeight;
+
+	// Which line is our screen start?
+	startScreenLineIndex=[dataSource numberOfLines] - [dataSource height];
+    //NSLog(@"%f+%f->%d+%d", rect.origin.y,rect.size.height,lineOffset,numLines);
+		
+	// [self adjustScroll] should've made sure we are at an integer multiple of a line
+	curY=rect.origin.y +lineHeight;
+	
+	// redraw margins if we have a background image, otherwise we can still "see" the margin
+	if([(PTYScrollView *)[self enclosingScrollView] backgroundImage] != nil)
+	{
+		bgRect = NSMakeRect(0, rect.origin.y, MARGIN, rect.size.height);
+		[(PTYScrollView *)[self enclosingScrollView] drawBackgroundImageRect: bgRect];
+		bgRect = NSMakeRect(rect.size.width - MARGIN, rect.origin.y, MARGIN, rect.size.height);
+		[(PTYScrollView *)[self enclosingScrollView] drawBackgroundImageRect: bgRect];
+	}
+	
+	
+    for(i = 0; i < numLines; i++)
+    {
+		curX = MARGIN;
+        line = i + lineOffset;
+		
+		if(line >= [dataSource numberOfLines])
+		{
+			NSLog(@"%s (0x%x): illegal line index %d >= %d", __PRETTY_FUNCTION__, self, line, [dataSource numberOfLines]);
+			[dataSource releaseLock];
+			return;
+		}
+		
+		// Check if we are drawing a line in buffer
+		if (line < startScreenLineIndex) 
+		{
+			lineIndex=startScreenLineIndex-line;
+			lineIndex=[dataSource lastBufferLineIndex]-lineIndex;
+			if (lineIndex<0) lineIndex+=[dataSource scrollbackLines];
+			buf=[dataSource bufferLines]+lineIndex*WIDTH;
+			fg=[dataSource bufferFGColor]+lineIndex*WIDTH;
+			bg=[dataSource bufferBGColor]+lineIndex*WIDTH;
+			//NSLog(@"Buffer: %d",lineIndex);
+		}
+		else 
+		{ // on screen
+			lineIndex=line-startScreenLineIndex;
+			buf=[dataSource screenLines]+lineIndex*WIDTH;
+			fg=[dataSource screenFGColor]+lineIndex*WIDTH;
+			bg=[dataSource screenBGColor]+lineIndex*WIDTH;
+			dirty=[dataSource dirty]+lineIndex*WIDTH;
+			//NSLog(@"Screen: %d",lineIndex);
+		}	
+		
+		//draw background and underline here
+		bgstart=ulstart=-1;
+		for(j=0;j<WIDTH;j++) {
+			if (buf[j]==0xffff) continue;
+			// Check if we need to redraw next char
+			need_draw = line < startScreenLineIndex || forceUpdate || dirty[j] || (fg[j]&BLINK_MASK);
+
+			// if we don't have to update next char, finish pending jobs
+			if (!need_draw){
+				if (bgstart>=0) {
+					aColor = (bgcode & SELECTION_MASK) ? selectionColor : 
+						[self colorForCode: 
+							((reversed && bgcode == DEFAULT_BG_COLOR_CODE) ? DEFAULT_FG_COLOR_CODE: bgcode)]; 
+					aColor = [aColor colorWithAlphaComponent: trans];
+					[aColor set];
+					
+					bgRect = NSMakeRect(floor(curX+bgstart*charWidth),curY-lineHeight,ceil((j-bgstart)*charWidth),lineHeight);
+					NSRectFill(bgRect);
+					// if we have a background image and we are using the background image, redraw image
+					if([(PTYScrollView *)[self enclosingScrollView] backgroundImage] != nil && bgcode == DEFAULT_BG_COLOR_CODE)
+					{
+						[(PTYScrollView *)[self enclosingScrollView] drawBackgroundImageRect: bgRect];
+					}
+					
+				}						
+				if (ulstart>=0) {
+					[[self colorForCode:(fgcode & 0x3f)] set];
+					NSRectFill(NSMakeRect(floor(curX+ulstart*charWidth),curY-2,ceil((j-ulstart)*charWidth),1));
+				}
+				bgstart=ulstart=-1;
+			}
+			else {
+				// find out if the current char is being selected
+				if (bgstart<0) {
+					bgstart = j; 
+					bgcode = bg[j] & 0xff; 
+				}
+				else if (bg[j]!=bgcode || (ulstart>=0 && (fg[j]!=fgcode || !buf[j]))) { //background or underline property change?
+					aColor = (bgcode & SELECTION_MASK) ? selectionColor : 
+						[self colorForCode: 
+							((reversed && bgcode == DEFAULT_BG_COLOR_CODE) ? DEFAULT_FG_COLOR_CODE: bgcode)]; 
+					aColor = [aColor colorWithAlphaComponent: trans];
+					[aColor set];
+					
+					bgRect = NSMakeRect(floor(curX+bgstart*charWidth),curY-lineHeight,ceil((j-bgstart)*charWidth),lineHeight);
+					NSRectFill(bgRect);
+					if([(PTYScrollView *)[self enclosingScrollView] backgroundImage] != nil && bgcode == DEFAULT_BG_COLOR_CODE)
+					{
+						[(PTYScrollView *)[self enclosingScrollView] drawBackgroundImageRect: bgRect];
+					}
+					bgstart = j; 
+					bgcode = bg[j] & 0xff; 
+				}
+				
+				if (ulstart<0 && (fg[j]&UNDER_MASK) && buf[j]) { 
+					ulstart = j;
+					fgcode = fg[j] & 0xff; 
+				}
+				else if ( ulstart>=0 && (fg[j]!=fgcode || !buf[j])) { //underline or fg color property change?
+					[[self colorForCode:(fgcode & 0x3f)] set];
+					NSRectFill(NSMakeRect(floor(curX+ulstart*charWidth),curY-2,ceil((j-ulstart)*charWidth),1));
+					fgcode=fg[j] & 0xff;
+					ulstart=(fg[j]&UNDER_MASK && buf[j])?j:-1;
+				}
+			}
+		}
+		
+		// finish pending jobs
+		if (bgstart>=0) {
+			aColor = (bgcode & SELECTION_MASK) ? selectionColor : 
+				[self colorForCode: 
+					((reversed && bgcode == DEFAULT_BG_COLOR_CODE) ? DEFAULT_FG_COLOR_CODE: bgcode)]; 
+			aColor = [aColor colorWithAlphaComponent: trans];
+			[aColor set];
+			
+			bgRect = NSMakeRect(floor(curX+bgstart*charWidth),curY-lineHeight,ceil((j-bgstart)*charWidth),lineHeight);
+			NSRectFill(bgRect);
+			if([(PTYScrollView *)[self enclosingScrollView] backgroundImage] != nil && bgcode == DEFAULT_BG_COLOR_CODE)
+			{
+				[(PTYScrollView *)[self enclosingScrollView] drawBackgroundImageRect: bgRect];
+			}
+		}
+		
+		if (ulstart>=0) {
+			[[self colorForCode:fgcode] set];
+			NSRectFill(NSMakeRect(floor(curX+ulstart*charWidth),curY-2,ceil((j-ulstart)*charWidth),1));
+		}
+		
+		//draw all char
+		for(j=0;j<WIDTH;j++) {
+			need_draw = (buf[j] && buf[j]!=0xffff) && (line < startScreenLineIndex || forceUpdate || dirty[j] || (fg[j]&BLINK_MASK));
+			if (need_draw) { 
+				double_width = (buf[j+1] == 0xffff);
+				// switch colors if text is selected
+				if((bg[j] & SELECTION_MASK) && ((fg[j] & 0x1f) == DEFAULT_FG_COLOR_CODE))
+					fgcode = SELECTED_TEXT | ((fg[j] & BOLD_MASK) & 0xff); // check for bold
+				else
+					fgcode = (reversed && fg[j] & DEFAULT_FG_COLOR_CODE) ? 
+						(DEFAULT_BG_COLOR_CODE | (fg[j] & BOLD_MASK)) : (fg[j] & 0xff);
+				if (fg[j]&BLINK_MASK) {
+					if (blinkShow) {				
+						[self _drawCharacter:buf[j] fgColor:fgcode AtX:curX Y:curY doubleWidth: double_width];
+					}
+				}
+				else {
+					[self _drawCharacter:buf[j] fgColor:fgcode AtX:curX Y:curY doubleWidth: double_width];
+					if(line>=startScreenLineIndex) 
+						dirty[j]=0;
+				}
+			}
+			else if(line>=startScreenLineIndex) 
+				dirty[j]=0;
+			
+			curX+=charWidth;
+		}
+		//if (line>=startScreenLineIndex) memset(dirty,0,WIDTH);
+		curY+=lineHeight;
+	}
+	
+	blinkShow = !blinkShow;
+    
+    // Double check if dataSource is still available
+    if (!dataSource) return;
+	
+	x1=[dataSource cursorX]-1;
+	y1=[dataSource cursorY]-1;
+	
+	//draw cursor	
+	float cursorWidth, cursorHeight;				
+				
+	if(charWidth < charWidthWithoutSpacing)
+		cursorWidth = charWidth;
+	else
+		cursorWidth = charWidthWithoutSpacing;
+	
+	if(lineHeight < charHeightWithoutSpacing)
+		cursorHeight = lineHeight;
+	else
+		cursorHeight = charHeightWithoutSpacing;
+	
+	if([self blinkingCursor])
+		showCursor = !showCursor;
+	else
+		showCursor = YES;
+	if([[self window] isKeyWindow] == NO)
+		showCursor = YES;
+	if (CURSOR) {
+		i = y1*[dataSource width]+x1;
+		fg=[dataSource screenFGColor]+y1*WIDTH;
+		if(showCursor)
+		{			
+			[[[self defaultCursorColor] colorWithAlphaComponent: trans] set];
+
+			if([[self window] isKeyWindow])
+			{
+				NSRectFill(NSMakeRect(floor(x1 * charWidth + MARGIN),
+									  (y1+[dataSource numberOfLines]-[dataSource height])*lineHeight + (lineHeight - cursorHeight),
+									  ceil(cursorWidth), cursorHeight));
+			}
+			else
+			{
+				NSFrameRect(NSMakeRect(floor(x1 * charWidth + MARGIN),
+									  (y1+[dataSource numberOfLines]-[dataSource height])*lineHeight + (lineHeight - cursorHeight),
+									  ceil(cursorWidth), cursorHeight));
+				
+			}
+			// draw any character on cursor if we need to
+			unichar aChar = [dataSource screenLines][i];
+			if (aChar)
+			{
+				if (aChar==0xffff && x1>0) {
+					i--;
+					x1--;
+					aChar = [dataSource screenLines][i];
+				}
+				double_width = ([dataSource screenLines][i+1] == 0xffff);
+				[self _drawCharacter: aChar 
+							 fgColor: [[self window] isKeyWindow]?CURSOR_TEXT:(fg[x1] & 0xff)
+								AtX: x1 * charWidth + MARGIN 
+								  Y: (y1+[dataSource numberOfLines]-[dataSource height]+1)*lineHeight
+						doubleWidth: double_width];
+			}
+		}
+		[dataSource dirty][i] = 1; //cursor loc is dirty
+		
+	}
+	
+	// draw any text for NSTextInput
+	if([self hasMarkedText]) {
+		int len;
+		
+		len=[markedText length];
+		if (len>[dataSource width]-x1) len=[dataSource width]-x1;
+		[markedText drawInRect:NSMakeRect(floor(x1 * charWidth + MARGIN),
+										  (y1+[dataSource numberOfLines]-[dataSource height])*lineHeight + (lineHeight - cursorHeight),
+										  ceil((WIDTH-x1)*cursorWidth),cursorHeight)];
+		memset([dataSource dirty]+y1*[dataSource width]+x1, 1,len*2); //len*2 is an over-estimation, but safe
+	}
+	
+
+	forceUpdate=NO;
+	[dataSource releaseLock];
+	
 }
 
-- (void)keyDown:(NSEvent*)event
+- (void)keyDown:(NSEvent *)event
 {
-	id delegate = [self delegate];
+    NSInputManager *imana = [NSInputManager currentInputManager];
+    BOOL IMEnable = [imana wantsToInterpretAllKeystrokes];
+    id delegate = [self delegate];
 	unsigned int modflag = [event modifierFlags];
-	BOOL prev = [self hasMarkedText];
-
+    BOOL prev = [self hasMarkedText];
+	
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTextView keyDown:%@]", __FILE__, __LINE__, event );
+    NSLog(@"%s(%d):-[PTYTextView keyDown:%@]",
+          __FILE__, __LINE__, event );
 #endif
-
+    
 	keyIsARepeat = [event isARepeat];
-
-	// Hide the cursor
-	[NSCursor setHiddenUntilMouseMoves:YES];
-
-	// Should we process the event immediately in the delegate?
-	if([delegate hasKeyMappingForEvent:event highPriority:YES] ||
-		(modflag & NSNumericPadKeyMask) || (modflag & NSFunctionKeyMask) ||
-		((modflag & NSAlternateKeyMask) && [delegate optionKey] != OPT_NORMAL))
+	
+    // Hide the cursor
+    [NSCursor setHiddenUntilMouseMoves: YES];   
+	
+	// Check whether we have a custom mapping for this event or if numeric or function keys were pressed.
+	if ( prev == NO && 
+		 ([delegate hasKeyMappingForEvent: event] ||
+		  (modflag & NSNumericPadKeyMask) || 
+		  (modflag & NSFunctionKeyMask)))
 	{
 		[delegate keyDown:event];
 		return;
 	}
+	
+    IM_INPUT_INSERT = NO;
+    if (IMEnable) {
+        [self interpretKeyEvents:[NSArray arrayWithObject:event]];
+        
+        if (prev == NO &&
+            IM_INPUT_INSERT == NO &&
+            [self hasMarkedText] == NO)
+        {
+            [delegate keyDown:event];
+        }
+    }
+    else {
 
-	// Let the IME process key events
-	IM_INPUT_INSERT = NO;
-	[self interpretKeyEvents:[NSArray arrayWithObject:event]];
-
-	// If the IME didn't want it, pass it on to the delegate
-	if(!prev && !IM_INPUT_INSERT && ![self hasMarkedText]) {
-		[delegate keyDown:event];
-	}
+		if([[self delegate] optionKey] == OPT_NORMAL)
+		{
+			[self interpretKeyEvents:[NSArray arrayWithObject:event]];
+		}
+		
+		if (IM_INPUT_INSERT == NO) {
+			[delegate keyDown:event];
+		}
+    }
 }
 
 - (BOOL) keyIsARepeat
@@ -850,7 +1018,7 @@ static NSCursor* textViewCursor =  nil;
 - (void) otherMouseDown: (NSEvent *) event
 {
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s: %@]", __PRETTY_FUNCTION__, event);
+    NSLog(@"%s: %@]", __PRETTY_FUNCTION__, sender );
 #endif
 
     NSPoint locationInWindow, locationInTextView;
@@ -859,7 +1027,7 @@ static NSCursor* textViewCursor =  nil;
 	
 	NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
 	if (([[self delegate] xtermMouseReporting]) 
-		&& (locationInTextView.y > visibleRect.origin.y) && !([event modifierFlags] & NSAlternateKeyMask))
+		&& (locationInTextView.y > visibleRect.origin.y))
 		//		&& ([event modifierFlags] & NSCommandKeyMask == 0)) 
 	{
 		int rx, ry;
@@ -868,7 +1036,7 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 
 		int bnum = [event buttonNumber];
 		if (bnum == 2) bnum = 1;
@@ -878,7 +1046,7 @@ static NSCursor* textViewCursor =  nil;
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
 				reportingMouseDown = YES;
-				[session writeTask:[terminal mousePress:bnum withModifiers:[event modifierFlags] atX:rx Y:ry]];
+				[task writeTask:[terminal mousePress:bnum withModifiers:[event modifierFlags] atX:rx Y:ry]];
 				return;
 				break;
 			case MOUSE_REPORTING_NONE:
@@ -902,7 +1070,7 @@ static NSCursor* textViewCursor =  nil;
 	
 	NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
 	if (([[self delegate] xtermMouseReporting]) 
-		&& reportingMouseDown && !([event modifierFlags] & NSAlternateKeyMask))
+		&& reportingMouseDown)
 	{
 		reportingMouseDown = NO;
 		int rx, ry;
@@ -911,13 +1079,13 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		switch ([terminal mouseMode]) {
 			case MOUSE_REPORTING_NORMAL:
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
-				[session writeTask:[terminal mouseReleaseAtX:rx Y:ry]];
+				[task writeTask:[terminal mouseReleaseAtX:rx Y:ry]];
 				return;
 				break;
 			case MOUSE_REPORTING_NONE:
@@ -938,7 +1106,7 @@ static NSCursor* textViewCursor =  nil;
 	NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
 	if (([[self delegate] xtermMouseReporting]) 
 		&& (locationInTextView.y > visibleRect.origin.y)
-		&& reportingMouseDown && !([event modifierFlags] & NSAlternateKeyMask))
+		&& reportingMouseDown)
 	{
 		int rx, ry;
 		rx = (locationInTextView.x-MARGIN - visibleRect.origin.x)/charWidth;
@@ -946,7 +1114,7 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		int bnum = [event buttonNumber];
 		if (bnum == 2) bnum = 1;
@@ -955,7 +1123,7 @@ static NSCursor* textViewCursor =  nil;
 			case MOUSE_REPORTING_NORMAL:
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
-				[session writeTask:[terminal mouseMotion:bnum withModifiers:[event modifierFlags] atX:rx Y:ry]];
+				[task writeTask:[terminal mouseMotion:bnum withModifiers:[event modifierFlags] atX:rx Y:ry]];
 				return;
 				break;
 			case MOUSE_REPORTING_NONE:
@@ -970,7 +1138,7 @@ static NSCursor* textViewCursor =  nil;
 - (void) rightMouseDown: (NSEvent *) event
 {
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s: %@]", __PRETTY_FUNCTION__, event);
+    NSLog(@"%s: %@]", __PRETTY_FUNCTION__, sender );
 #endif
 	
     NSPoint locationInWindow, locationInTextView;
@@ -979,7 +1147,7 @@ static NSCursor* textViewCursor =  nil;
 	
 	NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
 	if (([[self delegate] xtermMouseReporting]) 
-		&& (locationInTextView.y > visibleRect.origin.y) && !([event modifierFlags] & NSAlternateKeyMask))
+		&& (locationInTextView.y > visibleRect.origin.y))
 		//		&& ([event modifierFlags] & NSCommandKeyMask == 0)) 
 	{
 		int rx, ry;
@@ -988,14 +1156,14 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		switch ([terminal mouseMode]) {
 			case MOUSE_REPORTING_NORMAL:
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
 				reportingMouseDown = YES;
-				[session writeTask:[terminal mousePress:2 withModifiers:[event modifierFlags] atX:rx Y:ry]];
+				[task writeTask:[terminal mousePress:2 withModifiers:[event modifierFlags] atX:rx Y:ry]];
 				return;
 				break;
 			case MOUSE_REPORTING_NONE:
@@ -1015,7 +1183,7 @@ static NSCursor* textViewCursor =  nil;
 	
 	NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
 	if (([[self delegate] xtermMouseReporting]) 
-		&& reportingMouseDown && !([event modifierFlags] & NSAlternateKeyMask))
+		&& reportingMouseDown)
 	{
 		reportingMouseDown = NO;
 		int rx, ry;
@@ -1024,13 +1192,13 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		switch ([terminal mouseMode]) {
 			case MOUSE_REPORTING_NORMAL:
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
-				[session writeTask:[terminal mouseReleaseAtX:rx Y:ry]];
+				[task writeTask:[terminal mouseReleaseAtX:rx Y:ry]];
 				return;
 				break;
 			case MOUSE_REPORTING_NONE:
@@ -1051,7 +1219,7 @@ static NSCursor* textViewCursor =  nil;
 	NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
 	if (([[self delegate] xtermMouseReporting]) 
 		&& (locationInTextView.y > visibleRect.origin.y)
-		&& reportingMouseDown && !([event modifierFlags] & NSAlternateKeyMask))
+		&& reportingMouseDown)
 	{
 		int rx, ry;
 		rx = (locationInTextView.x-MARGIN - visibleRect.origin.x)/charWidth;
@@ -1059,13 +1227,13 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		switch ([terminal mouseMode]) {
 			case MOUSE_REPORTING_NORMAL:
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
-				[session writeTask:[terminal mouseMotion:2 withModifiers:[event modifierFlags] atX:rx Y:ry]];
+				[task writeTask:[terminal mouseMotion:2 withModifiers:[event modifierFlags] atX:rx Y:ry]];
 				return;
 				break;
 			case MOUSE_REPORTING_NONE:
@@ -1080,7 +1248,7 @@ static NSCursor* textViewCursor =  nil;
 - (void)scrollWheel:(NSEvent *)event
 {
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s: %@]", __PRETTY_FUNCTION__, event);
+    NSLog(@"%s: %@]", __PRETTY_FUNCTION__, sender );
 #endif
 	
     NSPoint locationInWindow, locationInTextView;
@@ -1089,7 +1257,7 @@ static NSCursor* textViewCursor =  nil;
 	
 	NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
 	if (([[self delegate] xtermMouseReporting]) 
-		&& (locationInTextView.y > visibleRect.origin.y) && !([event modifierFlags] & NSAlternateKeyMask))
+		&& (locationInTextView.y > visibleRect.origin.y))
 		//		&& ([event modifierFlags] & NSCommandKeyMask == 0)) 
 	{
 		int rx, ry;
@@ -1098,16 +1266,14 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		switch ([terminal mouseMode]) {
 			case MOUSE_REPORTING_NORMAL:
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
-				if([event deltaY] != 0) {
-					[session writeTask:[terminal mousePress:([event deltaY] > 0 ? 4:5) withModifiers:[event modifierFlags] atX:rx Y:ry]];
-					return;
-				}
+				[task writeTask:[terminal mousePress:([event deltaY] > 0 ? 5:4) withModifiers:[event modifierFlags] atX:rx Y:ry]];
+				return;
 				break;
 			case MOUSE_REPORTING_NONE:
 			case MOUSE_REPORTING_HILITE:
@@ -1115,7 +1281,6 @@ static NSCursor* textViewCursor =  nil;
 				break;
 		}
 	}
-	
 	[super scrollWheel:event];	
 }
 
@@ -1156,7 +1321,7 @@ static NSCursor* textViewCursor =  nil;
 
 	NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
 	if (([[self delegate] xtermMouseReporting]) 
-		&& (locationInTextView.y > visibleRect.origin.y) && !([event modifierFlags] & NSAlternateKeyMask))
+		&& (locationInTextView.y > visibleRect.origin.y))
 	{
 		int rx, ry;
 		rx = (locationInTextView.x-MARGIN - visibleRect.origin.x)/charWidth;
@@ -1164,14 +1329,14 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		switch ([terminal mouseMode]) {
 			case MOUSE_REPORTING_NORMAL:
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
 				reportingMouseDown = YES;
-				[session writeTask:[terminal mousePress:0 withModifiers:[event modifierFlags] atX:rx Y:ry]];
+				[task writeTask:[terminal mousePress:0 withModifiers:[event modifierFlags] atX:rx Y:ry]];
 				return;
 				break;
 			case MOUSE_REPORTING_NONE:
@@ -1180,10 +1345,7 @@ static NSCursor* textViewCursor =  nil;
 				break;
 		}
 	}
-
-	// Lock auto scrolling while the user is selecting text
-	[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:YES];
-
+	
 	if(mouseDownEvent != nil)
     {
 		[mouseDownEvent release];
@@ -1211,7 +1373,7 @@ static NSCursor* textViewCursor =  nil;
             endY = y;
         }
 		// check if we clicked inside a selection for a possible drag
-		else if(startX > -1 && [self _isCharSelectedInRow:y col:x checkOld:NO])
+		else if(startX > -1 && [self _mouseDownOnSelection: event] == YES)
 		{
 			mouseDownOnSelection = YES;
 			[super mouseDown: event];
@@ -1230,11 +1392,8 @@ static NSCursor* textViewCursor =  nil;
         
         // double-click; select word
         selectMode = SELECT_WORD;
-		NSString *selectedWord = [self _getWordForX: x y: y startX: &tmpX1 startY: &tmpY1 endX: &tmpX2 endY: &tmpY2];
-		if ([self _findMatchingParenthesis:selectedWord withX:tmpX1 Y:tmpY1]) {
-			;
-		}
-		else if (startX > -1 && ([event modifierFlags] & NSShiftKeyMask))
+		[self _getWordForX: x y: y startX: &tmpX1 startY: &tmpY1 endX: &tmpX2 endY: &tmpY2];
+        if (startX > -1 && ([event modifierFlags] & NSShiftKeyMask))
         {
             if (startX+startY*width<tmpX1+tmpY1*width) {
                 endX = tmpX2;
@@ -1281,10 +1440,13 @@ static NSCursor* textViewCursor =  nil;
             startY = endY = y;
         }            
 	}
+	    
+    if (startX>-1 && (startX != endX || startY!=endY)) 
+        [self _selectFromX:startX Y:startY toX:endX Y:endY];
 
     if([_delegate respondsToSelector: @selector(willHandleEvent:)] && [_delegate willHandleEvent: event])
         [_delegate handleEvent: event];
-	[self updateDirtyRects];
+	[self setNeedsDisplay: YES];
 	
 }
 
@@ -1308,7 +1470,7 @@ static NSCursor* textViewCursor =  nil;
 	
 	
 	if ([[self delegate] xtermMouseReporting]
-		&& reportingMouseDown && !([event modifierFlags] & NSAlternateKeyMask)) 
+		&& reportingMouseDown) 
 	{
 		reportingMouseDown = NO;
 		int rx, ry;
@@ -1318,13 +1480,13 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		switch ([terminal mouseMode]) {
 			case MOUSE_REPORTING_NORMAL:
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
-				[session writeTask:[terminal mouseReleaseAtX:rx Y:ry]];
+				[task writeTask:[terminal mouseReleaseAtX:rx Y:ry]];
 				return;
 				break;
 			case MOUSE_REPORTING_NONE:
@@ -1333,12 +1495,7 @@ static NSCursor* textViewCursor =  nil;
 				break;
 		}
 	}
-
-	// Unlock auto scrolling as the user as finished selecting text
-	if(([self visibleRect].origin.y + [self visibleRect].size.height) / lineHeight == [dataSource numberOfLines]) {
-		[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:NO];
-	}
-
+	
 	if(mouseDown == NO)
 		return;
 	mouseDown = NO;
@@ -1353,18 +1510,11 @@ static NSCursor* textViewCursor =  nil;
     }
     else if ([mouseDownEvent locationInWindow].x == [event locationInWindow].x &&
 			 [mouseDownEvent locationInWindow].y == [event locationInWindow].y && 
-			 !([event modifierFlags] & NSShiftKeyMask) &&
+			 !([event modifierFlags] & NSCommandKeyMask) && 
+             !([event modifierFlags] & NSShiftKeyMask) &&
 			 [event clickCount] < 2 && !mouseDragged) 
 	{		
 		startX=-1;
-        if(([event modifierFlags] & NSCommandKeyMask) && [[PreferencePanel sharedInstance] cmdSelection] &&
-           [mouseDownEvent locationInWindow].x == [event locationInWindow].x &&
-           [mouseDownEvent locationInWindow].y == [event locationInWindow].y)
-        {
-            //[self _openURL: [self selectedText]];
-			NSString *url = [self _getURLForX:x y:y];
-            if (url != nil) [self _openURL:url];
-        }
 	}
 	
 	// if we are on an empty line, we select the current line to the end
@@ -1372,14 +1522,22 @@ static NSCursor* textViewCursor =  nil;
 	//  endX = [dataSource width] - 1;
 	
 	
-	if (startX > -1 && _delegate) {
+	[self _selectFromX:startX Y:startY toX:endX Y:endY];
+    if (startX!=-1&&_delegate) {
 		// if we want to copy our selection, do so
-		if([[PreferencePanel sharedInstance] copySelection])
-			[self copy: self];
-	}
+        if([[PreferencePanel sharedInstance] copySelection])
+            [self copy: self];
+        // handle command click on URL
+        if(([event modifierFlags] & NSCommandKeyMask) && [[PreferencePanel sharedInstance] cmdSelection] &&
+		   [mouseDownEvent locationInWindow].x == [event locationInWindow].x &&
+		   [mouseDownEvent locationInWindow].y == [event locationInWindow].y)
+        {
+            [self _openURL: [self selectedText]];
+        }
+    }
 	
-	selectMode = SELECT_CHAR;
-	[self updateDirtyRects];
+    selectMode = SELECT_CHAR;
+	[self setNeedsDisplay: YES];
 }
 
 - (void)mouseDragged:(NSEvent *)event
@@ -1403,7 +1561,7 @@ static NSCursor* textViewCursor =  nil;
 	y = locationInTextView.y/lineHeight;
 	
 	if (([[self delegate] xtermMouseReporting])
-		&& reportingMouseDown&& !([event modifierFlags] & NSAlternateKeyMask)) 
+		&& reportingMouseDown) 
 	{
 		int rx, ry;
 		NSRect visibleRect = [[self enclosingScrollView] documentVisibleRect];
@@ -1412,12 +1570,12 @@ static NSCursor* textViewCursor =  nil;
 		if (rx < 0) rx = -1;
 		if (ry < 0) ry = -1;
 		VT100Terminal *terminal = [dataSource terminal];
-		PTYSession* session = [dataSource session];
+		PTYTask *task = [dataSource shellTask];
 		
 		switch ([terminal mouseMode]) {
 			case MOUSE_REPORTING_BUTTON_MOTION:
 			case MOUSE_REPORTING_ALL_MOTION:
-				[session writeTask:[terminal mouseMotion:0 withModifiers:[event modifierFlags] atX:rx Y:ry]];
+				[task writeTask:[terminal mouseMotion:0 withModifiers:[event modifierFlags] atX:rx Y:ry]];
 			case MOUSE_REPORTING_NORMAL:
 				return;
 				break;
@@ -1431,9 +1589,9 @@ static NSCursor* textViewCursor =  nil;
 	mouseDragged = YES;
 	
 	// check if we want to drag and drop a selection
-	if(mouseDownOnSelection == YES && ([event modifierFlags] & NSCommandKeyMask))
+	if(mouseDownOnSelection == YES)
 	{
-		theSelectedText = [self contentFromX: startX Y: startY ToX: endX Y: endY pad: NO];
+		theSelectedText = [self contentFromX: startX Y: startY ToX: endX Y: endY breakLines: YES pad: NO];
 		if([theSelectedText length] > 0)
 		{
 			[self _dragText: theSelectedText forEvent: event];
@@ -1452,7 +1610,7 @@ static NSCursor* textViewCursor =  nil;
     }
     
 	// if we are on an empty line, we select the current line to the end
-	if(y>=0 && [self _isBlankLine: y])
+	if([self _isBlankLine: y] && y >= 0)
 		x = width - 1;
 	
 	if(locationInTextView.x < MARGIN && startY < y)
@@ -1462,7 +1620,7 @@ static NSCursor* textViewCursor =  nil;
 		y--;
 	}
     if (y<0) y=0;
-    if (y>=[dataSource numberOfLines]) y=[dataSource numberOfLines] - 1;
+    if (y>=[dataSource numberOfLines]) y=numberOfLines - 1;
     
     switch (selectMode) {
         case SELECT_CHAR:
@@ -1505,62 +1663,70 @@ static NSCursor* textViewCursor =  nil;
             }
             break;
     }
-
-	[self updateDirtyRects];
+            
+    [self _selectFromX:startX Y:startY toX:endX Y:endY];
+	[self setNeedsDisplay: YES];
 	//NSLog(@"(%d,%d)-(%d,%d)",startX,startY,endX,endY);
 }
 
-
-- (NSString *) contentFromX:(int)startx Y:(int)starty ToX:(int)endx Y:(int)endy pad: (BOOL) pad
+- (NSString *) contentFromX:(int)startx Y:(int)starty ToX:(int)endx Y:(int)endy breakLines: (BOOL) breakLines pad: (BOOL) pad
 {
 	unichar *temp;
-	int j;
+	int j, line, scline;
 	int width, y, x1, x2;
 	NSString *str;
-	screen_char_t *theLine;
+	unichar *buf;
 	BOOL endOfLine;
 	int i;
 	
 	width = [dataSource width];
+	scline = [dataSource numberOfLines]-[dataSource height];
 	temp = (unichar *) malloc(((endy-starty+1)*(width+1)+(endx-startx+1))*sizeof(unichar));
-	j = 0;
-	for (y = starty; y <= endy; y++) 
-	{
-		theLine = [dataSource getLineAtIndex:y];
-
-		x1 = y == starty ? startx : 0;
-		x2 = y == endy ? endx : width-1;
+	j=0;
+	for (y=starty;y<=endy;y++) {
+		if (y<scline) {
+			line=[dataSource lastBufferLineIndex]-scline+y;
+			if (line<0) line+=[dataSource scrollbackLines];
+			buf=[dataSource bufferLines]+line*width;
+		} else {
+			line=y-scline;
+			buf=[dataSource screenLines]+line*width;
+		}
+		x1=0; 
+		x2=width - 1;
+		if (y == starty) 
+			x1 = startx;
+		if (y == endy) 
+			x2=endx;
 		for(; x1 <= x2; x1++) 
 		{
-			if (theLine[x1].ch != 0xffff) 
-			{
-				temp[j] = theLine[x1].ch;
-				if(theLine[x1].ch == 0) // end of line?
+			if (buf[x1]!=0xffff) {
+				temp[j]=buf[x1];
+				if(buf[x1] == 0) // end of line?
 				{
 					// if there is no text after this, insert a hard line break
 					endOfLine = YES;
-					for(i = x1+1; i <= x2 && endOfLine; i++)
+					for(i = x1+1; i <= x2; i++)
 					{
-						if(theLine[i].ch != 0)
+						if(buf[i] != 0)
 							endOfLine = NO;
 					}
-					if (endOfLine) {
-						if (pad) {
-							for(i = x1; i <= x2; i++) temp[j++] = ' ';
-						}
-						if (y < endy && !theLine[width].ch){
-							temp[j] = '\n'; // hard break
-							j++;
-							break; // continue to next line
-						}
-						break;
+					if(endOfLine && !pad && y < endy)
+					{
+						temp[j] = '\n'; // hard break
+						j++;
+						break; // continue to next line
 					}
+					else if (endOfLine && (y == endy))
+						break;
 					else
 						temp[j] = ' '; // represent blank with space
 				}
-				else if (x1 == x2 && y < endy && !theLine[width].ch) // definitely end of line
+				else if (x1 == x2 && breakLines && y < endy) // definitely end of line
 				{
-					temp[++j] = '\n'; // hard break
+					temp[j+1] = '\n'; // hard break
+					j += 2;
+					break; // continue to next line
 				}
 				j++;
 			}
@@ -1579,32 +1745,26 @@ static NSCursor* textViewCursor =  nil;
 	startX = startY = 0;
 	endX = [dataSource width] - 1;
 	endY = [dataSource numberOfLines] - 1;
-	[self updateDirtyRects];
-}
-
-- (void) deselect
-{
-	if (startX > -1) {
-		startX = -1;
-		[self updateDirtyRects];
-	}
+	[self _selectFromX:startX Y:startY toX:endX Y:endY];
+	[self setNeedsDisplay: YES];
 }
 
 - (NSString *) selectedText
 {
-	return [self selectedTextWithPad: NO];
+	return [self selectedTextBreakingLines: NO pad: NO];
 }
 
 
-- (NSString *) selectedTextWithPad: (BOOL) pad
+- (NSString *) selectedTextBreakingLines: (BOOL) breakLines pad: (BOOL) pad
 {
 	
 #if DEBUG_METHOD_TRACE
     NSLog(@"%s]", __PRETTY_FUNCTION__);
 #endif
 	
-	if (startX <= -1) return nil;
-	return ([self contentFromX: startX Y: startY ToX: endX Y: endY pad: pad]);
+	if (startX == -1) return nil;
+	
+	return ([self contentFromX: startX Y: startY ToX: endX Y: endY breakLines: breakLines pad: pad]);
 	
 }
 
@@ -1612,10 +1772,10 @@ static NSCursor* textViewCursor =  nil;
 {
 	
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTextView content]", __FILE__, __LINE__);
+    NSLog(@"%s(%d):-[PTYTextView copy:%@]", __FILE__, __LINE__, sender );
 #endif
     	
-	return [self contentFromX:0 Y:0 ToX:[dataSource width]-1 Y:[dataSource numberOfLines]-1 pad: NO];
+	return [self contentFromX:0 Y:0 ToX:[dataSource width]-1 Y:[dataSource numberOfLines]-1 breakLines: YES pad: NO];
 }
 
 - (void) copy: (id) sender
@@ -1651,7 +1811,7 @@ static NSCursor* textViewCursor =  nil;
     NSLog(@"%s: %@]", __PRETTY_FUNCTION__, sender );
 #endif
     
-    if (startX > -1 && [_delegate respondsToSelector:@selector(pasteString:)])
+    if (startX >= 0 && [_delegate respondsToSelector:@selector(pasteString:)])
         [_delegate pasteString:[self selectedText]];
 	
 }
@@ -1681,16 +1841,24 @@ static NSCursor* textViewCursor =  nil;
     }
     else if ([item action]==@selector(mail:) ||
              [item action]==@selector(browse:) ||
-			 [item action]==@selector(searchInBrowser:) ||
              [item action]==@selector(copy:) ||
 			 [item action]==@selector(pasteSelection:) || 
 			 ([item action]==@selector(print:) && [item tag] == 1)) // print selection
     {
         //        NSLog(@"selected range:%d",[self selectedRange].length);
-        return (startX > -1);
+        return (startX>=0);
     }
     else
         return NO;
+}
+
+- (void)changeFont:(id)sender
+{
+#if DEBUG_METHOD_TRACE
+    NSLog(@"%s(%d):-[PTYTextView changeFont:%@]", __FILE__, __LINE__, sender );
+#endif
+    
+    [super changeFont:sender];
 }
 
 - (NSMenu *)menuForEvent:(NSEvent *)theEvent
@@ -1703,8 +1871,6 @@ static NSCursor* textViewCursor =  nil;
     // Menu items for acting on text selections
     [cMenu addItemWithTitle:NSLocalizedStringFromTableInBundle(@"-> Browser",@"iTerm", [NSBundle bundleForClass: [self class]], @"Context menu")
                      action:@selector(browse:) keyEquivalent:@""];
-    [cMenu addItemWithTitle:NSLocalizedStringFromTableInBundle(@"-> Google",@"iTerm", [NSBundle bundleForClass: [self class]], @"Context menu")
-                     action:@selector(searchInBrowser:) keyEquivalent:@""];
     [cMenu addItemWithTitle:NSLocalizedStringFromTableInBundle(@"-> Mail",@"iTerm", [NSBundle bundleForClass: [self class]], @"Context menu")
                      action:@selector(mail:) keyEquivalent:@""];
     
@@ -1742,11 +1908,6 @@ static NSCursor* textViewCursor =  nil;
 - (void) browse:(id)sender
 {
 	[self _openURL: [self selectedText]];
-}
-
-- (void) searchInBrowser:(id)sender
-{
-	[self _openURL: [[NSString stringWithFormat:[[PreferencePanel sharedInstance] searchCommand], [self selectedText]] stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding]];
 }
 
 //
@@ -1885,17 +2046,17 @@ static NSCursor* textViewCursor =  nil;
                         [aMutableString replaceOccurrencesOfString: @"(" withString: @"\\(" options: 0 range: NSMakeRange(0, [aMutableString length])];
                         [aMutableString replaceOccurrencesOfString: @")" withString: @"\\)" options: 0 range: NSMakeRange(0, [aMutableString length])];
                         [aMutableString replaceOccurrencesOfString: @"\"" withString: @"\\\"" options: 0 range: NSMakeRange(0, [aMutableString length])];
-                        [aMutableString replaceOccurrencesOfString: @"&" withString: @"\\&" options: 0 range: NSMakeRange(0, [aMutableString length])];
-                        [aMutableString replaceOccurrencesOfString: @"'" withString: @"\\'" options: 0 range: NSMakeRange(0, [aMutableString length])];
+    [aMutableString replaceOccurrencesOfString: @"&" withString: @"\\&" options: 0 range: NSMakeRange(0, [aMutableString length])];
+    [aMutableString replaceOccurrencesOfString: @"'" withString: @"\\'" options: 0 range: NSMakeRange(0, [aMutableString length])];
 
-                        [delegate pasteString: aMutableString];
-                        [delegate pasteString: @" "];
-                        [aMutableString release];
+    [delegate pasteString: aMutableString];
+    [delegate pasteString: @" "];
+    [aMutableString release];
                     }
 
                 }
-                bResult = YES;
-                break;				
+    bResult = YES;
+    break;				
         }
 
     }
@@ -1922,8 +2083,11 @@ static NSCursor* textViewCursor =  nil;
 
 - (void)resetCursorRects
 {
-    [self addCursorRect:[self bounds] cursor:textViewCursor];
-    [textViewCursor setOnMouseEntered:YES];
+    static NSCursor *cursor=nil;
+	//    NSLog(@"Setting mouse here");
+    if (!cursor) cursor=[[NSCursor alloc] initWithImage:[[NSCursor arrowCursor] image] hotSpot:NSMakePoint(0,0)];
+    [self addCursorRect:[self bounds] cursor:cursor];
+    [cursor setOnMouseEntered:YES];
 }
 
 // Save method
@@ -1966,9 +2130,8 @@ static NSCursor* textViewCursor =  nil;
 {
 	NSRect visibleRect;
 	int lineOffset, numLines;
-	int type = sender ? [sender tag] : 0;
 	
-	switch (type)
+	switch ([sender tag])
 	{
 		case 0: // visible range
 			visibleRect = [[self enclosingScrollView] documentVisibleRect];
@@ -1978,10 +2141,10 @@ static NSCursor* textViewCursor =  nil;
 			numLines = visibleRect.size.height/lineHeight;
 			[self printContent: [self contentFromX: 0 Y: lineOffset 
 											   ToX: [dataSource width] - 1 Y: lineOffset + numLines - 1
-										pad: NO]];
+										breakLines: YES pad: NO]];
 			break;
 		case 1: // text selection
-			[self printContent: [self selectedTextWithPad: NO]];
+			[self printContent: [self selectedTextBreakingLines: YES pad: NO]];
 			break;
 		case 2: // entire buffer
 			[self printContent: [self content]];
@@ -2074,7 +2237,7 @@ static NSCursor* textViewCursor =  nil;
     }
 	IM_INPUT_MARKEDRANGE = NSMakeRange(0,[markedText length]);
     IM_INPUT_SELRANGE = selRange;
-	[self updateDirtyRects];
+	[self setNeedsDisplay: YES];
 }
 
 - (void)unmarkText
@@ -2181,14 +2344,14 @@ static NSCursor* textViewCursor =  nil;
 	BOOL foundString;
 	int tmpX, tmpY;
 	
-	foundString = [self _findString: aString forwardDirection: direction ignoringCase: ignoreCase wrapping:YES];
+	foundString = [self _findString: aString forwardDirection: direction ignoringCase: ignoreCase];
 	if(foundString == NO)
 	{
 		// start from beginning or end depending on search direction
 		tmpX = lastFindX;
 		tmpY = lastFindY;
 		lastFindX = lastFindY = -1;
-		foundString = [self _findString: aString forwardDirection: direction ignoringCase: ignoreCase wrapping:YES];
+		foundString = [self _findString: aString forwardDirection: direction ignoringCase: ignoreCase];
 		if(foundString == NO)
 		{
 			lastFindX = tmpX;
@@ -2207,18 +2370,20 @@ static NSCursor* textViewCursor =  nil;
 - (void) setTransparency: (float) fVal
 {
 	transparency = fVal;
-	[self setNeedsDisplay:YES];
+	forceUpdate = YES;
+	[self setNeedsDisplay: YES];
 }
 
 - (BOOL) useTransparency
 {
-	return useTransparency;
+  return useTransparency;
 }
 
 - (void) setUseTransparency: (BOOL) flag
 {
-	useTransparency = flag;
-	[self setNeedsDisplay:YES];
+  useTransparency = flag;
+  forceUpdate = YES;
+  [self setNeedsDisplay: YES];
 }
 
 // service stuff
@@ -2261,227 +2426,153 @@ static NSCursor* textViewCursor =  nil;
 //
 @implementation PTYTextView (Private)
 
-- (void) _drawLine:(int)line AtY:(float)curY
+- (void) _renderChar:(NSImage *)image withChar:(unichar) carac withColor:(NSColor*)color withFont:(NSFont*)aFont bold:(int)bold
 {
-	int WIDTH = [dataSource width];
-	screen_char_t* theLine = [dataSource getLineAtIndex:line];
-	PTYScrollView* scrollView = (PTYScrollView*)[self enclosingScrollView];
-	BOOL hasBGImage = [scrollView backgroundImage] != nil;
-	float alpha = useTransparency ? 1.0 - transparency : 1.0;
-	BOOL reversed = [[dataSource terminal] screenMode];
-	NSColor *aColor = nil;
+	NSAttributedString  *crap;
+	NSDictionary *attrib;
+	NSFont *theFont;
+	float strokeWidth = 0;
+	BOOL renderBold;
 	
-	// Redraw margins
-	NSRect leftMargin = NSMakeRect(0, curY, MARGIN, lineHeight);
-	NSRect rightMargin = leftMargin;
-	leftMargin.origin.x = [self visibleRect].size.width - MARGIN;
-	aColor = [self colorForCode:DEFAULT_BG_COLOR_CODE];
-	aColor = [aColor colorWithAlphaComponent:alpha];
-	[aColor set];
-	if(hasBGImage) {
-		[scrollView drawBackgroundImageRect:leftMargin];
-		[scrollView drawBackgroundImageRect:rightMargin];
-	} else {
-		NSRectFill(leftMargin);
-		NSRectFill(rightMargin);
-	}
-
-	// Contiguous sections of background with the same colour
-	// are combined into runs and draw as one operation
-	int bgstart = -1;
-	int j = 0;
-	unsigned int bgcode = 0, fgcode = 0;
-	BOOL bgselected = NO;
-	while(j <= WIDTH) {
-		if(theLine[j].ch == 0xffff) {
-			j++;
-			continue;
+	//NSLog(@"%s: drawing char %c", __PRETTY_FUNCTION__, carac);
+	//NSLog(@"%@",NSStrokeWidthAttributeName);
+	
+	theFont = aFont;
+	renderBold = bold;
+	if([self disableBold])
+		renderBold = NO;
+	
+	// Check if there is native bold support
+	if(renderBold)
+	{
+		theFont = [[NSFontManager sharedFontManager] convertFont: aFont toHaveTrait: NSBoldFontMask];
+		
+		// check if conversion was successful, else use our own methods to convert to bold
+		if([[NSFontManager sharedFontManager] fontNamed: [theFont fontName] hasTraits: NSBoldFontMask] == YES)
+		{
+			strokeWidth = 0;
+			renderBold = NO;
 		}
-
-		BOOL selected = [self _isCharSelectedInRow:line col:j checkOld:NO];
-		BOOL double_width = j<WIDTH-1 && (theLine[j+1].ch == 0xffff);
-
-		if(j != WIDTH && bgstart < 0) {
-			// Start new run
-			bgstart = j;
-			bgcode = theLine[j].bg_color;
-			bgselected = selected;
-		}
-
-		if(j != WIDTH && bgselected == selected && theLine[j].bg_color == bgcode) {
-			// Continue the run
-			j+=(double_width?2:1);
-		}
-		else if(bgstart >= 0) {
-			// This run is finished, draw it
-			NSRect bgRect = NSMakeRect(floor(MARGIN+bgstart*charWidth),curY,ceil((j-bgstart)*charWidth),lineHeight);
-
-			if(hasBGImage) {
-				[(PTYScrollView *)[self enclosingScrollView] drawBackgroundImageRect: bgRect];
-			}
-			if(!hasBGImage || bgcode != DEFAULT_BG_COLOR_CODE || bgselected) {
-				aColor = bgselected ? selectionColor : [self colorForCode: (reversed && bgcode == DEFAULT_BG_COLOR_CODE) ? DEFAULT_FG_COLOR_CODE: bgcode];
-				aColor = [aColor colorWithAlphaComponent:alpha];
-				[aColor set];
-				NSRectFillUsingOperation(bgRect, hasBGImage?NSCompositeSourceOver:NSCompositeCopy);
-			}
-
-			// Now draw characters over the top
-			float curX = MARGIN + bgstart*charWidth;
-
-			for(int k = bgstart; k < j; k++) {
-				if(theLine[k].ch == 0xffff) continue;
-				double_width = k<WIDTH-1 && (theLine[k+1].ch == 0xffff);
-
-				if(bgselected && ((theLine[k].fg_color & 0x3ff) == DEFAULT_FG_COLOR_CODE))
-					fgcode = SELECTED_TEXT | (theLine[k].fg_color & BOLD_MASK); // check for bold
-				else
-					fgcode = (reversed && theLine[k].fg_color & DEFAULT_FG_COLOR_CODE) ?
-						(DEFAULT_BG_COLOR_CODE | (theLine[k].fg_color & BOLD_MASK)) : theLine[k].fg_color & 0x3ff;
-
-				if (blinkShow || !(theLine[k].fg_color & BLINK_MASK)) {
-					[self _drawCharacter:theLine[k].ch fgColor:fgcode AtX:curX Y:curY doubleWidth: double_width];
-					//draw underline
-					if (theLine[k].fg_color & UNDER_MASK && theLine[k].ch) {
-						[[self colorForCode:fgcode] set];
-						NSRectFill(NSMakeRect(curX,curY+lineHeight-2,double_width?charWidth*2:charWidth,1));
-					}
-				}
-				curX+=charWidth*(double_width?2:1);
-			}
-
-			bgstart = -1;
-			// Return to top of loop without incrementing j so this
-			// character gets the chance to start its own run
-		}
-		else {
-			// Don't need to draw and not on a run, move to next char
-			j+=(double_width?2:1);
+		else
+		{
+			strokeWidth = antiAlias?(float)bold*(-0.1):0;
+			theFont = aFont;
 		}
 	}
+	
+	if (systemVersion >= 0x00001030)
+	{
+		attrib=[NSDictionary dictionaryWithObjectsAndKeys:
+			theFont, NSFontAttributeName,
+			color, NSForegroundColorAttributeName,
+			[NSNumber numberWithFloat: strokeWidth], @"NSStrokeWidth",
+			nil];
+	}
+	else
+	{
+		attrib=[NSDictionary dictionaryWithObjectsAndKeys:
+			theFont, NSFontAttributeName,
+			color, NSForegroundColorAttributeName,
+			nil];		
+	}
+	
+	
+	crap = [[[NSAttributedString alloc]initWithString:[NSString stringWithCharacters:&carac length:1]
+										   attributes:attrib] autorelease];
+	[image lockFocus];
+	[[NSGraphicsContext currentContext] setShouldAntialias: antiAlias];
+	[crap drawAtPoint:NSMakePoint(0,0)];
+	// on older systems, for bold, redraw the character offset by 1 pixel
+	if (renderBold && (systemVersion < 0x00001030 || !antiAlias))
+	{
+		[crap drawAtPoint:NSMakePoint(1,0)];
+	}
+	[image unlockFocus];
+} // renderChar
+
+#define  CELLSIZE (CACHESIZE/256)
+- (NSImage *) _getCharImage:(unichar) code color:(int)fg doubleWidth:(BOOL) dw
+{
+	int i;
+	int j;
+	NSImage *image;
+	int width;
+	unsigned int c = fg;
+	int seed;
+	
+	if (fg & SELECTED_TEXT) {
+		c = SELECT_CODE | (fg & BOLD_MASK);
+	}
+	else if (fg & CURSOR_TEXT) {
+		c = CURSOR_CODE | (fg & BOLD_MASK);
+	}
+	else {
+		c &= (BOLD_MASK|0x1f); // turn of all masks except for bold and default fg color
+	}
+	if (!code) return nil;
+	width = dw?2:1;
+	seed = code;
+	seed <<= 8;
+	srand( seed + c );
+	i = rand() % (CACHESIZE-CELLSIZE);
+	for(j = 0;(charImages[i].code!=code || charImages[i].color!=c) && charImages[i].image && j<CELLSIZE; i++, j++);
+	if (!charImages[i].image) {
+		//  NSLog(@"add into cache");
+		image=charImages[i].image=[[NSImage alloc]initWithSize:NSMakeSize(charWidth*width, lineHeight)];
+		charImages[i].code=code;
+		charImages[i].color=c;
+		charImages[i].count=1;
+		[self _renderChar: image 
+				withChar: code
+			   withColor: [self colorForCode: c] 
+				withFont: ISDOUBLEWIDTHCHARACTER(code)?nafont:font
+					bold: c&BOLD_MASK];
+		
+		return image;
+	}
+	else if (j>=CELLSIZE) {
+		// NSLog(@"new char, but cache full (%d, %d, %d)", code, c, i);
+		int t=1;
+		for(j=2; j<=CELLSIZE; j++) {	//find a least used one, and replace it with new char
+			if (charImages[i-j].count < charImages[i-t].count) t = j;
+		}
+		t = i - t;
+		[charImages[t].image release];
+		image=charImages[t].image=[[NSImage alloc]initWithSize:NSMakeSize(charWidth*width, lineHeight)];
+		charImages[t].code=code;
+		charImages[t].color=c;
+		for(j=1; j<=CELLSIZE; j++) {	//reset the cache count
+			charImages[i-j].count -= charImages[t].count;
+		}
+		charImages[t].count=1;
+		
+		[self _renderChar: image 
+				withChar: code
+			   withColor: [self colorForCode: c] 
+				withFont: ISDOUBLEWIDTHCHARACTER(code)?nafont:font
+					bold: c & BOLD_MASK];
+		return image;
+	}
+	else {
+		//		NSLog(@"already in cache");
+		charImages[i].count++;
+		return charImages[i].image;
+	}
+	
 }
 
-- (void) _drawCursor
+- (void) _drawCharacter:(unichar)c fgColor:(int)fg AtX:(float)X Y:(float)Y doubleWidth:(BOOL) dw
 {
-	int WIDTH, HEIGHT;
-	screen_char_t* theLine;
-	int y1, x1;
-	float cursorWidth, cursorHeight;
-	float curX, curY;
-	BOOL double_width;
-	float alpha = useTransparency ? 1.0 - transparency : 1.0;
-
-	WIDTH = [dataSource width];
-	HEIGHT = [dataSource height];
-	x1=[dataSource cursorX]-1;
-	y1=[dataSource cursorY]-1;
-
-	if(charWidth < charWidthWithoutSpacing)
-		cursorWidth = charWidth;
-	else
-		cursorWidth = charWidthWithoutSpacing;
+	NSImage *image;
 	
-	if(lineHeight < charHeightWithoutSpacing)
-		cursorHeight = lineHeight;
-	else
-		cursorHeight = charHeightWithoutSpacing;
-
-	if([self blinkingCursor] && [[self window] isKeyWindow] && x1==oldCursorX && y1==oldCursorY)
-		showCursor = blinkShow;
-	else
-		showCursor = YES;
-
-	if(CURSOR) {
-		if (showCursor && x1<WIDTH && x1>=0 && y1>=0 && y1<HEIGHT) {
-			curX = floor(x1 * charWidth + MARGIN);
-			curY = (y1+[dataSource numberOfLines]-HEIGHT+1)*lineHeight - cursorHeight;
-			// get the cursor line
-			theLine = [dataSource getLineAtScreenIndex: y1];
-			double_width = 0;
-			unichar aChar = theLine[x1].ch;
-			if (aChar) {
-				if (aChar == 0xffff && x1>0) {
-					x1--;
-					aChar = theLine[x1].ch;
-				}
-				double_width = (x1 < WIDTH-1) && (theLine[x1+1].ch == 0xffff);
-			}
-			[[[self defaultCursorColor] colorWithAlphaComponent: alpha] set];
-
-			switch ([[PreferencePanel sharedInstance] cursorType]) {
-				case CURSOR_BOX:
-					// draw the box
-					if([[self window] isKeyWindow]) {
-						NSRectFill(NSMakeRect(curX, curY, ceil(cursorWidth*(double_width?2:1)), cursorHeight));
-					} else {
-						NSFrameRect(NSMakeRect(curX, curY, ceil(cursorWidth*(double_width?2:1)), cursorHeight));
-					}
-					// draw any character on cursor if we need to
-					if(aChar) {
-						[self _drawCharacter: aChar
-							fgColor: [[self window] isKeyWindow]?CURSOR_TEXT:theLine[x1].fg_color
-							AtX: x1 * charWidth + MARGIN
-							Y: (y1+[dataSource numberOfLines]-HEIGHT)*lineHeight
-							doubleWidth: double_width];
-					}
-
-					break;
-
-				case CURSOR_VERTICAL:
-					NSRectFill(NSMakeRect(curX, curY, 1, cursorHeight));
-					break;
-
-				case CURSOR_UNDERLINE:
-					NSRectFill(NSMakeRect(curX, curY+lineHeight-2, ceil(cursorWidth*(double_width?2:1)), 2));
-					break;
-			}
-		}
-
-		([dataSource dirty]+y1*WIDTH)[x1] = 1; //cursor loc is dirty
+	if (c) {
+		//NSLog(@"%s: %c(%d)",__PRETTY_FUNCTION__, c,c);
+		image=[self _getCharImage:c 
+						   color:fg
+					 doubleWidth:dw];
+		[image compositeToPoint:NSMakePoint(X,Y) operation:NSCompositeSourceOver];
 	}
-
-	oldCursorX = x1;
-	oldCursorY = y1;
-
-	// draw any text for NSTextInput
-	if([self hasMarkedText]) {
-		int len=[markedText length];
-		if (len>WIDTH-x1) len=WIDTH-x1;
-		[markedText drawInRect:NSMakeRect(floor(x1 * charWidth + MARGIN),
-				(y1+[dataSource numberOfLines]-HEIGHT)*lineHeight + (lineHeight - cursorHeight),
-				ceil((WIDTH-x1)*cursorWidth),cursorHeight)];
-		memset([dataSource dirty]+y1*WIDTH+x1, 1,WIDTH-x1>len*2?len*2:WIDTH-x1); //len*2 is an over-estimation, but safe
-	}
-
-}
-
-- (void) _drawCharacter:(unichar)code fgColor:(int)fg AtX:(float)X Y:(float)Y doubleWidth:(BOOL) dw
-{
-	if (!code) return;
-
-	static int oldfg = -1;
-	static NSFont* oldFont = nil;
-	static NSMutableDictionary* attrib = nil;
-	if(attrib == nil) attrib = [[NSMutableDictionary alloc] init];
-
-	NSFont* theFont = dw?nafont:font;
-	BOOL renderBold = (fg&BOLD_MASK) && ![self disableBold];
-	NSColor* color = [self colorForCode:fg];
-
-	if(oldfg != fg)
-		[attrib setObject:color forKey:NSForegroundColorAttributeName];
-	if(oldFont != theFont)
-		[attrib setObject:theFont forKey: NSFontAttributeName];
-
-	Y += lineHeight + [theFont descender];
-	NSString* crap = [NSString stringWithCharacters:&code length:1];
-	[crap drawWithRect:NSMakeRect(X,Y, 0, 0) options:0 attributes:attrib];
-	
-	// redraw the character offset by 1 pixel, this is faster than real bold
-	if(renderBold) {
-		[crap drawWithRect:NSMakeRect(X+1,Y, 0, 0) options:0 attributes:attrib];
-	}
-}
+}	
 
 - (void) _scrollToLine:(int)line
 {
@@ -2490,30 +2581,70 @@ static NSCursor* textViewCursor =  nil;
 	aFrame.origin.y = line * lineHeight;
 	aFrame.size.width = [self frame].size.width;
 	aFrame.size.height = lineHeight;
+	//forceUpdate = YES;
 	[self scrollRectToVisible: aFrame];
 }
 
 
-- (unichar) _getCharacterAtX:(int) x Y:(int) y
+- (void) _selectFromX:(int)startx Y:(int)starty toX:(int)endx Y:(int)endy
 {
-	screen_char_t *theLine;
-	theLine = [dataSource getLineAtIndex:y];
-		
-	return theLine[x].ch;
+#if DEBUG_METHOD_TRACE
+    NSLog(@"%s(%d):-[PTYTextView _selectFromX:%d Y:%d toX:%d Y:%d]", __FILE__, __LINE__, startx, starty, endx, endy);
+#endif
+
+	int line, bfHeight;
+	int width, height, x, y, idx, startIdx, endIdx;
+	char *bg, newbg;
+	char *dirty;
+	
+	width = [dataSource width];
+	height = [dataSource numberOfLines];
+	bfHeight = height - [dataSource height];
+	if (startX == -1) startIdx = endIdx = width*height+1;
+	else {
+		startIdx = startx + starty * width;
+		endIdx = endx + endy * width;
+		if (startIdx > endIdx) {
+			idx = startIdx;
+			startIdx = endIdx;
+			endIdx = idx;
+		}
+	}
+	
+	for (idx=y=0; y<height; y++) {
+		if (y < bfHeight) {
+			line = [dataSource lastBufferLineIndex] - bfHeight + y;
+			if (line<0) line += [dataSource scrollbackLines];
+			bg = [dataSource bufferBGColor] + line*width;
+			dirty = NULL;
+		} 
+		else {
+			line = y - bfHeight;
+			bg = [dataSource screenBGColor] + line * width;
+			dirty = [dataSource dirty] + line * width;
+		}
+		for(x=0; x <width; x++, idx++) 
+		{
+			if (idx>=startIdx && idx<=endIdx) newbg = bg[x] | SELECTION_MASK;
+			else newbg = bg[x] & ~SELECTION_MASK;
+			if (newbg != bg[x]) {
+				bg[x] = newbg;
+				if (dirty) dirty[x] = 1;
+			}
+		}		
+	}
 }
 
 - (NSString *) _getWordForX: (int) x 
-                          y: (int) y 
-                     startX: (int *) startx 
-                     startY: (int *) starty 
-                       endX: (int *) endx 
-                       endY: (int *) endy
+					y: (int) y 
+			   startX: (int *) startx 
+			   startY: (int *) starty 
+				 endX: (int *) endx 
+				 endY: (int *) endy
 {
 	NSString *aString,*wordChars;
 	int tmpX, tmpY, x1, y1, x2, y2;
-    screen_char_t *theLine;
-	int width = [dataSource width];
-	
+
 	// grab our preference for extra characters to be included in a word
 	wordChars = [[PreferencePanel sharedInstance] wordChars];
 	if(wordChars == nil)
@@ -2523,7 +2654,7 @@ static NSCursor* textViewCursor =  nil;
 	tmpY = y;
 	while(tmpX >= 0)
 	{
-		aString = [self contentFromX:tmpX Y:tmpY ToX:tmpX Y:tmpY pad: YES];
+		aString = [self contentFromX:tmpX Y:tmpY ToX:tmpX Y:tmpY breakLines: NO pad: YES];
 		if(([aString length] == 0 || 
 			[aString rangeOfCharacterFromSet: [NSCharacterSet alphanumericCharacterSet]].length == 0) &&
 		   [wordChars rangeOfString: aString].length == 0)
@@ -2531,12 +2662,8 @@ static NSCursor* textViewCursor =  nil;
 		tmpX--;
 		if(tmpX < 0 && tmpY > 0)
 		{
-			theLine = [dataSource getLineAtIndex:tmpY-1];
-			if (theLine[width].ch) // check if there's a hard line break
-			{
-				tmpY--;
-				tmpX = width - 1;
-			}
+			tmpY--;
+			tmpX = [dataSource width] - 1;
 		}
 	}
 	if(tmpX != x)
@@ -2546,7 +2673,7 @@ static NSCursor* textViewCursor =  nil;
 		tmpX = 0;
 	if(tmpY < 0)
 		tmpY = 0;
-	if(tmpX >= width)
+	if(tmpX >= [dataSource width])
 	{
 		tmpX = 0;
 		tmpY++;
@@ -2564,22 +2691,18 @@ static NSCursor* textViewCursor =  nil;
 	// find the end of the word
 	tmpX = x;
 	tmpY = y;
-	while(tmpX < width)
+	while(tmpX < [dataSource width])
 	{
-		aString = [self contentFromX:tmpX Y:tmpY ToX:tmpX Y:tmpY pad: YES];
+		aString = [self contentFromX:tmpX Y:tmpY ToX:tmpX Y:tmpY breakLines: NO pad: YES];
 		if(([aString length] == 0 || 
 			[aString rangeOfCharacterFromSet: [NSCharacterSet alphanumericCharacterSet]].length == 0) &&
 		   [wordChars rangeOfString: aString].length == 0)
 			break;
 		tmpX++;
-		if(tmpX >= width && tmpY < [dataSource numberOfLines])
+		if(tmpX >= [dataSource width] && tmpY < [dataSource numberOfLines])
 		{
-			theLine = [dataSource getLineAtIndex:tmpY];
-			if (theLine[width].ch) // check if there's a hard line break
-			{			
-				tmpY++;
-				tmpX = 0;
-			}
+			tmpY++;
+			tmpX = 0;
 		}
 	}
 	if(tmpX != x)
@@ -2587,13 +2710,13 @@ static NSCursor* textViewCursor =  nil;
 	
 	if(tmpX < 0)
 	{
-		tmpX = width - 1;
+		tmpX = [dataSource width] - 1;
 		tmpY--;
 	}
 	if(tmpY < 0)
 		tmpY = 0;		
-	if(tmpX >= width)
-		tmpX = width - 1;
+	if(tmpX >= [dataSource width])
+		tmpX = [dataSource width] - 1;
 	if(tmpY >= [dataSource numberOfLines])
 		tmpY = [dataSource numberOfLines] - 1;
 	if(endx)
@@ -2603,141 +2726,8 @@ static NSCursor* textViewCursor =  nil;
 	
 	x2 = tmpX;
 	y2 = tmpY;
-    
-	return ([self contentFromX:x1 Y:y1 ToX:x2 Y:y2 pad: YES]);
-	
-}
 
-- (NSString *) _getURLForX: (int) x 
-					y: (int) y 
-{
-	static char *urlSet = ".?/:;%=&_-,+~#@!*'()";
-	int x1=x, x2=x, y1=y, y2=y;
-	int startx=-1, starty=-1, endx, endy;
-	int w = [dataSource width];
-	int h = [dataSource numberOfLines];
-	unichar c;
-    
-    for (;x1>=0&&y1>=0;) {
-        c = [self _getCharacterAtX:x1 Y:y1];
-        if (!c || !(isnumber(c) || isalpha(c) || strchr(urlSet, c))) break;
-		startx = x1; starty = y1;
-		x1--;
-		if (x1<0) y1--, x1=w-1;
-    }
-    if (startx == -1) return nil;
-
-	endx = x; endy = y;
-	for (;x2<w&&y2<h;) {
-        c = [self _getCharacterAtX:x2 Y:y2];
-        if (!c || !(isnumber(c) || isalpha(c) || strchr(urlSet, c))) break;
-		endx = x2; endy = y2;
-		x2++;
-		if (x2>=w) y2++, x2=0;
-    }
-
-    NSMutableString *url = [[[NSMutableString alloc] initWithString:[self contentFromX:startx Y:starty ToX:endx Y:endy pad: YES]] autorelease];
-	
-    
-    // Grab the addressbook command
-	[url replaceOccurrencesOfString:@"\n" withString:@"" options:NSLiteralSearch range:NSMakeRange(0, [url length])];
-    
-	return (url);
-	
-}
-
-- (BOOL) _findMatchingParenthesis: (NSString *) parenthesis withX:(int)X Y:(int)Y
-{
-	unichar matchingParenthesis, sameParenthesis, c;
-	int level = 0, direction;
-	int x1, y1;
-	int w = [dataSource width];
-	int h = [dataSource numberOfLines];
-	
-	if (!parenthesis || [parenthesis length]<1)  
-		return NO;
-	
-	[parenthesis getCharacters:&sameParenthesis range:NSMakeRange(0,1)];
-	switch (sameParenthesis) {
-		case '(':
-			matchingParenthesis = ')';
-			direction = 0;
-			break;
-		case ')':
-			matchingParenthesis = '(';
-			direction = 1;
-			break;
-		case '[':
-			matchingParenthesis = ']';
-			direction = 0;
-			break;
-		case ']':
-			matchingParenthesis = '[';
-			direction = 1;
-			break;
-		case '{':
-			matchingParenthesis = '}';
-			direction = 0;
-			break;
-		case '}':
-			matchingParenthesis = '{';
-			direction = 1;
-			break;
-		default:
-			return NO;
-	}
-	
-	if (direction) {
-		x1 = X -1;
-		y1 = Y;
-		if (x1<0) y1--, x1=w-1;
-		for (;x1>=0&&y1>=0;) {
-			c = [self _getCharacterAtX:x1 Y:y1];
-			if (c == sameParenthesis) level++;
-			else if (c == matchingParenthesis) {
-				level--;
-				if (level<0) break;
-			}
-			x1--;
-			if (x1<0) y1--, x1=w-1;
-		}
-		if (level<0) {
-			startX = x1;
-			startY = y1;
-			endX = X;
-			endY = Y;
-
-			return YES;
-		}
-		else 
-			return NO;
-	}
-	else {
-		x1 = X +1;
-		y1 = Y;
-		if (x1>=w) y1++, x1=0;
-		
-		for (;x1<w&&y1<h;) {
-			c = [self _getCharacterAtX:x1 Y:y1];
-			if (c == sameParenthesis) level++;
-			else if (c == matchingParenthesis) {
-				level--;
-				if (level<0) break;
-			}
-			x1++;
-			if (x1>=w) y1++, x1=0;
-		}
-		if (level<0) {
-			startX = X;
-			startY = Y;
-			endX = x1;
-			endY = y1;
-			
-			return YES;
-		}
-		else 
-			return NO;
-	}
+	return ([self contentFromX:x1 Y:y1 ToX:x2 Y:y2 breakLines: NO pad: YES]);
 	
 }
 
@@ -2780,7 +2770,7 @@ static NSCursor* textViewCursor =  nil;
 	char blankString[1024];	
 	
 	
-	lineContents = [self contentFromX: 0 Y: y ToX: [dataSource width] - 1 Y: y pad: YES];
+	lineContents = [self contentFromX: 0 Y: y ToX: [dataSource width] - 1 Y: y breakLines: NO pad: YES];
 	memset(blankString, ' ', 1024);
 	blankString[[dataSource width]] = 0;
 	blankLine = [NSString stringWithUTF8String: (const char*)blankString];
@@ -2801,27 +2791,46 @@ static NSCursor* textViewCursor =  nil;
         return;
 	    
     // Check for common types of URLs
-
-	NSRange range = [trimmedURLString rangeOfString:@"://"];
-	if (range.location == NSNotFound)
-		trimmedURLString = [@"http://" stringByAppendingString:trimmedURLString];
+    if ([trimmedURLString hasPrefix:@"file://"])
+        url = [NSURL URLWithString:trimmedURLString];
+    else if ([trimmedURLString hasPrefix:@"ftp"])
+    {
+        if (![trimmedURLString hasPrefix:@"ftp://"])
+            url = [NSURL URLWithString:[@"ftp://" stringByAppendingString:trimmedURLString]];
+        else
+            url = [NSURL URLWithString:trimmedURLString];
+    }
+	else if ([trimmedURLString hasPrefix:@"mailto:"])
+        url = [NSURL URLWithString:trimmedURLString];
+	else if([trimmedURLString rangeOfString: @"@"].location != NSNotFound)
+		url = [NSURL URLWithString:[@"mailto:" stringByAppendingString:trimmedURLString]];
+	else if ([trimmedURLString hasPrefix:@"https://"])
+        url = [NSURL URLWithString:trimmedURLString];
+    else if (![trimmedURLString hasPrefix:@"http"])
+        url = [NSURL URLWithString:[@"http://" stringByAppendingString:trimmedURLString]];
+    else
+        url = [NSURL URLWithString:trimmedURLString];
 	
-	url = [NSURL URLWithString:trimmedURLString];
-
-	TreeNode *bm = [[PreferencePanel sharedInstance] handlerBookmarkForURL: [url scheme]];
+    [[NSWorkspace sharedWorkspace] openURL:url];
 	
-	//NSLog(@"Got the URL:%@\n%@", [url scheme], bm);
-	if (bm != nil) 
-		[[iTermController sharedInstance] launchBookmark:[bm nodeData] inTerminal:[[iTermController sharedInstance] currentTerminal] withURL:trimmedURLString];
-	else 
-		[[NSWorkspace sharedWorkspace] openURL:url];
-		
 }
 
-- (BOOL) _findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase wrapping: (BOOL) wrapping
+- (void) _clearCacheForColor:(int)colorIndex
+{
+	int i;
+
+	for ( i = 0 ; i < CACHESIZE; i++) {
+		if (charImages[i].color == colorIndex) {
+			[charImages[i].image release];
+			charImages[i].image = nil;
+		}
+	}
+}
+
+- (BOOL) _findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase
 {
 	int x1, y1, x2, y2;
-	NSMutableString *searchBody;
+	NSString *searchBody;
 	NSRange foundRange;
 	int anIndex;
 	unsigned searchMask = 0;
@@ -2849,13 +2858,8 @@ static NSCursor* textViewCursor =  nil;
 				}
 				else
 				{
-					if (wrapping) {
-						// wrap around to beginning
-						x1 = y1 = 0;
-					}
-					else {
-						return NO;
-					}
+					// wrap around to beginning
+					x1 = y1 = 0;
 				}
 			}
 			x2 = [dataSource width] - 1;
@@ -2876,14 +2880,9 @@ static NSCursor* textViewCursor =  nil;
 				}
 				else
 				{
-					if (wrapping) {
-						// wrap around to the end
-						x2 = [dataSource width] - 1;
-						y2 = [dataSource numberOfLines] - 1;
-					}
-					else {
-						return NO;
-					}
+					// wrap around to the end
+					x2 = [dataSource width] - 1;
+					y2 = [dataSource numberOfLines] - 1;
 				}
 			}
 		}
@@ -2897,8 +2896,7 @@ static NSCursor* textViewCursor =  nil;
 	}
 	
 	// ok, now get the search body
-	searchBody = [NSMutableString stringWithString:[self contentFromX: x1 Y: y1 ToX: x2 Y: y2 pad: YES]];
-	[searchBody replaceOccurrencesOfString:@"\n" withString:@"" options:NSLiteralSearch range:NSMakeRange(0, [searchBody length])];
+	searchBody = [self contentFromX: x1 Y: y1 ToX: x2 Y: y2 breakLines: NO pad: YES];
 	
 	if([searchBody length] <= 0)
 	{
@@ -2924,23 +2922,22 @@ static NSCursor* textViewCursor =  nil;
 		{
 			anIndex = x1;
 		}
-
+				
 		// calculate index of start of found range
 		anIndex += foundRange.location;
 		startX = lastFindX = anIndex % [dataSource width];
 		startY = lastFindY = anIndex/[dataSource width];
-
+		
 		// end of found range
 		anIndex += foundRange.length - 1;
 		endX = anIndex % [dataSource width];
 		endY = anIndex/[dataSource width];
-
-		// Lock scrolling after finding text
-		[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:YES];
-
-		[self _scrollToLine:endY];
+		
+		
+		[self _selectFromX:startX Y:startY toX:endX Y:endY];
 		[self setNeedsDisplay:YES];
-
+		[self _scrollToLine:endY];
+		
 		return (YES);
 	}
 	
@@ -2998,34 +2995,30 @@ static NSCursor* textViewCursor =  nil;
 		
 }
 
-- (BOOL) _isCharSelectedInRow:(int)row col:(int)col checkOld:(BOOL)old
+- (BOOL) _mouseDownOnSelection: (NSEvent *) theEvent
 {
-	int _startX=startX, _startY=startY, _endX=endX, _endY=endY;
-	if(!old) {
-		_startY=startY; _startX=startX; _endY=endY; _endX=endX;
-	} else {
-		_startY=oldStartY; _startX=oldStartX; _endY=oldEndY; _endX=oldEndX;
-	}
-
-	if(_startX <= -1 || (_startY == _endY && _startX == _endX)) {
-		return NO;
-	}
-	if (_startY>_endY||(_startY==_endY&&_startX>_endX)) {
-        int t;
-        t=_startY; _startY=_endY; _endY=t;
-        t=_startX; _startX=_endX; _endX=t;
-	}
-	if(row == _startY && _startY == _endY) {
-		return (col >= _startX && col <= _endX);
-	} else if(row == _startY && col >= _startX) {
-		return YES;
-	} else if(row == _endY && col <= _endX) {
-		return YES;
-	} else if(row > _startY && row < _endY) {
-		return YES;
-	} else {
-		return NO;
-	}
+	NSPoint locationInWindow, locationInView;
+	int row, col;
+	char theBackgroundAttribute;
+	BOOL result;
+	
+	locationInWindow = [theEvent locationInWindow];
+	
+	locationInView = [self convertPoint: locationInWindow fromView: nil];
+	col = (locationInView.x - MARGIN)/charWidth;
+	row = locationInView.y/lineHeight;
+	
+	theBackgroundAttribute = *([dataSource screenBGColor] + ([dataSource width] * row) + col);
+	
+	
+	
+	if(theBackgroundAttribute & SELECTION_MASK)
+		result = YES;
+	else
+		result = FALSE;
+		
+	return (result);
+	
 }
 
 @end

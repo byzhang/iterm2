@@ -27,8 +27,6 @@
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 
-#include <sys/time.h>
-
 @class PTYTask;
 @class PTYTextView;
 @class PTYScrollView;
@@ -37,54 +35,52 @@
 @class PreferencePanel;
 @class PseudoTerminal;
 @class iTermController;
-@class iTermGrowlDelegate;
+@class PTYTabViewItem;
 
 @interface PTYSession : NSResponder
-{
-	// Owning tab view item
-	NSTabViewItem* tabViewItem;
+{        
+    // Owning tab view item
+    PTYTabViewItem *tabViewItem;
 
-	// tty device
-	NSString* tty;
+    // tty device
+    NSString *tty;
+    
+    // tab label attributes
+    NSDictionary *normalStateAttribute;
+    NSDictionary *chosenStateAttribute;
+    NSDictionary *idleStateAttribute;
+    NSDictionary *newOutputStateAttribute;
+    NSDictionary *deadStateAttribute;
+    
+    PseudoTerminal *parent;  // parent controller
+    NSString *name;
+    NSString *windowTitle;
+	
+	// semaphore to coordinate data read from task
+	MPSemaphoreID	dataSemaphore;
+    
+    // anti-idle
+    char ai_code;
 
-	PseudoTerminal* parent;  // parent controller
-	NSString* name;
-	NSString* defaultName;
-	NSString* windowTitle;
-
-	PTYTask* SHELL;
-	VT100Terminal* TERMINAL;
-	NSString* TERM_VALUE;
-	NSString* COLORFGBG_VALUE;
-	VT100Screen* SCREEN;
-	BOOL EXIT;
-	NSView* view;
-	PTYScrollView* SCROLLVIEW;
-	PTYTextView* TEXTVIEW;
-	NSTimer *updateTimer;
-
-	// anti-idle
-	NSTimer* antiIdleTimer;
-	char ai_code;
-
-	BOOL autoClose;
-	BOOL doubleWidth;
+    PTYTask *SHELL;
+    VT100Terminal *TERMINAL;
+    NSString *TERM_VALUE;
+    VT100Screen   *SCREEN;
+    BOOL EXIT;
+    NSView *view;
+    PTYScrollView *SCROLLVIEW;
+    PTYTextView *TEXTVIEW;
+    int	iIdleCount,oIdleCount, blink, output;
+    BOOL dirty;
+    BOOL REFRESHED;
+    BOOL antiIdle;
+    BOOL waiting;
+    BOOL autoClose;
+    BOOL doubleWidth;
 	BOOL xtermMouseReporting;
-	int bell;
-
-	NSString* backgroundImagePath;
-	NSDictionary* addressBookEntry;
-
-	// Growl stuff
-	iTermGrowlDelegate* gd;
-
-	// Status reporting
-	struct timeval lastInput, lastOutput, lastBlink;
-	int objectCount;
-	NSImage* icon;
-	BOOL isProcessing;
-	BOOL newOutput;
-	BOOL growlIdle, growlNewOutput;
+    NSString *backgroundImagePath;
+    //NSFont *configFont;
+    NSDictionary *addressBookEntry;
 }
 
 // init/dealloc
@@ -92,7 +88,7 @@
 - (void) dealloc;
 
 // Session specific methods
-- (BOOL)initScreen: (NSRect) aRect width:(int)width height:(int) height;
+- (void)initScreen: (NSRect) aRect width:(int)width height:(int) height;
 - (void)startProgram:(NSString *)program
 	   arguments:(NSArray *)prog_argv
 	 environment:(NSDictionary *)prog_env;
@@ -103,12 +99,12 @@
 - (void) setPreferencesFromAddressBookEntry: (NSDictionary *) aePrefs;
 
 // PTYTask
-- (void)writeTask:(NSData*)data;
-- (void)readTask:(NSData*)data;
+- (void)writeTask:(NSData *)data;
+- (void)readTask:(NSData *)data;
 - (void)brokenPipe;
 
 // PTYTextView
-- (BOOL)hasKeyMappingForEvent: (NSEvent *) event highPriority: (BOOL) priority;
+- (BOOL) hasKeyMappingForEvent: (NSEvent *) event;
 - (void)keyDown:(NSEvent *)event;
 - (BOOL)willHandleEvent: (NSEvent *) theEvent;
 - (void)handleEvent: (NSEvent *) theEvent;
@@ -132,6 +128,7 @@
 
 // misc
 - (void) handleOptionClick: (NSEvent *) theEvent;
+- (void) doIdleTasks;
 
 
 // Contextual menu
@@ -141,12 +138,10 @@
 // get/set methods
 - (PseudoTerminal *) parent;
 - (void) setParent: (PseudoTerminal *) theParent;
-- (NSTabViewItem *) tabViewItem;
-- (void) setTabViewItem: (NSTabViewItem *) theTabViewItem;
+- (PTYTabViewItem *) tabViewItem;
+- (void) setTabViewItem: (PTYTabViewItem *) theTabViewItem;
 - (NSString *) name;
 - (void) setName: (NSString *) theName;
-- (NSString *) defaultName;
-- (void) setDefaultName: (NSString *) theName;
 - (NSString *) uniqueID;
 - (void) setUniqueID: (NSString *)uniqueID;
 - (NSString *) windowTitle;
@@ -157,8 +152,6 @@
 - (void) setTERMINAL: (VT100Terminal *) theTERMINAL;
 - (NSString *) TERM_VALUE;
 - (void) setTERM_VALUE: (NSString *) theTERM_VALUE;
-- (NSString *) COLORFGBG_VALUE;
-- (void) setCOLORFGBG_VALUE: (NSString *) theCOLORFGBG_VALUE;
 - (VT100Screen *) SCREEN;
 - (void) setSCREEN: (VT100Screen *) theSCREEN;
 - (NSImage *) image;
@@ -182,14 +175,8 @@
 - (NSDictionary *) addressBookEntry;
 - (void) setAddressBookEntry:(NSDictionary*) entry;
 - (int) number;
-- (int) objectCount;
-- (int) realObjectCount;
-- (void)setObjectCount:(int)value;
 - (NSString *) tty;
 - (NSString *) contents;
-- (NSImage *) icon;
-- (void) setIcon: (NSImage *) anIcon;
-- (iTermGrowlDelegate*) growlDelegate;
 
 
 - (void)clearBuffer;
@@ -215,11 +202,13 @@
 - (void) setCursorTextColor: (NSColor *) aColor;
 - (float) transparency;
 - (void)setTransparency:(float)transparency;
+- (BOOL) useTransparency;
+- (void) setUseTransparency: (BOOL) flag;
 - (BOOL) disableBold;
 - (void) setDisableBold: (BOOL) boldFlag;
 - (BOOL) disableBold;
 - (void) setDisableBold: (BOOL) boldFlag;
-- (void) setColorTable:(int) index color:(NSColor *) c;
+- (void) setColorTable:(int) index highLight:(BOOL)hili color:(NSColor *) c;
 - (int) optionKey;
 
 // Session status
@@ -227,17 +216,10 @@
 - (void)resetStatus;
 - (BOOL)exited;
 - (void)setLabelAttribute;
-- (BOOL)bell;
+- (void)setBell;
 - (void)setBell: (BOOL) flag;
-- (BOOL)isProcessing;
-- (void)setIsProcessing: (BOOL) aFlag;
 
-- (void)sendCommand: (NSString *)command;
-
-// Display timer stuff
-- (void)updateDisplay;
-- (void)doAntiIdle;
-- (void)scheduleUpdateSoon:(BOOL)soon;
+- (void) updateDisplay;
 
 @end
 
@@ -254,6 +236,6 @@
 
 @interface PTYSession (Private)
 
-- (NSString*)_getLocale;
+- (void) _waitToWriteToTask: (NSData *) data;
 
 @end

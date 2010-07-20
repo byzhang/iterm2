@@ -25,7 +25,7 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <Tree.h>
+
 
 @interface iTermTerminalProfileMgr : NSObject {
 
@@ -57,8 +57,6 @@
 - (void) setSilenceBell: (BOOL) silent forProfile: (NSString *) profileName;
 - (BOOL) showBellForProfile: (NSString *) profileName;
 - (void) setShowBell: (BOOL) showBell forProfile: (NSString *) profileName;
-- (BOOL) growlForProfile: (NSString *) profileName;
-- (void) setGrowl: (BOOL) showGrowl forProfile: (NSString *) profileName;
 - (BOOL) blinkCursorForProfile: (NSString *) profileName;
 - (void) setBlinkCursor: (BOOL) blink forProfile: (NSString *) profileName;
 - (BOOL) closeOnSessionEndForProfile: (NSString *) profileName;
@@ -71,13 +69,6 @@
 - (void) setIdleChar: (char) idle forProfile: (NSString *) profileName;
 - (BOOL) xtermMouseReportingForProfile: (NSString *) profileName;
 - (void) setXtermMouseReporting: (BOOL) xtermMouseReporting forProfile: (NSString *) profileName;
-- (BOOL) appendTitleForProfile: (NSString *) profileName;
-- (void) setAppendTitle: (BOOL) appendTitle forProfile: (NSString *) profileName;
-- (BOOL) noResizingForProfile: (NSString *) profileName;
-- (void) setNoResizing: (BOOL) noResizing forProfile: (NSString *) profileName;
-
-- (void) updateBookmarkNode: (TreeNode *)node forProfile: (NSString*) oldProfile with:(NSString*)newProfile;
-- (void) updateBookmarkProfile: (NSString*) oldProfile with:(NSString*)newProfile;
 
 @end
 

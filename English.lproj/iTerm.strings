@@ -1,7 +1,8 @@
 /* Context menu */
 "-> Browser" = "-> Browser";
+
+/* Context menu */
 "-> Mail" = "-> Mail";
-"-> Google" = "-> Google";
 
 /* Toolbar Item:Bookmarks */
 "Bookmarks" = "Bookmarks";
@@ -23,20 +24,19 @@
 
 /* Close window */
 "Close Window?" = "Close Window?";
-"Quit iTerm?" = "Quit iTerm?";
 
 /* Close Session */
-"This session will be closed."="This session will be closed.";
+"The current session will be closed"="The current session will be closed";
 "All unsaved data will be lost"="All unsaved data will be lost";
 
-/* Toolbar Item:Info */
-"Info" = "Info";
+/* Toolbar Item:Configure */
+"Configure" = "Configure";
 
-/* Toolbar Item Tip:Info */
-"Window/Session Info" = "Window/Session Info";
+/* Toolbar Item Tip:Configure */
+"Configure current window" = "Configure current window";
 
 /* Context menu */
-"Info..." = "Info...";
+"Configure..." = "Configure...";
 
 /* Context menu */
 "Copy" = "Copy";
@@ -54,11 +54,8 @@
 /* Toolbar Item:New */
 "Default Session"="Default Session";
 "New" = "New";
-"Press Option for New Window"="Press Option for New Window";
-"Open In New Window" = "Open In New Window";
+"Open in a new window"="Open in a new window";
 "Open a new session"="Open a new session";
-"Execute" = "Execute";
-"Execute Command or Launch URL" = "Execute Command or Launch URL";
 
 /* OK */
 "OK" = "OK";
@@ -131,7 +128,6 @@
 
 /* Script */
 "Script" = "Script";
-"Refresh" = "Refresh";
 
 /* Key Binding Profiles */
 "Global"="Global";
@@ -152,7 +148,6 @@
 "scroll page up"="scroll page up";
 "send ^["="send ^[";
 "send hex code"="send hex code";
-"send"="send";
 "ignore"="ignore";
 "unknown action ID"="unknown action ID";
 
@@ -172,63 +167,16 @@
 "unknown key"="unknown key";
 
 /* Save Confirmation */
-"%@'s display profile %@ and terminal profile %@ have been updated"="%@'s display profile %@ and terminal profile %@ have been updated";
+"Display Profile Saved To: %@"="Display Profile Saved To: %@";
+"Terminal Profile Saved To: %@"="Terminal Profile Saved To: %@";
 "All bookmarks associated with this profile are affected"="All bookmarks associated with this profile are affected";
 
-/* Profiles */
-"Delete Profile" = "Delete Profile";
-"Are you sure that you want to delete %@? There is no way to undo this action." = "Are you sure that you want to delete %@? There is no way to undo this action.";
-"Delete" = "Delete";
-"Cancel" = "Cancel";
-"Untitled" = "Untitled";
-"%@ copy" = "%@ copy";
-
 /* Bookmarks */
-"Show Bookmark Drawer" = "Show Bookmark Drawer";
-"Hide Bookmark Drawer"="Hide Bookmark Drawer";
-"Delete Bookmark"="Delete Bookmark";
+"Show Bookmarks" = "Show Bookmarks";
+"Hide Bookmarks"="Hide Bookmarks";
 
 /* Warning */
 "Warning!" = "Warning!";
 
 /* Keyboard Input */
 "Keyboard input will be sent to all sessions in this terminal." = "Keyboard input will be sent to all sessions in this terminal.";
-
-/* Growl Alerts */
-"Alert" = "Alert";
-"Session %@ #%d: %@" = "Session %@ #%d: %@";
-"Bell" = "Bell";
-"Session %@ #%d just rang a bell!" = "Session %@ #%d just rang a bell!";
-"Broken Pipe" = "Broken Pipe";
-"Session %@ #%d just terminated." = "Session %@ #%d just terminated.";
-"Idle" = "Idle";
-"Session %@ #%d becomes idle." = "Session %@ #%d becomes idle.";
-"New Output" = "New Output";
-"New Output was received in %@ #%d." = "New Output was received in %@ #%d.";
-
-/* Info */
-"Update %@" = "Update %@";
-
-/* Tab Tooltips */
-"Name: %@\nCommand: %@\nTerminal Profile: %@\nDisplay Profile: %@\nKeyboard Profile: %@" = "Name: %@\nCommand: %@\nTerminal Profile: %@\nDisplay Profile: %@\nKeyboard Profile: %@";
-
-/* Profiles */
-"Keyboard Profiles" = "Keyboard Profiles";
-"Display Profiles" = "Display Profiles";
-"Terminal Profiles" = "Terminal Profiles";
-"eg. [OC for ESC [OC." = "eg. [OC for ESC [OC.";
-"eg. 7F for backward delete." = "eg. 7F for backward delete.";
-"use \n for new-line, etc" = "use \n for new-line, etc";
-
-/* Error */
-"Out of memory" = "Out of memory";
-"New sesssion cannot be created. Try smaller buffer sizes." = "New sesssion cannot be created. Try smaller buffer sizes.";
-
-/* Security Warnings */
-"Bad User Shell" = "Bad User Shell";
-"The shell for this account is not a valid shell as defined in /etc/shells. Contact your system administrator." = "The shell for this account is not matched by a valid shell as defined in /etc/shells. Contact your system administrator.";
-
-/* Fork Error*/
-"Unable to Fork!"="Unable to Fork!";
-"iTerm cannot launch the program for this session."="iTerm cannot launch the program for this session.";
-"Close Session"="Close Session";

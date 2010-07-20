@@ -31,7 +31,6 @@ extern NSString *NewToolbarItem;
 extern NSString *ABToolbarItem;
 extern NSString *CloseToolbarItem;
 extern NSString *ConfigToolbarItem;
-extern NSString *CommandToolbarItem;
 
 @class PseudoTerminal;
 

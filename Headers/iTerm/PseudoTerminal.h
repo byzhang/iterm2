@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PseudoTerminal.h,v 1.62 2009-02-06 15:07:24 delx Exp $
+// $Id: PseudoTerminal.h,v 1.29 2006-02-02 00:11:46 yfabian Exp $
 /*
  **  PseudoTerminal.h
  **
@@ -31,77 +31,56 @@
 #import <iTerm/PTYTabView.h>
 #import <iTerm/PTYWindow.h>
 
-@class PTYSession, iTermController, PTToolbarController, PSMTabBarControl;
+@class ITSessionMgr, PTYSession, iTermController, PTToolbarController;
 
 @interface PseudoTerminal : NSWindowController <PTYTabViewDelegateProtocol, PTYWindowDelegateProtocol>
 {
-	
-	NSOutlineView *bookmarksView;
-	
-	// Parameter Panel
-	IBOutlet NSTextField *parameterName;
-	IBOutlet NSPanel     *parameterPanel;
-	IBOutlet NSTextField *parameterValue;
-	IBOutlet NSTextField *parameterPrompt;
-	
+	IBOutlet NSOutlineView *bookmarksView;
     /// tab view
     PTYTabView *TABVIEW;
-	PSMTabBarControl *tabBarControl;
     PTToolbarController* _toolbarController;
-	IBOutlet id commandField;
 
+    ITSessionMgr* _sessionMgr;
     
     /////////////////////////////////////////////////////////////////////////
-    int WIDTH, HEIGHT;
+    int WIDTH,HEIGHT;
 	int charWidth;
 	int charHeight;
 	float charHorizontalSpacingMultiplier, charVerticalSpacingMultiplier;
     NSFont *FONT, *NAFONT;
 	BOOL antiAlias;
-	BOOL useTransparency;
-	BOOL blur;
-	
-	BOOL _fullScreen;
-    
+    //float alpha;
+    BOOL tabViewDragOperationInProgress;
     BOOL windowInited;
 	BOOL sendInputToAllSessions;
 	BOOL fontSizeFollowWindowResize;
 	BOOL suppressContextualMenu;
-	BOOL tempTitle;
 	
-	// For send input to all sessions highlighting
-	NSColor *normalBackgroundColor;
-	
-	// flags
-	BOOL _resizeInProgressFlag;
-	
-	// for full screen windows
-	NSRect oldFrame;
-	int oldWidth, oldHeight;
-	float oldCharHorizontalSpacingMultiplier, oldCharVerticalSpacingMultiplier;
-	NSFont *oldFont, *oldNAFont;
+	BOOL EXIT;
 }
 
++ (NSSize) viewSizeForColumns: (int) columns andRows: (int) rows withFont: (NSFont *) aFont;
 
 - (id)init;
 - (id) initWithWindowNibName: (NSString *) windowNibName;
 - (PTYTabView*) initViewWithFrame: (NSRect) frame;
 - (void)dealloc;
+- (void)releaseObjects;
 
-- (void)initWindowWithAddressbook:(NSDictionary *)entry;
-- (void)initWindowWithSettingsFrom:(PseudoTerminal *)aPseudoTerminal;
+- (void)initWindow;
 - (void)setupSession: (PTYSession *) aSession title: (NSString *)title;
 - (void) insertSession: (PTYSession *) aSession atIndex: (int) index;
+- (void) switchSession: (id) sender;
+- (void) selectSessionAtIndex: (int) sessionIndex;
 - (void) closeSession: (PTYSession*) aSession;
 - (IBAction) closeCurrentSession: (id) sender;
 - (IBAction) previousSession:(id)sender;
 - (IBAction) nextSession:(id)sender;
 - (PTYSession *) currentSession;
+- (void) setCurrentSession: (PTYSession *) aSession;
 - (int) currentSessionIndex;
 - (NSString *) currentSessionName;
 - (void) setCurrentSessionName: (NSString *) theSessionName;
-
-- (void) updateCurrentSessionProfiles;
 
 - (void)startProgram:(NSString *)program;
 - (void)startProgram:(NSString *)program
@@ -109,7 +88,7 @@
 - (void)startProgram:(NSString *)program
                   arguments:(NSArray *)prog_argv
                 environment:(NSDictionary *)prog_env;
-- (void)setWindowSize;
+- (void)setWindowSize: (BOOL) resizeContentFrames;
 - (void)setWindowTitle;
 - (void)setWindowTitle: (NSString *)title;
 - (void)setFont:(NSFont *)font nafont:(NSFont *)nafont;
@@ -119,31 +98,18 @@
 - (float) smallerSizeForSize: (float) aSize;
 - (NSFont *) font;
 - (NSFont *) nafont;
-- (NSFont *) oldFont;
-- (NSFont *) oldNAFont;
 - (BOOL) antiAlias;
 - (void) setAntiAlias: (BOOL) bAntiAlias;
 - (int)width;
 - (int)height;
-- (NSRect)oldFrame;
-- (int)oldWidth;
-- (int)oldHeight;
 - (void)setWidth:(int)width height:(int)height;
 - (void)setCharSizeUsingFont: (NSFont *)font;
 - (int)charWidth;
 - (int)charHeight;
 - (float) charSpacingVertical;
 - (float) charSpacingHorizontal;
-- (float) oldCharSpacingVertical;
-- (float) oldCharSpacingHorizontal;
-- (BOOL) useTransparency;
-- (void) setUseTransparency: (BOOL) flag;
-- (BOOL) blur;
-- (void) setBlur: (BOOL) flag;
-- (void) enableBlur;
-- (void) disableBlur;
-- (BOOL) tempTitle;
-- (void) resetTempTitle;
+
+- (ITSessionMgr*)sessionMgr;
 
 // controls which sessions see key events
 - (BOOL) sendInputToAllSessions;
@@ -156,10 +122,6 @@
 - (void) setFontSizeFollowWindowResize: (BOOL) flag;
 - (IBAction) toggleFontSizeFollowWindowResize: (id) sender;
 
-// full screen support
-- (IBAction) toggleFullScreen:(id)sender;
-- (BOOL) fullScreen;
-
 // iTermController
 - (void)clearBuffer:(id)sender;
 - (void)clearScrollbackBuffer:(id)sender;
@@ -171,39 +133,31 @@
 - (void)windowDidDeminiaturize:(NSNotification *)aNotification;
 - (BOOL)windowShouldClose:(NSNotification *)aNotification;
 - (void)windowWillClose:(NSNotification *)aNotification;
-- (void)windowWillMiniaturize:(NSNotification *)aNotification;
 - (void)windowDidBecomeKey:(NSNotification *)aNotification;
 - (void)windowDidResignMain:(NSNotification *)aNotification;
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)proposedFrameSize;
 - (void)windowDidResize:(NSNotification *)aNotification;
-- (void) resizeWindow:(int)w height:(int)h;
-- (void) resizeWindowToPixelsWidth:(int)w height:(int)h;
+- (void) resizeWindow:(int) w height:(int)h;
 - (NSRect)windowWillUseStandardFrame:(NSWindow *)sender defaultFrame:(NSRect)defaultFrame;
-- (void)windowWillShowInitial;
 
 // Contextual menu
 - (void) menuForEvent:(NSEvent *)theEvent menu: (NSMenu *) theMenu;
 - (BOOL) suppressContextualMenu;
 - (void) setSuppressContextualMenu: (BOOL) aBool;
-- (NSMenu *)tabView:(NSTabView *)aTabView menuForTabViewItem:(NSTabViewItem *)tabViewItem;
-
 
 // Close Window
 - (BOOL)showCloseWindow;
 
 // NSTabView
-- (PTYTabView *) tabView;
 - (void) closeTabContextualMenuAction: (id) sender;
 - (void) moveTabToNewWindowContextualMenuAction: (id) sender;
-- (PSMTabBarControl*) tabBarControl;
-- (void) setLabelColor: (NSColor *) color forTabViewItem: tabViewItem;
+
+// Profiles
+- (IBAction) saveDisplayProfile: (id) sender;
+- (IBAction) saveTerminalProfile: (id) sender;
 
 // Bookmarks
 - (IBAction) toggleBookmarksView: (id) sender;
--  (id) commandField;
-
-// Utility methods
-+ (void) breakDown:(NSString *)cmdl cmdPath: (NSString **) cmd cmdArgs: (NSArray **) path;
 
 @end
 
@@ -216,21 +170,19 @@
 -(void)setRows: (int)rows;
 
 // accessors for to-many relationships:
+-(NSArray*)sessions;
+-(void)setSessions: (NSArray*)sessions;
+
+// accessors for to-many relationships:
 // (See NSScriptKeyValueCoding.h)
 -(id)valueInSessionsAtIndex:(unsigned)index;
 -(id)valueWithName: (NSString *)uniqueName inPropertyWithKey: (NSString*)propertyKey;
 -(id)valueWithID: (NSString *)uniqueID inPropertyWithKey: (NSString*)propertyKey;
--(void)addNewSession:(NSDictionary *)addressbookEntry;
--(void)addNewSession:(NSDictionary *)addressbookEntry withURL: (NSString *)url;
--(void)addNewSession:(NSDictionary *) addressbookEntry withCommand: (NSString *)command;
--(void)appendSession:(PTYSession *)object;
--(void)removeFromSessionsAtIndex:(unsigned)index;
--(NSArray*)sessions;
--(void)setSessions: (NSArray*)sessions;
 -(void)replaceInSessions:(PTYSession *)object atIndex:(unsigned)index;
 -(void)addInSessions:(PTYSession *)object;
 -(void)insertInSessions:(PTYSession *)object;
 -(void)insertInSessions:(PTYSession *)object atIndex:(unsigned)index;
+-(void)removeFromSessionsAtIndex:(unsigned)index;
 
 - (BOOL)windowInited;
 - (void) setWindowInited: (BOOL) flag;
@@ -243,12 +195,14 @@
 @interface PseudoTerminal (Private)
 
 - (void) _commonInit;
+- (void) _updateDisplayThread: (void *) incoming;
+
 - (NSFont *) _getMaxFont:(NSFont* ) font 
 				  height:(float) height
 				   lines:(float) lines;
-- (void) hideMenuBar;
 
 @end
+
 
 @interface PseudoTerminal (ScriptingSupport)
 

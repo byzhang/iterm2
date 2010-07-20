@@ -152,7 +152,6 @@ static TreeNode *defaultBookmark = nil;
 		[bookmarks insertChild: bonjourGroup atIndex: [bookmarks numberOfChildren]];
 	}	
 
-    //[bookmarks recursiveSortChildren];
 }
 
 - (NSDictionary *) bookmarks
@@ -400,15 +399,6 @@ static TreeNode *defaultBookmark = nil;
 	
 }
 
-- (int) indexForBookmark: (NSDictionary *)bookmark
-{
-	return [[self rootNode] indexForNode: bookmark];
-}
-
-- (NSDictionary *) bookmarkForIndex: (int)index
-{
-	return [[self rootNode] nodeForIndex: index];
-}
 
 // NSNetServiceBrowser delegate methods
 - (void)netServiceBrowser:(NSNetServiceBrowser *)aNetServiceBrowser didFindService:(NSNetService *)aNetService moreComing:(BOOL)moreComing 
