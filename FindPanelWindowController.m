@@ -3,7 +3,7 @@
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **
  **  Project: iTerm
  **
@@ -24,25 +24,27 @@
  **  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#import <iTerm/iTermController.h>
-#import <iTerm/PTYTextView.h>
-#import <iTerm/FindPanelWindowController.h>
+#import "MainMenu.h"
+#import "PTYTextView.h"
+#import "FindPanelWindowController.h"
 
 #define DEBUG_ALLOC	0
 
-static FindPanelWindowController *sharedInstance = nil;
+static FindPanelWindowController *singleInstance = nil;
 
 @implementation FindPanelWindowController
 
 //
 // class methods
 //
-+ (id) sharedInstance
++ (id) singleInstance
 {
-    if ( !sharedInstance )
-	sharedInstance = [[self alloc] initWithWindowNibName: @"FindPanel"];
+    if ( !singleInstance )
+    {
+	singleInstance = [[self alloc] initWithWindowNibName: @"FindPanel"];
+    }
 
-    return sharedInstance;
+    return singleInstance;
 }
 
 - (id) initWithWindowNibName: (NSString *) windowNibName
@@ -51,6 +53,8 @@ static FindPanelWindowController *sharedInstance = nil;
     NSLog(@"FindPanelWindowController: -initWithWindowNibName");
 #endif
 
+    respondingWindow = [NSApp keyWindow];
+
     self = [super initWithWindowNibName: windowNibName];
 
     // We finally set our autosave window frame name and restore the one from the user's defaults.
@@ -58,7 +62,14 @@ static FindPanelWindowController *sharedInstance = nil;
     [[self window] setFrameUsingName: @"FindPanel"];
 
     [[self window] setDelegate: self];
-        
+
+    ignoreCase = NO;
+
+    // register as an observer for windows becoming and resigning key
+    [[NSNotificationCenter defaultCenter] addObserver: self selector: @selector(respondingWindowFocusDidChange:) name: NSWindowDidBecomeKeyNotification object: nil];
+    [[NSNotificationCenter defaultCenter] addObserver: self selector: @selector(respondingWindowFocusDidChange:) name: NSWindowDidResignKeyNotification object: nil];
+    [[NSNotificationCenter defaultCenter] addObserver: self selector: @selector(respondingWindowFocusDidChange:) name: NSWindowWillCloseNotification object: nil];
+
     return (self);
 }
 
@@ -68,69 +79,91 @@ static FindPanelWindowController *sharedInstance = nil;
     NSLog(@"FindPanelWindowController: -dealloc");
 #endif
 
-    sharedInstance = nil;
+    [searchString release];
+    singleInstance = nil;
 
-    [super dealloc];
+    // remove orselves from the notification center
+    [[NSNotificationCenter defaultCenter] removeObserver: self name: NSWindowDidBecomeKeyNotification object: nil];
+    [[NSNotificationCenter defaultCenter] removeObserver: self name: NSWindowDidResignKeyNotification object: nil];
+    [[NSNotificationCenter defaultCenter] removeObserver: self name: NSWindowWillCloseNotification object: nil];
+
 }
 
 // NSWindow delegate methods
 - (void)windowWillClose:(NSNotification *)aNotification
 {
+
     [self autorelease];
+
 }
 
 - (void)windowDidLoad
 {
-    NSPasteboard *board = [NSPasteboard pasteboardWithName:NSFindPboard];
-    NSString* findString = [board stringForType:NSStringPboardType];
-    if ([findString length])
+    if([searchString length] > 0)
     {
-        [self setSearchString:findString];	
-        [[FindCommandHandler sharedInstance] setSearchString:findString];
+	[searchStringField setStringValue: searchString];
+    }
+    [caseCheckBox setIntValue: ignoreCase];
+}
+
+- (void) respondingWindowFocusDidChange: (NSNotification *) aNotification
+{
+    if([[aNotification name] isEqualToString: NSWindowDidBecomeKeyNotification] == YES)
+    {
+	NSWindow *aWindow = [aNotification object];
+	id firstResponder = [aWindow firstResponder];
+
+	if([firstResponder isKindOfClass: [PTYTextView class]] == YES)
+	{
+	    respondingWindow = aWindow;
+	}
+    }
+
+    if([[aNotification name] isEqualToString: NSWindowWillCloseNotification] == YES)
+    {
+	NSWindow *aWindow = [aNotification object];
+	
+	if(respondingWindow == aWindow)
+	    respondingWindow = nil;
     }
     
-    [caseCheckBox setIntValue:[[FindCommandHandler sharedInstance] ignoresCase]];
-    
+        
 }
 
-- (void)windowDidBecomeKey:(NSNotification *)aNotification
-{
-    // Post a notification
-    [[NSNotificationCenter defaultCenter] postNotificationName: @"nonTerminalWindowBecameKey" object: nil userInfo: nil];        
-}
-
-- (IBAction)ignoreCaseSwitchAction:(id)sender;
-{
-    [[FindCommandHandler sharedInstance] setIgnoresCase:[sender intValue]];
-}
 
 // action methods
 - (IBAction) findNext: (id) sender
 {
-    NSString* searchString = [self searchString];
-    if([searchString length] <= 0)
+    searchString = [[searchStringField stringValue] copy];
+    if([searchString length] <= 0 || respondingWindow == nil)
     {
-        NSBeep();
-        return;
+	NSBeep();
+	return;
     }
+
+    PTYTextView *frontTextView = (PTYTextView *)[respondingWindow firstResponder];
     
-    [[FindCommandHandler sharedInstance] setSearchString:searchString];
-    [[FindCommandHandler sharedInstance] findNext];
-	[[self window] close];
+    [frontTextView setSearchString: searchString];
+    [frontTextView setIgnoreCase: [caseCheckBox intValue]];
+    [frontTextView findNext: self];
+        
 }
 
-- (IBAction)findPrevious: (id) sender
+- (IBAction) findPrevious: (id) sender
 {
-    NSString* searchString = [self searchString];
-    if([searchString length] <= 0)
+    searchString = [[searchStringField stringValue] copy];
+    if([searchString length] <= 0 || respondingWindow == nil)
     {
 	NSBeep();
 	return;
     }
     
-    [[FindCommandHandler sharedInstance] setSearchString:searchString];
-    [[FindCommandHandler sharedInstance] findPrevious];
-	[[self window] close];
+    PTYTextView *frontTextView = (PTYTextView *)[respondingWindow firstResponder];
+
+    [frontTextView setSearchString: searchString];
+    [frontTextView setIgnoreCase: [caseCheckBox intValue]];
+    [frontTextView findPrevious: self];
+        
 }
 
 // get/set methods
@@ -144,144 +177,40 @@ static FindPanelWindowController *sharedInstance = nil;
     delegate = theDelegate;
 }
 
-- (void)setSearchString: (NSString *) aString
-{    
-    if (aString && [aString length]>0) {
-		[searchStringField setStringValue: aString];
-		
-	}		
-    else
-        [searchStringField setStringValue: @""];
+- (BOOL) ignoreCase
+{
+    return (ignoreCase);
 }
 
-- (NSString*)searchString;
+- (void) setIgnoreCase: (BOOL) flag
 {
-	NSString *aString = [searchStringField stringValue];
-	
-	if ([aString length]>0) {
-		NSPasteboard *pboard = [NSPasteboard pasteboardWithName: NSFindPboard];
-		
-		[pboard declareTypes: [NSArray arrayWithObject: NSStringPboardType] owner: self];
-		[pboard setString: aString forType: NSStringPboardType];
-	}
-    return aString;
+    ignoreCase = flag;
+    [caseCheckBox setIntValue: ignoreCase];
 }
 
-@end
-
-// ==========================================================================================
-
-@implementation FindCommandHandler : NSObject
-
-- (id)init;
+- (NSString *) searchString
 {
-    self = [super init];
-    
-    _ignoresCase = [[NSUserDefaults standardUserDefaults] boolForKey:@"findIgnoreCase_iTerm"];
-
-    return self;
-}
-
-- (void)dealloc;
-{
-    [_searchString release];
-
-    [super dealloc];
-}
-
-+ (id)sharedInstance;
-{
-    static id shared = nil;
-    
-    if (!shared)
-        shared = [[FindCommandHandler alloc] init];
-    
-    return shared;
-}
-
-- (PTYTextView*)currentTextView;
-{
-    id obj = [[NSApp mainWindow] firstResponder];
-    return (obj && [obj isKindOfClass:[PTYTextView class]]) ? obj : nil;
-}
-
-- (IBAction) findNext
-{
-    [self findSubString: _searchString forwardDirection: YES ignoringCase: _ignoresCase];
-}
-
-- (IBAction) findPrevious
-{
-    [self findSubString: _searchString forwardDirection: NO ignoringCase: _ignoresCase];
-}
-
-- (IBAction) findWithSelection
-{
-    PTYTextView* textView = [self currentTextView];
-    if (textView)
-    {
-        // get the selected text
-        NSString *contentString = [textView selectedText];
-		if (!contentString) {
-            NSBeep();
-            return;
-        }
-        [self setSearchString: contentString];
-        [self findNext];
-    }
-    else
-        NSBeep();
-}
-
-- (IBAction)jumpToSelection
-{
-    PTYTextView* textView = [self currentTextView];
-    if (textView)
-    {        
-		[textView scrollToSelection];
-    }
-    else
-        NSBeep();
-}
-
-- (void) findSubString: (NSString *) subString forwardDirection: (BOOL) direction ignoringCase: (BOOL) caseCheck
-{
-    PTYTextView* textView = [self currentTextView];
-    if (textView)
-    {        
-        if ([subString length] <= 0)
-        {
-            NSBeep();
-            return;
-        }
-        
-		[textView findString:subString forwardDirection: direction ignoringCase: caseCheck];
-	}
-}
-
-- (NSString*)searchString;
-{
-    return _searchString;
+    return (searchString);
 }
 
 - (void) setSearchString: (NSString *) aString
 {
-	    
-    [_searchString release];
-    _searchString = [aString retain];
+    if(searchString != nil)
+    {
+	[searchString release];
+	searchString = nil;
+    }
+    if(aString != nil)
+    {
+	[aString retain];
+	searchString = aString;
+    }
+    
+    if([searchString length] > 0)
+    {
+	[searchStringField setStringValue: searchString];
+    }    
 }
 
-- (BOOL)ignoresCase;
-{    
-    return _ignoresCase;
-}
-
-- (void)setIgnoresCase:(BOOL)set;
-{    
-    _ignoresCase = set;
-    [[NSUserDefaults standardUserDefaults] setBool:set forKey:@"findIgnoreCase_iTerm"];
-}
 
 @end
-
-
