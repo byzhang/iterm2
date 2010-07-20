@@ -34,10 +34,12 @@
 - (void)tabView:(NSTabView *)tabView willAddTabViewItem:(NSTabViewItem *)tabViewItem;
 - (void)tabView:(NSTabView *)tabView willInsertTabViewItem:(NSTabViewItem *)tabViewItem atIndex:(int) index;
 - (void)tabViewDidChangeNumberOfTabViewItems:(NSTabView *)tabView;
-- (void)tabView:(NSTabView *)tabView doubleClickTabViewItem:(NSTabViewItem *)tabViewItem;
+- (void)tabViewWillPerformDragOperation:(NSTabView *)tabView;
+- (void)tabViewDidPerformDragOperation:(NSTabView *)tabView;
 @end
 
 @interface PTYTabView : NSTabView {
+    NSLock *lock;
 }
 
 // Class methods that Apple should have provided

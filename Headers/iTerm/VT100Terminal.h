@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: VT100Terminal.h,v 1.35 2008-10-21 05:43:52 yfabian Exp $
+// $Id: VT100Terminal.h,v 1.20 2006-09-29 23:21:10 yfabian Exp $
 /*
  **  VT100Terminal.h
  **
@@ -28,7 +28,6 @@
  */
 
 #import <Cocoa/Cocoa.h>
-//#include <term.h>
 
 @class VT100Screen;
 @class PseudoTerminal;
@@ -56,7 +55,7 @@
 #define VT100_NOTSUPPORT  	1001
 #define VT100_SKIP        	1002
 #define VT100_STRING      	1003       // string
-#define VT100_ASCIISTRING	1004	   // only for ASCIIs
+
 #define VT100_UNKNOWNCHAR 	1005
 #define VT100CSI_DECSET		1006
 #define VT100CSI_DECRST		1007
@@ -116,26 +115,13 @@
 #define XTERMCC_DEICONIFY    97
 #define XTERMCC_RAISE        98
 #define XTERMCC_LOWER        99
-#define XTERMCC_SU			 100	 // scroll up
-#define XTERMCC_SD			 101     // scroll down
-#define XTERMCC_REPORT_WIN_STATE	102
-#define XTERMCC_REPORT_WIN_POS		103
-#define XTERMCC_REPORT_WIN_PIX_SIZE	104
-#define XTERMCC_REPORT_WIN_SIZE		105
-#define XTERMCC_REPORT_SCREEN_SIZE	106
-#define XTERMCC_REPORT_ICON_TITLE	107
-#define XTERMCC_REPORT_WIN_TITLE	108
-#define XTERMCC_SET_RGB	109
 
 // Some ansi stuff
 #define ANSICSI_CHA	     3000	// Cursor Horizontal Absolute
 #define ANSICSI_VPA	     3001	// Vert Position Absolute
 #define ANSICSI_VPR	     3002	// Vert Position Relative
 #define ANSICSI_ECH	     3003	// Erase Character
-#define ANSICSI_PRINT	 3004	// Print to Ansi
-#define ANSICSI_SCP      3005   // Save cursor position
-#define ANSICSI_RCP      3006   // Restore cursor position
-#define ANSICSI_CBT	     3007	// Back tab
+#define ANSICSI_PRINT	     3004	// Print to Ansi
 
 // Toggle between ansi/vt52
 #define STRICT_ANSI_MODE		4000
@@ -183,7 +169,6 @@ typedef enum {
     COLORCODE_PURPLE=5,
     COLORCODE_WATER=6,
     COLORCODE_WHITE=7,
-	COLORCODE_256=8,
     COLORS
 } colorCode;
 
@@ -199,7 +184,6 @@ typedef enum {
 #define VT100CHARATTR_FG_PURPLE    (VT100CHARATTR_FG_BASE + COLORCODE_PURPLE)
 #define VT100CHARATTR_FG_WATER     (VT100CHARATTR_FG_BASE + COLORCODE_WATER)
 #define VT100CHARATTR_FG_WHITE     (VT100CHARATTR_FG_BASE + COLORCODE_WHITE)
-#define VT100CHARATTR_FG_256	   (VT100CHARATTR_FG_BASE + COLORCODE_256)
 #define VT100CHARATTR_FG_DEFAULT   (VT100CHARATTR_FG_BASE + 9)
 
 #define VT100CHARATTR_BG_BLACK     (VT100CHARATTR_BG_BASE + COLORCODE_BLACK)
@@ -210,7 +194,6 @@ typedef enum {
 #define VT100CHARATTR_BG_PURPLE    (VT100CHARATTR_BG_BASE + COLORCODE_PURPLE)
 #define VT100CHARATTR_BG_WATER     (VT100CHARATTR_BG_BASE + COLORCODE_WATER)
 #define VT100CHARATTR_BG_WHITE     (VT100CHARATTR_BG_BASE + COLORCODE_WHITE)
-#define VT100CHARATTR_BG_256	   (VT100CHARATTR_BG_BASE + COLORCODE_256)
 #define VT100CHARATTR_BG_DEFAULT   (VT100CHARATTR_BG_BASE + 9)
 
 // 16 color support
@@ -237,35 +220,17 @@ typedef enum {
 
 
 // for foreground colors
-#define DEFAULT_FG_COLOR_CODE	0x100
-#define BOLD_MASK 0x200
-#define BLINK_MASK 0x400
-#define UNDER_MASK 0x800
-#define SELECTED_TEXT   0x102
-#define CURSOR_TEXT		0x103
+#define DEFAULT_FG_COLOR_CODE	0x10
+#define BOLD_MASK 0x20
+#define BLINK_MASK 0x40
+#define UNDER_MASK 0x80
+#define SELECTED_TEXT   0x100
+#define CURSOR_TEXT		0x200
 
 // for background colors
-#define DEFAULT_BG_COLOR_CODE	0x101
+#define DEFAULT_BG_COLOR_CODE	0x11
+#define SELECTION_MASK 0x20
 
-// terminfo stuff
-enum {
-	TERMINFO_KEY_LEFT, TERMINFO_KEY_RIGHT, TERMINFO_KEY_UP, TERMINFO_KEY_DOWN, 
-	TERMINFO_KEY_HOME, TERMINFO_KEY_END, TERMINFO_KEY_PAGEDOWN, TERMINFO_KEY_PAGEUP,
-    TERMINFO_KEY_F0, TERMINFO_KEY_F1, TERMINFO_KEY_F2, TERMINFO_KEY_F3, TERMINFO_KEY_F4, 
-	TERMINFO_KEY_F5, TERMINFO_KEY_F6, TERMINFO_KEY_F7, TERMINFO_KEY_F8, TERMINFO_KEY_F9, 
-	TERMINFO_KEY_F10, TERMINFO_KEY_F11, TERMINFO_KEY_F12, TERMINFO_KEY_F13, TERMINFO_KEY_F14,
-	TERMINFO_KEY_F15, TERMINFO_KEY_F16, TERMINFO_KEY_F17, TERMINFO_KEY_F18, TERMINFO_KEY_F19, 
-    TERMINFO_KEY_F20, TERMINFO_KEY_F21, TERMINFO_KEY_F22, TERMINFO_KEY_F23, TERMINFO_KEY_F24, 
-	TERMINFO_KEY_F25, TERMINFO_KEY_F26, TERMINFO_KEY_F27, TERMINFO_KEY_F28, TERMINFO_KEY_F29, 
-    TERMINFO_KEY_F30, TERMINFO_KEY_F31, TERMINFO_KEY_F32, TERMINFO_KEY_F33, TERMINFO_KEY_F34, 
-	TERMINFO_KEY_F35,
-	TERMINFO_KEY_BACKSPACE, TERMINFO_KEY_BACK_TAB, 
-	TERMINFO_KEY_TAB, 
-    TERMINFO_KEY_DEL, TERMINFO_KEY_INS, 
-	TERMINFO_KEY_HELP,
-    TERMINFO_KEYS 
-};
-    
 typedef enum {
 	MOUSE_REPORTING_NONE = -1,
 	MOUSE_REPORTING_NORMAL = 0,
@@ -276,14 +241,11 @@ typedef enum {
 
 @interface VT100Terminal : NSObject
 {
-    NSString          *termType;
     NSStringEncoding  ENCODING;
+    NSMutableData     *STREAM;
     VT100Screen       *SCREEN;
+	NSLock			  *streamLock;
 
-	unsigned char     *STREAM;
-	int				  current_stream_length;
-	int				  total_stream_length;
-	
     BOOL LINE_MODE;			// YES=Newline, NO=Line feed
     BOOL CURSOR_MODE;		// YES=Application, NO=Cursor
     BOOL ANSI_MODE;			// YES=ANSI, NO=VT52
@@ -303,31 +265,24 @@ typedef enum {
     
     int FG_COLORCODE;
     int BG_COLORCODE;
-    int	bold, under, blink, reversed;
+    int	bold, under, blink, reversed, highlight;
 
-    int saveBold, saveUnder, saveBlink, saveReversed;
+    int saveBold, saveUnder, saveBlink, saveReversed, saveHighlight;
     int saveCHARSET;
     
     BOOL TRACE;
 
     BOOL strictAnsiMode;
     BOOL allowColumnMode;
-	
-	BOOL allowKeypadMode;
     
     unsigned int streamOffset;
-    
-    //terminfo
-    char  *key_strings[TERMINFO_KEYS];
+
 }
 
 + (void)initialize;
 
 - (id)init;
 - (void)dealloc;
-
-- (NSString *)termtype;
-- (void)setTermType:(NSString *)termtype;
 
 - (BOOL)trace;
 - (void)setTrace:(BOOL)flag;
@@ -342,26 +297,22 @@ typedef enum {
 - (void)setEncoding:(NSStringEncoding)encoding;
 
 - (void)cleanStream;
-- (void)putStreamData:(NSData*)data;
+- (void)putStreamData:(char *)data length: (int)length;
 - (VT100TCC)getNextToken;
-
-- (void)saveCursorAttributes;
-- (void)restoreCursorAttributes;
-
-- (void)reset;
 
 - (NSData *)keyArrowUp:(unsigned int)modflag;
 - (NSData *)keyArrowDown:(unsigned int)modflag;
 - (NSData *)keyArrowLeft:(unsigned int)modflag;
 - (NSData *)keyArrowRight:(unsigned int)modflag;
-- (NSData *)keyHome:(unsigned int)modflag;
-- (NSData *)keyEnd:(unsigned int)modflag;
 - (NSData *)keyInsert;
+- (NSData *)keyHome;
 - (NSData *)keyDelete;
 - (NSData *)keyBackspace;
+- (NSData *)keyEnd;
 - (NSData *)keyPageUp;
 - (NSData *)keyPageDown;
 - (NSData *)keyFunction:(int)no;
+- (NSData *)keyPFn: (int) n;
 - (NSData *)keypadData: (unichar) unicode keystr: (NSString *) keystr;
 
 - (NSData *)mousePress: (int)button withModifiers: (unsigned int)modflag atX: (int)x Y: (int)y;
@@ -385,17 +336,14 @@ typedef enum {
 
 - (int)foregroundColorCode;
 - (int)backgroundColorCode;
-- (int)foregroundColorCodeReal;
-- (int)backgroundColorCodeReal;
 
-- (NSData *)reportActivePositionWithX:(int)x Y:(int)y withQuestion:(BOOL)q;
+- (NSData *)reportActivePositionWithX:(int)x Y:(int)y;
 - (NSData *)reportStatus;
 - (NSData *)reportDeviceAttribute;
 - (NSData *)reportSecondaryDeviceAttribute;
 
 - (void)_setMode:(VT100TCC)token;
 - (void)_setCharAttr:(VT100TCC)token;
-- (void)_setRGB:(VT100TCC)token;
 
 - (void) setScreen:(VT100Screen *)sc;
 @end

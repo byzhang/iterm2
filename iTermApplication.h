@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermApplication.h,v 1.4 2006-11-07 08:03:08 yfabian Exp $
+// $Id: iTermApplication.h,v 1.2 2004-04-11 07:04:26 ujwal Exp $
 //
 /*
  **  iTermApplication.h

@@ -25,7 +25,6 @@
  */
 
 #import <Cocoa/Cocoa.h>
-#import <Tree.h>
 
 // Key Definitions
 #define KEY_CURSOR_DOWN					0
@@ -78,7 +77,6 @@
 #define KEY_NUMLOCK						47
 #define KEY_PAGE_DOWN					48
 #define KEY_PAGE_UP						49
-#define KEY_INS							50
 
 
 // Actions for key bindings
@@ -94,8 +92,7 @@
 #define KEY_ACTION_SCROLL_PAGE_UP		9
 #define KEY_ACTION_ESCAPE_SEQUENCE		10
 #define KEY_ACTION_HEX_CODE				11
-#define KEY_ACTION_TEXT                 12
-#define KEY_ACTION_IGNORE				13
+#define KEY_ACTION_IGNORE				12
 
 
 @interface iTermKeyBindingMgr : NSObject {
@@ -125,34 +122,21 @@
 - (void) addEntryForKeyCode: (unsigned int) hexCode 
 				  modifiers: (unsigned int) modifiers
 					 action: (unsigned int) action
-			   highPriority: (BOOL) highPriority
 					   text: (NSString *) text
 					profile: (NSString *) profile;
 - (void) addEntryForKey: (unsigned int) key 
 				  modifiers: (unsigned int) modifiers
 					 action: (unsigned int) action
-			   highPriority: (BOOL) highPriority
 					   text: (NSString *) text
-				    profile: (NSString *) profile;
+				profile: (NSString *) profile;
 - (void) deleteEntryAtIndex: (int) index inProfile: (NSString *) profile;
 
 - (NSString *) keyCombinationAtIndex: (int) index inProfile: (NSString *) profile;
 - (NSString *) actionForKeyCombinationAtIndex: (int) index inProfile: (NSString *) profile;
-- (int) actionForKeyCode: (unichar)keyCode 
-			   modifiers: (unsigned int) keyModifiers 
-			highPriority: (BOOL *) highPriority
-					text: (NSString **) text 
-				 profile: (NSString *)profile;
-
-- (void) updateBookmarkNode: (TreeNode *)node forProfile: (NSString*) oldProfile with:(NSString*)newProfile;
-- (void) updateBookmarkProfile: (NSString*) oldProfile with:(NSString*)newProfile;
+- (int) actionForKeyCode: (unichar)keyCode modifiers: (unsigned int) keyModifiers text: (NSString **) text profile: (NSString *)profile;
 
 @end
 
 @interface iTermKeyBindingMgr (Private)
-- (int) _actionForKeyCode: (unichar)keyCode 
-				modifiers: (unsigned int) keyModifiers
-			 highPriority: (BOOL *) highPriority
-					 text: (NSString **) text 
-				  profile: (NSString *)profile;
+- (int) _actionForKeyCode: (unichar)keyCode modifiers: (unsigned int) keyModifiers text: (NSString **) text profile: (NSString *)profile;
 @end

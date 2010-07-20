@@ -33,20 +33,15 @@
 
 @interface iTermProfileWindowController : NSWindowController 
 {
-    NSUserDefaults *_prefs;
-
 	IBOutlet NSTabView *profileTabView;
-	IBOutlet NSOutlineView *profileOutline;
-
-	// Add Profile panel
+	
+	// Profile editing
 	IBOutlet NSPanel *addProfile;
-	IBOutlet NSPopUpButton *addProfileCategory;
+	IBOutlet NSPanel *deleteProfile;
 	IBOutlet NSTextField *profileName;
-    
-    IBOutlet NSButton *deleteButton;
-    IBOutlet NSButton *duplicateButton;
-    
+
 	// Keybinding profile UI
+	IBOutlet NSPopUpButton *kbProfileSelector;
 	IBOutlet NSPanel *addKBEntry;
 	IBOutlet NSPopUpButton *kbEntryKey;
 	IBOutlet NSButton *kbEntryKeyModifierOption;
@@ -56,13 +51,14 @@
 	IBOutlet NSPopUpButton *kbEntryAction;
 	IBOutlet NSTextField *kbEntryText;
 	IBOutlet NSTextField *kbEntryKeyCode;
-	IBOutlet NSTextField *kbEntryHint;
 	IBOutlet NSTableView *kbEntryTableView;
+	IBOutlet NSButton *kbProfileDeleteButton;
 	IBOutlet NSButton *kbEntryDeleteButton;
 	IBOutlet NSMatrix *kbOptionKey;
-	IBOutlet NSButton *kbEntryHighPriority;
 	
 	// Display profile UI
+	IBOutlet NSButton *displayProfileDeleteButton;
+	IBOutlet NSPopUpButton *displayProfileSelector;
 	IBOutlet NSColorWell *displayFGColor;
 	IBOutlet NSColorWell *displayBGColor;
 	IBOutlet NSColorWell *displayBoldColor;
@@ -97,13 +93,14 @@
 	IBOutlet NSSlider *displayFontSpacingWidth;
 	IBOutlet NSSlider *displayFontSpacingHeight;
 	IBOutlet NSButton *displayAntiAlias;
-	IBOutlet NSButton *displayBlur;
 	IBOutlet NSButton *displayDisableBold;
 	
 	BOOL changingNAFont;
 	
 	// Terminal Profile UI
-	IBOutlet NSComboBox *terminalType;
+	IBOutlet NSPopUpButton *terminalProfileSelector;
+	IBOutlet NSButton *terminalProfileDeleteButton;
+	IBOutlet NSPopUpButton *terminalType;
 	IBOutlet NSPopUpButton *terminalEncoding;
 	IBOutlet NSTextField *terminalScrollback;
 	IBOutlet NSButton *terminalSilenceBell;
@@ -114,14 +111,10 @@
 	IBOutlet NSButton *terminalDoubleWidth;
 	IBOutlet NSButton *terminalSendIdleChar;
 	IBOutlet NSTextField *terminalIdleChar;
-	IBOutlet NSButton *terminalAppendTitle;
-	IBOutlet NSButton *terminalNoResizing;
 	IBOutlet NSButton *xtermMouseReporting;
 
-    NSString *selectedProfile;
 }
 
-+ (iTermProfileWindowController*)sharedInstance;
 - (IBAction) showProfilesWindow: (id) sender;
 
 // profile editing
@@ -129,22 +122,22 @@
 - (IBAction) profileDelete: (id) sender;
 - (IBAction) profileAddConfirm: (id) sender;
 - (IBAction) profileAddCancel: (id) sender;
-- (IBAction) profileDuplicate: (id) sender;
+- (IBAction) profileDeleteConfirm: (id) sender;
+- (IBAction) profileDeleteCancel: (id) sender;
+
 
 // Keybinding profile UI
 - (void) kbOptionKeyChanged: (id) sender;
-- (void) kbProfileChangedTo: (NSString *) profile;
+- (IBAction) kbProfileChanged: (id) sender;
 - (IBAction) kbEntryAdd: (id) sender;
-- (IBAction) kbEntryEdit: (id) sender;
 - (IBAction) kbEntryAddConfirm: (id) sender;
 - (IBAction) kbEntryAddCancel: (id) sender;
 - (IBAction) kbEntryDelete: (id) sender;
 - (IBAction) kbEntrySelectorChanged: (id) sender;
 
 // Display profile UI
-- (void) displayProfileChangedTo: (NSString *) profile;
+- (IBAction) displayProfileChanged: (id) sender;
 - (IBAction) displaySetAntiAlias: (id) sender;
-- (IBAction) displaySetBlur: (id) sender;
 - (IBAction) displaySetDisableBold: (id) sender;
 - (IBAction) displayChangeColor: (id) sender;
 - (IBAction) displayBackgroundImage: (id) sender;
@@ -155,7 +148,7 @@
 - (void)controlTextDidChange:(NSNotification *)aNotification;
 
 // Terminal profile UI
-- (void) terminalProfileChangedTo: (NSString *) profile;
+- (IBAction) terminalProfileChanged: (id) sender;
 - (IBAction) terminalSetType: (id) sender;
 - (IBAction) terminalSetEncoding: (id) sender;
 - (IBAction) terminalSetSilenceBell: (id) sender;
@@ -166,10 +159,7 @@
 - (IBAction) terminalSetDoubleWidth: (id) sender;
 - (IBAction) terminalSetSendIdleChar: (id) sender;
 - (IBAction) terminalSetXtermMouseReporting: (id) sender;
-- (IBAction) terminalSetAppendTitle: (id) sender;
-- (IBAction) terminalSetNoResizing: (id) sender;
 
-- (void)selectProfile:(NSString *)profile withInCategory: (int) category;
 
 @end
 

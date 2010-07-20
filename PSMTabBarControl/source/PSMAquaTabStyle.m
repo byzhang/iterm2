@@ -268,15 +268,11 @@
 {
     NSMutableAttributedString *attrStr;
     NSFontManager *fm = [NSFontManager sharedFontManager];
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     NSNumberFormatter *nf = [[[NSNumberFormatter alloc] init] autorelease];
     [nf setLocalizesFormat:YES];
     [nf setFormat:@"0"];
     [nf setHasThousandSeparators:YES];
     NSString *contents = [nf stringFromNumber:[NSNumber numberWithInt:[cell count]]];
-#else
-    NSString *contents = [NSString stringWithFormat:@"%d", [cell count]];
-#endif
     attrStr = [[[NSMutableAttributedString alloc] initWithString:contents] autorelease];
     NSRange range = NSMakeRange(0, [contents length]);
     

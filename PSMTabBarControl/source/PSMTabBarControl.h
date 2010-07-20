@@ -113,6 +113,7 @@ enum {
     // orientation, top or bottom
     int                         _tabLocation;
     
+    NSLock                      *_lock;
 }
 
 // control characteristics
@@ -223,10 +224,10 @@ enum {
 - (void)tabView:(NSTabView *)tabView willAddTabViewItem:(NSTabViewItem *)tabViewItem;
 - (void)tabView:(NSTabView *)tabView willInsertTabViewItem:(NSTabViewItem *)tabViewItem atIndex:(int) index;
 - (void)tabViewDidChangeNumberOfTabViewItems:(NSTabView *)tabView;
+- (void)tabViewWillPerformDragOperation:(NSTabView *)tabView;
+- (void)tabViewDidPerformDragOperation:(NSTabView *)tabView;
 
 // iTerm add-on
 - (void)setLabelColor:(NSColor *)aColor forTabViewItem:(NSTabViewItem *) tabViewItem;
-- (void)tabView:(NSTabView *)tabView doubleClickTabViewItem:(NSTabViewItem *)tabViewItem;
-- (void)tabViewDoubleClickTabBar:(NSTabView *)tabView;
 
 @end

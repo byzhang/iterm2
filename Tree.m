@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: Tree.m,v 1.8 2008-10-01 03:57:40 yfabian Exp $
+// $Id: Tree.m,v 1.3 2004-03-18 19:50:40 ujwal Exp $
 //
 /*
  **  Tree.m
@@ -141,29 +141,6 @@
 	
 }
 
-// return an array of all nodes
-- (NSArray *) array
-{
-	NSEnumerator *entryEnum;
-	TreeNode *child;
-	NSMutableArray *aMutableArray;
-	
-	// recursively encode the children
-	aMutableArray = [NSMutableArray array];
-	entryEnum = [nodeChildren objectEnumerator];
-	while ((child = [entryEnum nextObject]))
-	{
-		if ([child isLeaf])
-			[aMutableArray addObject: child];
-		else
-			[aMutableArray addObjectsFromArray: [child array]];
-	}
-	
-	return (aMutableArray);
-	
-}
-
-
 - (void)dealloc {
     [nodeData release];
     [nodeChildren release];
@@ -213,13 +190,11 @@
 {
     [nodeChildren insertObject:child atIndex:index];
     [child setNodeParent: self];
-    //[nodeChildren sortUsingSelector:@selector(compare:)];
 }
 
 - (void)insertChildren:(NSArray*)children atIndex:(int)index {
     [nodeChildren insertObjectsFromArray: children atIndex: index];
     [children makeObjectsPerformSelector:@selector(setNodeParent:) withObject:self];
-    //[nodeChildren sortUsingSelector:@selector(compare:)];
 }
 
 - (void)_removeChildrenIdenticalTo:(NSArray*)children {
@@ -294,18 +269,8 @@
 }
 
 - (void)recursiveSortChildren {
-    if ([self isGroup]) {
-        [nodeChildren sortUsingSelector:@selector(compare:)];
-        [nodeChildren makeObjectsPerformSelector: @selector(recursiveSortChildren)];
-    }
-}
-
-- (int) indexForNode: (id) node {
-	return ([[self array] indexOfObject:node]);
-}
-
-- (id) nodeForIndex: (int) index {
-	return ([[self array] objectAtIndex:index]);
+    [nodeChildren sortUsingSelector:@selector(compare:)];
+    [nodeChildren makeObjectsPerformSelector: @selector(recursiveSortChildren)];
 }
 
 - (NSString*)description {
@@ -335,23 +300,5 @@
     return minimumCover;
 }
 
-- (id)initWithCoder:(NSCoder *)coder { 
-	self = 	[[TreeNode alloc] initFromDictionary:[coder decodeObject]]; 
-	return self; 
-}
-
-- (void)encodeWithCoder:(NSCoder *)coder { 
-	if (self) { 
-		[coder encodeObject: [self dictionary]]; 
-	} 
-}
-
-- (NSComparisonResult) compare: (id) comparator
-{
-    if ([(NSString *)[[self nodeData] objectForKey:KEY_NAME] isEqualToString:@"Bonjour"]) return NSOrderedDescending;
-    if ([(NSString *)[[comparator nodeData] objectForKey:KEY_NAME] isEqualToString:@"Bonjour"]) return NSOrderedAscending;
-    
-    return [(NSString *)[[self nodeData] objectForKey:KEY_NAME] localizedCaseInsensitiveCompare:[[comparator nodeData] objectForKey:KEY_NAME]];
-}
 
 @end

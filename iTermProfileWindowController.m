@@ -30,72 +30,40 @@
 #import <iTerm/iTermTerminalProfileMgr.h>
 #import <iTerm/iTermProfileWindowController.h>
 
+
 @implementation iTermProfileWindowController
-
-static NSArray *profileCategories;
-static BOOL addingKBEntry;
-
-+ (iTermProfileWindowController*)sharedInstance
-{
-    static iTermProfileWindowController* shared = nil;
-
-    if (!shared)
-	{
-		shared = [[self alloc] init];
-	}
-
-    profileCategories = [[NSArray arrayWithObjects:[NSNumber numberWithInt: 0],[NSNumber numberWithInt: 1],[NSNumber numberWithInt: 2],nil] retain];
-    return shared;
-}
-
-- (id) init
-{
-    NSMutableDictionary *profilesDictionary, *keybindingProfiles, *displayProfiles, *terminalProfiles;
-	NSString *plistFile;
-    
-    if ((self = [super init]) == nil)
-        return nil;
-
-	_prefs = [NSUserDefaults standardUserDefaults];
-    
-    // load saved profiles or default if we don't have any
-	keybindingProfiles = [_prefs objectForKey: @"KeyBindings"];
-	displayProfiles =  [_prefs objectForKey: @"Displays"];
-	terminalProfiles = [_prefs objectForKey: @"Terminals"];
-	
-	// if we got no profiles, load from our embedded plist
-	plistFile = [[NSBundle bundleForClass: [self class]] pathForResource:@"Profiles" ofType:@"plist"];
-	profilesDictionary = [NSDictionary dictionaryWithContentsOfFile: plistFile];
-	if([keybindingProfiles count] == 0)
-		keybindingProfiles = [profilesDictionary objectForKey: @"KeyBindings"];
-	if([displayProfiles count] == 0)
-		displayProfiles = [profilesDictionary objectForKey: @"Displays"];
-	if([terminalProfiles count] == 0)
-		terminalProfiles = [profilesDictionary objectForKey: @"Terminals"];
-    
-	[[iTermKeyBindingMgr singleInstance] setProfiles: keybindingProfiles];
-	[[iTermDisplayProfileMgr singleInstance] setProfiles: displayProfiles];
-	[[iTermTerminalProfileMgr singleInstance] setProfiles: terminalProfiles];
-
-    selectedProfile = nil;
-    return self;
-}    
 
 - (IBAction) showProfilesWindow: (id) sender
 {
-	
-    // load nib if we haven't already
-    if([self window] == nil)
-		[self initWithWindowNibName: @"ProfilesWindow"];
-    
-	[[self window] setDelegate: self]; // also forces window to load
-    
-	[self tableViewSelectionDidChange: nil];	
- 
-	// add list of encodings
+	NSEnumerator *profileEnumerator;
+	NSString *aString;
 	NSEnumerator *anEnumerator;
 	NSNumber *anEncoding;
+	
+	// load up the keyboard profiles
+	[kbProfileSelector removeAllItems];
+	profileEnumerator = [[[iTermKeyBindingMgr singleInstance] profiles] keyEnumerator];
+	while((aString = [profileEnumerator nextObject]) != nil)
+		[kbProfileSelector addItemWithTitle: aString];
+	
+	[self kbProfileChanged: nil];
+	[self tableViewSelectionDidChange: nil];	
+	
+	// load up the display profiles
+	[displayProfileSelector removeAllItems];
+	profileEnumerator = [[[iTermDisplayProfileMgr singleInstance] profiles] keyEnumerator];
+	while((aString = [profileEnumerator nextObject]) != nil)
+		[displayProfileSelector addItemWithTitle: aString];
+	
+	[self displayProfileChanged: nil];
+	
+	// load up the terminal profiles
+	[terminalProfileSelector removeAllItems];
+	profileEnumerator = [[[iTermTerminalProfileMgr singleInstance] profiles] keyEnumerator];
+	while((aString = [profileEnumerator nextObject]) != nil)
+		[terminalProfileSelector addItemWithTitle: aString];
 
+	// add list of encodings
 	[terminalEncoding removeAllItems];
 	anEnumerator = [[[iTermController sharedInstance] sortedEncodingList] objectEnumerator];
 	while((anEncoding = [anEnumerator nextObject]) != NULL)
@@ -103,21 +71,11 @@ static BOOL addingKBEntry;
 		[terminalEncoding addItemWithTitle: [NSString localizedNameOfStringEncoding: [anEncoding unsignedIntValue]]];
 		[[terminalEncoding lastItem] setTag: [anEncoding unsignedIntValue]];
 	}
-    
- 	
-	[profileOutline deselectAll:nil];
-	[deleteButton setEnabled:NO];
-    [duplicateButton setEnabled:NO];
-    [kbEntryTableView setDoubleAction:@selector(kbEntryEdit:)];
-
+	
+	[self terminalProfileChanged: nil];
+	
 	[self showWindow: self];
 }
-
-- (IBAction)closeWindow:(id)sender
-{
-	[[self window] close];
-}
-
 
 - (void)windowDidBecomeKey:(NSNotification *)aNotification
 {
@@ -127,13 +85,6 @@ static BOOL addingKBEntry;
 
 - (void)windowWillClose:(NSNotification *)aNotification
 {
-    id prefs = [NSUserDefaults standardUserDefaults];
-    
-    [prefs setObject: [[iTermKeyBindingMgr singleInstance] profiles] forKey: @"KeyBindings"];
-	[prefs setObject: [[iTermDisplayProfileMgr singleInstance] profiles] forKey: @"Displays"];
-	[prefs setObject: [[iTermTerminalProfileMgr singleInstance] profiles] forKey: @"Terminals"];
-	[prefs synchronize];
-
 	[[NSColorPanel sharedColorPanel] close];
 	[[NSFontPanel sharedFontPanel] close];	
 }
@@ -141,120 +92,46 @@ static BOOL addingKBEntry;
 // Profile editing
 - (IBAction) profileAdd: (id) sender
 {
-    // Check if duplicate button is hit, and there is a profile chosen
-	if ([sender tag] == 1 && selectedProfile == nil) {
-        return;
-    }
-        
+	
 	[NSApp beginSheet: addProfile
 	   modalForWindow: [self window]
 		modalDelegate: self
 	   didEndSelector: @selector(_addProfileSheetDidEnd:returnCode:contextInfo:)
 		  contextInfo: nil];        
-    
-    // duplicate button?
-    if ([sender tag]) {
-        [profileName setStringValue: [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"%@ copy",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles"),
-            selectedProfile]];
-        [addProfileCategory selectItemAtIndex: [profileTabView indexOfTabViewItem:[profileTabView selectedTabViewItem]]];
-        [addProfileCategory setEnabled: NO];
-    }
-    else {
-        [profileName setStringValue: NSLocalizedStringFromTableInBundle(@"Untitled",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles")];
-        [addProfileCategory setEnabled: YES];
-    }
-        
+	
 }
 
 - (IBAction) profileDelete: (id) sender
 {
-    NSBeginAlertSheet(NSLocalizedStringFromTableInBundle(@"Delete Profile",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles"),
-                      NSLocalizedStringFromTableInBundle(@"Delete",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles"),
-                      NSLocalizedStringFromTableInBundle(@"Cancel",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles"),
-                      nil, [self window], self, 
-                      @selector(_deleteProfileSheetDidEnd:returnCode:contextInfo:), 
-                      NULL, NULL, 
-                      [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"Are you sure that you want to delete %@? There is no way to undo this action.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles"),
-                          selectedProfile]);
+	[NSApp beginSheet: deleteProfile
+       modalForWindow: [self window]
+        modalDelegate: self
+       didEndSelector: @selector(_deleteProfileSheetDidEnd:returnCode:contextInfo:)
+          contextInfo: nil];        
 }
 
 - (IBAction) profileAddConfirm: (id) sender
 {
 	//NSLog(@"%s", __PRETTY_FUNCTION__);
-	id profileMgr;
-	
-    int categoryChosen = [addProfileCategory indexOfSelectedItem];
-
-	if(categoryChosen == KEYBOARD_PROFILE_TAB)
-	{
-		profileMgr = [iTermKeyBindingMgr singleInstance];
-	}
-	else if(categoryChosen == TERMINAL_PROFILE_TAB)
-	{
-		profileMgr = [iTermTerminalProfileMgr singleInstance];
-	}
-	else if(categoryChosen == DISPLAY_PROFILE_TAB)
-	{
-		profileMgr = [iTermDisplayProfileMgr singleInstance];
-	}
-	else
-		return;
-    
-    // make sure this profile does not already exist
-    if([[profileName stringValue] length]  <= 0 || [[profileMgr profiles] objectForKey: [profileName stringValue]] != nil)
-    {
-        NSBeep();
-        // find a non-duplicated name
-        NSString *aString = [NSString stringWithFormat:@"%@ new", [profileName stringValue]];
-        int i = 1;
-        for(; [[profileMgr profiles] objectForKey: aString] != nil; i++)
-            aString = [NSString stringWithFormat:@"%@ new %d", [profileName stringValue], i];
-        [profileName setStringValue: aString];
-    }
-
-    [NSApp endSheet:addProfile returnCode:NSOKButton];
+	[NSApp endSheet:addProfile returnCode:NSOKButton];
 }
 
 - (IBAction) profileAddCancel: (id) sender
 {
 	//NSLog(@"%s", __PRETTY_FUNCTION__);
-
-    [NSApp endSheet:addProfile returnCode:NSCancelButton];
+	[NSApp endSheet:addProfile returnCode:NSCancelButton];
 }
 
-- (IBAction) profileDuplicate: (id) sender
+- (IBAction) profileDeleteConfirm: (id) sender
 {
-    int selectedTabViewItem;
-	id profileMgr;
-	
-	selectedTabViewItem  = [profileTabView indexOfTabViewItem: [profileTabView selectedTabViewItem]];
-	
-	if(selectedTabViewItem == KEYBOARD_PROFILE_TAB)
-	{
-		profileMgr = [iTermKeyBindingMgr singleInstance];
-	}
-	else if(selectedTabViewItem == TERMINAL_PROFILE_TAB)
-	{
-		profileMgr = [iTermTerminalProfileMgr singleInstance];
-	}
-	else if(selectedTabViewItem == DISPLAY_PROFILE_TAB)
-	{
-		profileMgr = [iTermDisplayProfileMgr singleInstance];
-	}
-	else
-		return;
+	//NSLog(@"%s", __PRETTY_FUNCTION__);
+	[NSApp endSheet:deleteProfile returnCode:NSOKButton];
+}
 
-    // find a non-duplicated name
-    NSString *aString = [NSString stringWithFormat:@"%@ copy", selectedProfile];
-    int i = 1;
-    for(; [[profileMgr profiles] objectForKey: aString] != nil; i++)
-        aString = [NSString stringWithFormat:@"%@ copy %d", selectedProfile, i];
-    [profileMgr addProfileWithName: aString 
-                       copyProfile: selectedProfile];
-    
-    [profileOutline reloadData];
-    [self selectProfile:aString withInCategory: selectedTabViewItem];
-    
+- (IBAction) profileDeleteCancel: (id) sender
+{
+	//NSLog(@"%s", __PRETTY_FUNCTION__);
+	[NSApp endSheet:deleteProfile returnCode:NSCancelButton];
 }
 
 
@@ -263,16 +140,17 @@ static BOOL addingKBEntry;
 {
 	
 	[[iTermKeyBindingMgr singleInstance] setOptionKey: [kbOptionKey selectedColumn] 
-										   forProfile: selectedProfile];
+										   forProfile: [kbProfileSelector titleOfSelectedItem]];
 }
 
-- (void) kbProfileChangedTo: (NSString *) selectedKBProfile
+- (IBAction) kbProfileChanged: (id) sender
 {
+	NSString *selectedKBProfile;
 	//NSLog(@"%s; %@", __PRETTY_FUNCTION__, sender);
 	
-	[deleteButton setEnabled: ![[iTermKeyBindingMgr singleInstance] isGlobalProfile: selectedKBProfile]];
-    [duplicateButton setEnabled:YES];
-
+	selectedKBProfile = [kbProfileSelector titleOfSelectedItem];
+	
+	[kbProfileDeleteButton setEnabled: ![[iTermKeyBindingMgr singleInstance] isGlobalProfile: selectedKBProfile]];
     [kbOptionKey selectCellAtRow:0 column:[[iTermKeyBindingMgr singleInstance] optionKeyForProfile: selectedKBProfile]];
 	
 	[kbEntryTableView reloadData];
@@ -282,7 +160,6 @@ static BOOL addingKBEntry;
 {
 	int i;
 	
-	addingKBEntry = YES;
 	//NSLog(@"%s", __PRETTY_FUNCTION__);
 	[kbEntryKeyCode setStringValue: @""];
 	[kbEntryText setStringValue: @""];
@@ -309,7 +186,7 @@ static BOOL addingKBEntry;
 	
 	
 	
-	if([[iTermKeyBindingMgr singleInstance] isGlobalProfile: selectedProfile])
+	if([[iTermKeyBindingMgr singleInstance] isGlobalProfile: [kbProfileSelector titleOfSelectedItem]])
 	{
 		for (i = KEY_ACTION_NEXT_SESSION; i < KEY_ACTION_ESCAPE_SEQUENCE; i++)
 		{
@@ -328,209 +205,7 @@ static BOOL addingKBEntry;
 		[kbEntryAction selectItemAtIndex: KEY_ACTION_ESCAPE_SEQUENCE];
 		
 	}
-	[kbEntryHighPriority setState: NSOffState];
 	
-	[self kbEntrySelectorChanged: kbEntryAction];
-	
-	[NSApp beginSheet: addKBEntry
-       modalForWindow: [self window]
-        modalDelegate: self
-       didEndSelector: @selector(_addKBEntrySheetDidEnd:returnCode:contextInfo:)
-          contextInfo: nil];        
-	
-}
-
-- (IBAction) kbEntryEdit: (id) sender
-{
-	int index;
-	int selectedRow = [kbEntryTableView selectedRow];
-	
-	NSMutableDictionary *keyMappings;
-	NSArray *allKeys;
-	NSString *theKeyCombination;
-	unsigned int keyCode, keyModifiers;
-	int action;
-	NSString *auxText;
-	BOOL priority;
-	
-	//NSLog(@"%s: %@", __PRETTY_FUNCTION__, profile);
-	
-	keyMappings = [[[[iTermKeyBindingMgr singleInstance] profiles] objectForKey: selectedProfile] objectForKey: @"Key Mappings"];
-	allKeys = [[keyMappings allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
-	
-	if(selectedRow >= 0 && selectedRow < [allKeys count])
-	{
-		theKeyCombination = [allKeys objectAtIndex: selectedRow];
-		action = [[[keyMappings objectForKey: [allKeys objectAtIndex: selectedRow]] objectForKey: @"Action"] intValue];
-		auxText = [[keyMappings objectForKey: [allKeys objectAtIndex: selectedRow]] objectForKey: @"Text"];
-		priority = [[keyMappings objectForKey: [allKeys objectAtIndex: selectedRow]] objectForKey: @"Priority"] ? [[[keyMappings objectForKey: [allKeys objectAtIndex: selectedRow]] objectForKey: @"Priority"] boolValue] : NO;
-		
-	}
-	else
-		return;
-	
-	addingKBEntry = NO;
-	sscanf([theKeyCombination UTF8String], "%x-%x", &keyCode, &keyModifiers);
-	
-	[kbEntryKey setTarget: self];
-	[kbEntryKey setAction: @selector(kbEntrySelectorChanged:)];
-	[kbEntryAction setTarget: self];
-	[kbEntryAction setAction: @selector(kbEntrySelectorChanged:)];
-	
-	switch (keyCode)
-	{
-		case NSDownArrowFunctionKey:
-			index = KEY_CURSOR_DOWN;
-			break;
-		case NSLeftArrowFunctionKey:
-			index = KEY_CURSOR_LEFT;
-			break;
-		case NSRightArrowFunctionKey:
-			index = KEY_CURSOR_RIGHT;
-			break;
-		case NSUpArrowFunctionKey:
-			index = KEY_CURSOR_UP;
-			break;
-		case NSDeleteFunctionKey:
-			index = KEY_DEL;
-			break;
-		case 0x7f:
-			index = KEY_DELETE;
-			break;
-		case NSEndFunctionKey:
-			index = KEY_END;
-			break;
-		case NSF1FunctionKey:
-		case NSF2FunctionKey:
-		case NSF3FunctionKey:
-		case NSF4FunctionKey:
-		case NSF5FunctionKey:
-		case NSF6FunctionKey:
-		case NSF7FunctionKey:
-		case NSF8FunctionKey:
-		case NSF9FunctionKey:
-		case NSF10FunctionKey:
-		case NSF11FunctionKey:
-		case NSF12FunctionKey:
-		case NSF13FunctionKey:
-		case NSF14FunctionKey:
-		case NSF15FunctionKey:
-		case NSF16FunctionKey:
-		case NSF17FunctionKey:
-		case NSF18FunctionKey:
-		case NSF19FunctionKey:
-		case NSF20FunctionKey:
-			index = KEY_F1 + keyCode - NSF1FunctionKey;
-			break;
-		case NSHelpFunctionKey:
-			index = KEY_HELP;
-			break;
-		case NSHomeFunctionKey:
-			index = KEY_HOME;
-			break;
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			if (keyModifiers & NSNumericPadKeyMask)
-				index = KEY_NUMERIC_0 + keyCode - '0';
-			else {
-				index = KEY_HEX_CODE;
-				[kbEntryKeyCode setStringValue: [NSString stringWithFormat:@"0x%x", keyCode]];
-			}
-			break;
-		case '=':
-			index = KEY_NUMERIC_EQUAL;
-			break;
-		case '/':
-			index = KEY_NUMERIC_DIVIDE;
-			break;
-		case '*':
-			index = KEY_NUMERIC_MULTIPLY;
-			break;
-		case '-':
-			index = KEY_NUMERIC_MINUS;
-			break;
-		case '+':
-			index = KEY_NUMERIC_PLUS;
-			break;
-		case '.':
-			index = KEY_NUMERIC_PERIOD;
-			break;
-		case NSClearLineFunctionKey:
-			index = KEY_NUMLOCK;
-			break;
-		case NSPageDownFunctionKey:
-			index = KEY_PAGE_DOWN;
-			break;
-		case NSPageUpFunctionKey:
-			index = KEY_PAGE_UP;
-			break;
-		case 0x3: // 'enter' on numeric key pad
-			index = KEY_NUMERIC_ENTER;
-			break;
-		default:
-			index = KEY_HEX_CODE;
-			[kbEntryKeyCode setStringValue: [NSString stringWithFormat:@"0x%x", keyCode]];
-			break;
-	}
-	
-	[kbEntryKey selectItemAtIndex:index];
-	[self kbEntrySelectorChanged: kbEntryKey];
-	
-	[kbEntryKeyModifierCommand setState: (keyModifiers & NSCommandKeyMask)];
-	[kbEntryKeyModifierOption setState: (keyModifiers & NSAlternateKeyMask)];
-	[kbEntryKeyModifierControl setState: (keyModifiers & NSControlKeyMask)];
-	[kbEntryKeyModifierShift setState: (keyModifiers & NSShiftKeyMask)];
-	
-	//NSLog(@"%s", __PRETTY_FUNCTION__);
-
-	[kbEntryKeyModifierOption setEnabled: YES];
-	[kbEntryKeyModifierControl setEnabled: YES];
-	[kbEntryKeyModifierShift setEnabled: YES];
-	[kbEntryKeyModifierCommand setEnabled: YES];
-	
-	if (action == KEY_ACTION_HEX_CODE || action == KEY_ACTION_ESCAPE_SEQUENCE || action == KEY_ACTION_TEXT)
-	{
-		[kbEntryText setStringValue: auxText];
-	}
-	else
-	{
-		[kbEntryText setStringValue: @""];
-	}
-	
-	[kbEntryAction selectItemAtIndex: action];
-	[self kbEntrySelectorChanged: kbEntryAction];
-	
-	
-	int i;
-	
-	if([[iTermKeyBindingMgr singleInstance] isGlobalProfile: selectedProfile])
-	{
-		for (i = KEY_ACTION_NEXT_SESSION; i < KEY_ACTION_ESCAPE_SEQUENCE; i++)
-		{
-			[[kbEntryAction itemAtIndex: i] setEnabled: YES];
-			[[kbEntryAction itemAtIndex: i] setAction: @selector(kbEntrySelectorChanged:)];
-			[[kbEntryAction itemAtIndex: i] setTarget: self];
-		}
-	}
-	else
-	{
-		for (i = KEY_ACTION_NEXT_SESSION; i < KEY_ACTION_ESCAPE_SEQUENCE; i++)
-		{
-			[[kbEntryAction itemAtIndex: i] setEnabled: NO];
-			[[kbEntryAction itemAtIndex: i] setAction: nil];
-		}
-		
-	}
-	
-	[kbEntryHighPriority setState: priority ? NSOnState : NSOffState];
 	[self kbEntrySelectorChanged: kbEntryAction];
 	
 	[NSApp beginSheet: addKBEntry
@@ -558,7 +233,7 @@ static BOOL addingKBEntry;
 	if([kbEntryTableView selectedRow] >= 0)
 	{
 		[[iTermKeyBindingMgr singleInstance] deleteEntryAtIndex: [kbEntryTableView selectedRow] 
-													  inProfile: selectedProfile];
+													  inProfile: [kbProfileSelector titleOfSelectedItem]];
 		[kbEntryTableView reloadData];
 	}
 	else
@@ -583,28 +258,16 @@ static BOOL addingKBEntry;
 	else if(sender == kbEntryAction)
 	{
 		if([kbEntryAction indexOfSelectedItem] == KEY_ACTION_HEX_CODE ||
-		   [kbEntryAction indexOfSelectedItem] == KEY_ACTION_ESCAPE_SEQUENCE ||
-		   [kbEntryAction indexOfSelectedItem] == KEY_ACTION_TEXT)
+		   [kbEntryAction indexOfSelectedItem] == KEY_ACTION_ESCAPE_SEQUENCE)
 		{		
-			[kbEntryText setHidden: NO];
-			[kbEntryHint setHidden: NO];
-			switch ([kbEntryAction indexOfSelectedItem]) {
-				case KEY_ACTION_HEX_CODE:
-					[kbEntryHint setStringValue: NSLocalizedStringFromTableInBundle(@"eg. 7F for backward delete.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles")];
-					break;
-				case KEY_ACTION_ESCAPE_SEQUENCE:
-					[kbEntryHint setStringValue: NSLocalizedStringFromTableInBundle(@"eg. [OC for ESC [OC.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles")];
-					break;
-				case KEY_ACTION_TEXT:
-					[kbEntryHint setStringValue: NSLocalizedStringFromTableInBundle(@"use \\n for new-line, etc",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles")];
-					break;
-			}				
+			if ([kbEntryText respondsToSelector: @selector(setHidden:)] == YES)
+				[kbEntryText setHidden: NO];
 		}
 		else
 		{
 			[kbEntryText setStringValue: @""];
-			[kbEntryText setHidden: YES];
-			[kbEntryHint setHidden: YES];
+			if([kbEntryText respondsToSelector: @selector(setHidden:)] == YES)
+				[kbEntryText setHidden: YES];
 		}
 	}	
 }
@@ -612,34 +275,29 @@ static BOOL addingKBEntry;
 // NSTableView data source
 - (int) numberOfRowsInTableView: (NSTableView *)aTableView
 {
-	if([[[iTermKeyBindingMgr singleInstance] profiles] count] == 0 || selectedProfile == nil)
+	if([kbProfileSelector numberOfItems] == 0)
 		return (0);
-
-    
-	return([[iTermKeyBindingMgr singleInstance] numberOfEntriesInProfile: selectedProfile]);
+	
+	return ([[iTermKeyBindingMgr singleInstance] numberOfEntriesInProfile: [kbProfileSelector titleOfSelectedItem]]);
 }
 
 - (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex
 {
-    //NSLog(@"%s: %@", __PRETTY_FUNCTION__, aTableView);
-    
-    if([[aTableColumn identifier] intValue] ==  0)
+	if([[aTableColumn identifier] intValue] ==  0)
 	{
 		return ([[iTermKeyBindingMgr singleInstance] keyCombinationAtIndex: rowIndex 
-																 inProfile: selectedProfile]);
+																 inProfile: [kbProfileSelector titleOfSelectedItem]]);
 	}
 	else
 	{
 		return ([[iTermKeyBindingMgr singleInstance] actionForKeyCombinationAtIndex: rowIndex 
-																		  inProfile: selectedProfile]);
+																		  inProfile: [kbProfileSelector titleOfSelectedItem]]);
 	}
 }
 
 // NSTableView delegate
 - (void)tableViewSelectionDidChange:(NSNotification *)aNotification
 {
-    //NSLog(@"%s", __PRETTY_FUNCTION__);
-
 	if([kbEntryTableView selectedRow] < 0)
 		[kbEntryDeleteButton setEnabled: NO];
 	else
@@ -647,9 +305,12 @@ static BOOL addingKBEntry;
 }
 
 // Display profile UI
-- (void) displayProfileChangedTo: (NSString *) theProfile
+- (IBAction) displayProfileChanged: (id) sender
 {
+	NSString *theProfile;
 	NSString *backgroundImagePath;
+	
+	theProfile = [displayProfileSelector titleOfSelectedItem];
 	
 	// load the colors
 	[displayFGColor setColor: [[iTermDisplayProfileMgr singleInstance] color: TYPE_FOREGROUND_COLOR 
@@ -734,9 +395,6 @@ static BOOL addingKBEntry;
 	
 	// anti-alias
 	[displayAntiAlias setState: [[iTermDisplayProfileMgr singleInstance] windowAntiAliasForProfile: theProfile]];
-
-	// blur
-	[displayBlur setState: [[iTermDisplayProfileMgr singleInstance] windowBlurForProfile: theProfile]];
 	
 	// window size
 	[displayColTextField setStringValue: [NSString stringWithFormat: @"%d",
@@ -744,9 +402,9 @@ static BOOL addingKBEntry;
 	[displayRowTextField setStringValue: [NSString stringWithFormat: @"%d",
 		[[iTermDisplayProfileMgr singleInstance] windowRowsForProfile: theProfile]]];
 	
-	[deleteButton setEnabled: ![[iTermDisplayProfileMgr singleInstance] isDefaultProfile: theProfile]];
-    [duplicateButton setEnabled:YES];
+	[displayProfileDeleteButton setEnabled: ![[iTermDisplayProfileMgr singleInstance] isDefaultProfile: theProfile]];
 
+	
 }
 
 - (IBAction) displaySetDisableBold: (id) sender
@@ -754,7 +412,7 @@ static BOOL addingKBEntry;
 	if(sender == displayDisableBold)
 	{
 		[[iTermDisplayProfileMgr singleInstance] setDisableBold: [sender state] 
-														 forProfile: selectedProfile];
+														 forProfile: [displayProfileSelector titleOfSelectedItem]];
 	}
 }
 
@@ -763,44 +421,38 @@ static BOOL addingKBEntry;
 	if(sender == displayAntiAlias)
 	{
 		[[iTermDisplayProfileMgr singleInstance] setWindowAntiAlias: [sender state] 
-												   forProfile: selectedProfile];
-	}
-}
-
-- (IBAction) displaySetBlur: (id) sender
-{
-	if(sender == displayBlur)
-	{
-		[[iTermDisplayProfileMgr singleInstance] setWindowBlur: [sender state]
-													forProfile: selectedProfile];
+												   forProfile: [displayProfileSelector titleOfSelectedItem]];
 	}
 }
 
 - (IBAction) displayBackgroundImage: (id) sender
 {
+	NSString *theProfile = [displayProfileSelector titleOfSelectedItem];
 	
 	if (sender == displayUseBackgroundImage)
 	{
 		if ([sender state] == NSOffState)
 		{
 			[displayBackgroundImage setImage: nil];
-			[[iTermDisplayProfileMgr singleInstance] setBackgroundImage: @"" forProfile: selectedProfile];
+			[[iTermDisplayProfileMgr singleInstance] setBackgroundImage: @"" forProfile: theProfile];
 		}
 		else
-			[self _chooseBackgroundImageForProfile: selectedProfile];
+			[self _chooseBackgroundImageForProfile: theProfile];
 	}
 }
 
 - (IBAction) displayChangeColor: (id) sender
 {
 	
+	NSString *aProfileName;
 	int type;
 	
+	aProfileName = [displayProfileSelector titleOfSelectedItem];
 	type = [sender tag];
 	
 	[[iTermDisplayProfileMgr singleInstance] setColor: [sender color]
 											  forType: type
-										   forProfile: selectedProfile];
+										   forProfile: aProfileName];
 	
 	// update fonts display
 	[self _updateFontsDisplay];
@@ -810,20 +462,22 @@ static BOOL addingKBEntry;
 // sent by NSFontManager
 - (void)changeFont:(id)fontManager
 {
+	NSString *theProfile;
 	NSFont *aFont;
 	
 	//NSLog(@"%s", __PRETTY_FUNCTION__);
 	
+	theProfile = [displayProfileSelector titleOfSelectedItem];
 	
 	if(changingNAFont)
 	{
 		aFont = [fontManager convertFont: [displayNAFontTextField font]];
-		[[iTermDisplayProfileMgr singleInstance] setWindowNAFont: aFont forProfile: selectedProfile];
+		[[iTermDisplayProfileMgr singleInstance] setWindowNAFont: aFont forProfile: theProfile];
 	}
 	else
 	{
 		aFont = [fontManager convertFont: [displayFontTextField font]];
-		[[iTermDisplayProfileMgr singleInstance] setWindowFont: aFont forProfile: selectedProfile];
+		[[iTermDisplayProfileMgr singleInstance] setWindowFont: aFont forProfile: theProfile];
 	}
 	
 	[self _updateFontsDisplay];
@@ -834,11 +488,13 @@ static BOOL addingKBEntry;
 - (IBAction) displaySelectFont: (id) sender
 {
 	NSFont *aFont;
+	NSString *theProfile;
 	NSFontPanel *aFontPanel;
 	
 	changingNAFont = NO;
 	
-	aFont = [[iTermDisplayProfileMgr singleInstance] windowFontForProfile: selectedProfile];
+	theProfile = [displayProfileSelector titleOfSelectedItem];
+	aFont = [[iTermDisplayProfileMgr singleInstance] windowFontForProfile: theProfile];
 	
 	// make sure we get the messages from the NSFontManager
     [[self window] makeFirstResponder:self];
@@ -851,11 +507,13 @@ static BOOL addingKBEntry;
 - (IBAction) displaySelectNAFont: (id) sender
 {
 	NSFont *aFont;
+	NSString *theProfile;
 	NSFontPanel *aFontPanel;
 	
 	changingNAFont = YES;
 	
-	aFont = [[iTermDisplayProfileMgr singleInstance] windowNAFontForProfile: selectedProfile];
+	theProfile = [displayProfileSelector titleOfSelectedItem];
+	aFont = [[iTermDisplayProfileMgr singleInstance] windowNAFontForProfile: theProfile];
 	
 	// make sure we get the messages from the NSFontManager
     [[self window] makeFirstResponder:self];
@@ -867,14 +525,17 @@ static BOOL addingKBEntry;
 
 - (IBAction) displaySetFontSpacing: (id) sender
 {
+	NSString *theProfile;
+	
+	theProfile = [displayProfileSelector titleOfSelectedItem];
 	
 	if(sender == displayFontSpacingWidth)
 		[[iTermDisplayProfileMgr singleInstance] setWindowHorizontalCharSpacing: [sender floatValue] 
-																	 forProfile: selectedProfile];
+																	 forProfile: theProfile];
 	else if(sender == displayFontSpacingHeight)
-		[[iTermDisplayProfileMgr singleInstance] setWindowVerticalCharSpacing: [sender floatValue]
-                                                                   forProfile: selectedProfile];
-    
+		[[iTermDisplayProfileMgr singleInstance] setWindowVerticalCharSpacing: [sender floatValue] 
+																	 forProfile: theProfile];
+	
 }
 
 // NSTextField delegate
@@ -882,32 +543,38 @@ static BOOL addingKBEntry;
 {
 	int iVal;
 	float fVal;
+	NSString *theDsiplayProfile;
+	NSString *theTerminalProfile;
 	id sender;
 
 	//NSLog(@"%s: %@", __PRETTY_FUNCTION__, [aNotification object]);
 
+	theDsiplayProfile = [displayProfileSelector titleOfSelectedItem];
+	theTerminalProfile = [terminalProfileSelector titleOfSelectedItem];
 	sender = [aNotification object];
 
 	iVal = [sender intValue];
 	fVal = [sender floatValue];
 	if(sender == displayColTextField)
-		[[iTermDisplayProfileMgr singleInstance] setWindowColumns: iVal forProfile: selectedProfile];
+		[[iTermDisplayProfileMgr singleInstance] setWindowColumns: iVal forProfile: theDsiplayProfile];
 	else if(sender == displayRowTextField)
-		[[iTermDisplayProfileMgr singleInstance] setWindowRows: iVal forProfile: selectedProfile];
+		[[iTermDisplayProfileMgr singleInstance] setWindowRows: iVal forProfile: theDsiplayProfile];
 	else if(sender == displayTransparency)
-		[[iTermDisplayProfileMgr singleInstance] setTransparency: fVal/100 forProfile: selectedProfile];
+		[[iTermDisplayProfileMgr singleInstance] setTransparency: fVal/100 forProfile: theDsiplayProfile];
 	else if(sender == terminalScrollback)
-		[[iTermTerminalProfileMgr singleInstance] setScrollbackLines: iVal forProfile: selectedProfile];
+		[[iTermTerminalProfileMgr singleInstance] setScrollbackLines: iVal forProfile: theTerminalProfile];
 	else if(sender == terminalIdleChar)
-		[[iTermTerminalProfileMgr singleInstance] setIdleChar: iVal forProfile: selectedProfile];
+		[[iTermTerminalProfileMgr singleInstance] setIdleChar: iVal forProfile: theTerminalProfile];
 }
 
 // Terminal profile UI
-- (void) terminalProfileChangedTo: (NSString *)theProfile
+- (IBAction) terminalProfileChanged: (id) sender
 {
-    //NSLog(@"Terminal Profile changed to: %@", theProfile);
-    
-	[terminalType setStringValue: [[iTermTerminalProfileMgr singleInstance] typeForProfile: theProfile]];
+	NSString *theProfile;
+	
+	theProfile = [terminalProfileSelector titleOfSelectedItem];
+
+	[terminalType setTitle: [[iTermTerminalProfileMgr singleInstance] typeForProfile: theProfile]];
 	[terminalEncoding setTitle: [NSString localizedNameOfStringEncoding:
 		[[iTermTerminalProfileMgr singleInstance] encodingForProfile: theProfile]]];
 	[terminalScrollback setStringValue: [NSString stringWithFormat: @"%d",
@@ -922,265 +589,70 @@ static BOOL addingKBEntry;
 	[terminalIdleChar setStringValue: [NSString stringWithFormat: @"%d",  
 		[[iTermTerminalProfileMgr singleInstance] idleCharForProfile: theProfile]]];
 	[xtermMouseReporting setState: [[iTermTerminalProfileMgr singleInstance] xtermMouseReportingForProfile: theProfile]];
-	[terminalAppendTitle setState: [[iTermTerminalProfileMgr singleInstance] appendTitleForProfile: theProfile]];
-	[terminalNoResizing setState: [[iTermTerminalProfileMgr singleInstance] noResizingForProfile: theProfile]];
 	
-	[deleteButton setEnabled: ![[iTermTerminalProfileMgr singleInstance] isDefaultProfile: theProfile]];
-    [duplicateButton setEnabled: YES];
+	[terminalProfileDeleteButton setEnabled: ![[iTermTerminalProfileMgr singleInstance] isDefaultProfile: theProfile]];
 
 }
 
 - (IBAction) terminalSetType: (id) sender
 {
-	[[iTermTerminalProfileMgr singleInstance] setType: [sender stringValue] 
-										   forProfile: selectedProfile];
+	[[iTermTerminalProfileMgr singleInstance] setType: [sender titleOfSelectedItem] 
+										   forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }
 
 - (IBAction) terminalSetEncoding: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setEncoding: [[terminalEncoding selectedItem] tag] 
-											   forProfile: selectedProfile];
+											   forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }
 
 - (IBAction) terminalSetSilenceBell: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setSilenceBell: [sender state] 
-												  forProfile: selectedProfile];
+												  forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }	
 
 - (IBAction) terminalSetShowBell: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setShowBell: [sender state] 
-												  forProfile: selectedProfile];
+												  forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }
 
 - (IBAction) terminalSetEnableGrowl: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setGrowl: [sender state] 
-                                            forProfile: selectedProfile];
+                                            forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }	
 
 - (IBAction) terminalSetBlink: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setBlinkCursor: [sender state] 
-												  forProfile: selectedProfile];
+												  forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }	
 
 - (IBAction) terminalSetCloseOnSessionEnd: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setCloseOnSessionEnd: [sender state] 
-														forProfile: selectedProfile];
+														forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }	
 
 - (IBAction) terminalSetDoubleWidth: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setDoubleWidth: [sender state] 
-												  forProfile: selectedProfile];
+												  forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }	
 
 - (IBAction) terminalSetSendIdleChar: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setSendIdleChar: [sender state] 
-												   forProfile: selectedProfile];
+												   forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }
 
 - (IBAction) terminalSetXtermMouseReporting: (id) sender
 {
 	[[iTermTerminalProfileMgr singleInstance] setXtermMouseReporting: [sender state] 
-												  forProfile: selectedProfile];
+												  forProfile: [terminalProfileSelector titleOfSelectedItem]];
 }	
-
-- (IBAction) terminalSetAppendTitle: (id) sender
-{
-	[[iTermTerminalProfileMgr singleInstance] setAppendTitle: [sender state] 
-												  forProfile: selectedProfile];
-}	
-
-- (IBAction) terminalSetNoResizing: (id) sender
-{
-	[[iTermTerminalProfileMgr singleInstance] setNoResizing: [sender state] 
-												  forProfile: selectedProfile];
-}	
-
-//outline view
-// NSOutlineView delegate methods
-- (void) outlineViewSelectionDidChange: (NSNotification *) aNotification
-{
-	int selectedRow;
-	id selectedItem;
-	
-    selectedRow = [profileOutline selectedRow];
-	selectedItem = [profileOutline itemAtRow: selectedRow];
-    if (selectedProfile) {
-        selectedProfile = nil;
-    }
-	
-    //NSLog(@"%s: (%d)%@", __PRETTY_FUNCTION__, selectedRow, selectedItem);
-
-    if (!selectedItem || [selectedItem isKindOfClass:[NSNumber class]]) {
-        // Choose the instruction tab
-        [profileTabView selectTabViewItemAtIndex:3];
-    }
-	else {
-        selectedProfile = selectedItem;
-        if (selectedRow > [profileOutline rowForItem:[profileCategories objectAtIndex:DISPLAY_PROFILE_TAB]]) {
-            [self displayProfileChangedTo: selectedItem];
-            [profileTabView selectTabViewItemAtIndex:DISPLAY_PROFILE_TAB];
-        }
-        else if (selectedRow > [profileOutline rowForItem:[profileCategories objectAtIndex:TERMINAL_PROFILE_TAB]]) {
-            [self terminalProfileChangedTo: selectedItem];
-            [profileTabView selectTabViewItemAtIndex:TERMINAL_PROFILE_TAB];
-        }
-        else {
-            [self kbProfileChangedTo: selectedItem];
-            [profileTabView selectTabViewItemAtIndex:KEYBOARD_PROFILE_TAB];
-        }
-    }
-}
-
-// NSOutlineView data source methods
-// required
-- (id)outlineView:(NSOutlineView *)ov child:(int)index ofItem:(id)item
-{
-    //NSLog(@"%s: %@", __PRETTY_FUNCTION__, item);
-    
-    if (item) {
-        id value;
-        NSArray *allKeys;
-
-        switch ([item intValue]) {
-            case KEYBOARD_PROFILE_TAB:
-                allKeys = [[[[iTermKeyBindingMgr singleInstance] profiles] allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
-                break;
-            case TERMINAL_PROFILE_TAB:
-                allKeys = [[[[iTermTerminalProfileMgr singleInstance] profiles] allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
-                break;
-            default:
-                allKeys = [[[[iTermDisplayProfileMgr singleInstance] profiles] allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
-        }
-            
-        value = [allKeys objectAtIndex: index];
-        
-        return value;
-    }
-    else {
-        return [profileCategories objectAtIndex:index];
-    }
-}
-
-- (BOOL)outlineView:(NSOutlineView *)ov isItemExpandable:(id)item
-{
-    //NSLog(@"%s: %@", __PRETTY_FUNCTION__, item);
-    return [item isKindOfClass:[NSNumber class]];
-}
-
-- (int)outlineView:(NSOutlineView *)ov numberOfChildrenOfItem:(id)item
-{
-    //NSLog(@"%s: ov = 0x%x; item = 0x%x; numChildren: %d", __PRETTY_FUNCTION__, ov, item);
-
-    if (item) {
-        switch ([item intValue]) {
-            case KEYBOARD_PROFILE_TAB:
-                return [[[iTermKeyBindingMgr singleInstance] profiles] count];
-            case TERMINAL_PROFILE_TAB:
-                return [[[iTermTerminalProfileMgr singleInstance] profiles] count];
-        }
-        return [[[iTermDisplayProfileMgr singleInstance] profiles] count];
-    }
-    else
-        return 3;
-}
-
-- (id)outlineView:(NSOutlineView *)ov objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:(id)item
-{
-    //NSLog(@"%s: outlineView = 0x%x; item = %@; column= %@", __PRETTY_FUNCTION__, ov, item, [tableColumn identifier]);
-	
-    if ([item isKindOfClass:[NSNumber class]]) {
-        switch ([item intValue]) {
-            case KEYBOARD_PROFILE_TAB:
-                return NSLocalizedStringFromTableInBundle(@"Keyboard Profiles",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles");
-            case TERMINAL_PROFILE_TAB:
-                return NSLocalizedStringFromTableInBundle(@"Terminal Profiles",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles");
-			default:
-				return NSLocalizedStringFromTableInBundle(@"Display Profiles",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles");
-		}
-    }
-    else
-		return item;
-}
-
-- (BOOL)outlineView:(NSOutlineView *)outlineView shouldEditTableColumn:(NSTableColumn *)tableColumn item:(id)item
-{
-    if ([item isKindOfClass:[NSNumber class]])
-        return NO;
- 
-    int categoryChosen = [profileTabView indexOfTabViewItem: [profileTabView selectedTabViewItem]];
-    
-	if(categoryChosen == KEYBOARD_PROFILE_TAB)
-	{
-		return ![[iTermKeyBindingMgr singleInstance] isGlobalProfile:item];
-	}
-	else if(categoryChosen == TERMINAL_PROFILE_TAB)
-	{
-		return ![[iTermTerminalProfileMgr singleInstance] isDefaultProfile:item];
-	}
-	else if(categoryChosen == DISPLAY_PROFILE_TAB)
-	{
-		return ![[iTermDisplayProfileMgr singleInstance] isDefaultProfile:item];
-	}
-	else
-		return NO;
-    
-}
-
-// Optional method: needed to allow editing.
-- (void)outlineView:(NSOutlineView *)olv setObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn byItem:(id)item  
-{
-    int categoryChosen = [profileTabView indexOfTabViewItem: [profileTabView selectedTabViewItem]];
-    id profileMgr;
-    
-	if(categoryChosen == KEYBOARD_PROFILE_TAB)
-	{
-		profileMgr = [iTermKeyBindingMgr singleInstance];
-	}
-	else if(categoryChosen == TERMINAL_PROFILE_TAB)
-	{
-		profileMgr = [iTermTerminalProfileMgr singleInstance];
-	}
-	else if(categoryChosen == DISPLAY_PROFILE_TAB)
-	{
-		profileMgr = [iTermDisplayProfileMgr singleInstance];
-	}
-	else
-		return;
-    
-    if ([[profileMgr profiles] objectForKey: object] != nil) {
-        [profileOutline reloadData];
-    }
-    else {
-        id temp = [[[profileMgr profiles] objectForKey: item] retain];
-		[profileMgr updateBookmarkProfile: item with:object];
-        [profileMgr deleteProfileWithName: item];
-        [(NSMutableDictionary *)[profileMgr profiles] setObject: temp forKey: object];
-        [temp release];
-        [profileOutline reloadData];
-        [self selectProfile:object withInCategory: categoryChosen];
-    }
-}
-
-- (void)selectProfile:(NSString *)profile withInCategory: (int) category
-{
-    int i;
-	
-    
-    i = [profileOutline rowForItem: [profileCategories objectAtIndex: category]]+1;
-    for (;i<[profileOutline numberOfRows] && ![[profileOutline itemAtRow:i] isKindOfClass:[NSNumber class]];i++)
-        if ([[profileOutline itemAtRow:i] isEqualToString: profile]) {
-            [profileOutline selectRow:i byExtendingSelection:NO];
-            [self outlineViewSelectionDidChange: nil];
-            break;
-        }
-}
 
 
 @end
@@ -1193,13 +665,7 @@ static BOOL addingKBEntry;
 	{
 		unsigned int modifiers = 0;
 		unsigned int hexCode = 0;
-		int selectedRow = [kbEntryTableView selectedRow];
-
-		// if we are editing, we remove the old entry first
-		if (!addingKBEntry && selectedRow>=0)
-			[[iTermKeyBindingMgr singleInstance] deleteEntryAtIndex: [kbEntryTableView selectedRow] 
-														  inProfile: selectedProfile];
-
+		
 		if([kbEntryKeyModifierOption state] == NSOnState)
 			modifiers |= NSAlternateKeyMask;
 		if([kbEntryKeyModifierControl state] == NSOnState)
@@ -1216,9 +682,8 @@ static BOOL addingKBEntry;
 				[[iTermKeyBindingMgr singleInstance] addEntryForKeyCode: hexCode 
 															  modifiers: modifiers 
 																 action: [kbEntryAction indexOfSelectedItem] 
-														   highPriority: [kbEntryHighPriority state] == NSOnState
 																   text: [kbEntryText stringValue]
-																profile: selectedProfile];
+																profile: [kbProfileSelector titleOfSelectedItem]];
 			}
 		}
 		else
@@ -1226,47 +691,67 @@ static BOOL addingKBEntry;
 			[[iTermKeyBindingMgr singleInstance] addEntryForKey: [kbEntryKey indexOfSelectedItem] 
 													  modifiers: modifiers 
 														 action: [kbEntryAction indexOfSelectedItem] 
-												   highPriority: [kbEntryHighPriority state] == NSOnState
 														   text: [kbEntryText stringValue]
-														profile: selectedProfile];			
+														profile: [kbProfileSelector titleOfSelectedItem]];			
 		}
-		[self kbProfileChangedTo: selectedProfile];
+		[self kbProfileChanged: nil];
 	}
 	
 	[addKBEntry close];
-	[kbEntryTableView reloadData];
 }
-
 
 - (void)_addProfileSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
 {
+	int selectedTabViewItem;
+	NSPopUpButton *aProfileSelector;
+	NSEnumerator *aProfileEnumerator;
+	SEL aSelector;
+	NSString *aString;
 	id profileMgr;
 	
-    int categoryChosen = [addProfileCategory indexOfSelectedItem];
-    
-    if(categoryChosen == KEYBOARD_PROFILE_TAB)
+	selectedTabViewItem  = [profileTabView indexOfTabViewItem: [profileTabView selectedTabViewItem]];
+	
+	if(selectedTabViewItem == KEYBOARD_PROFILE_TAB)
 	{
 		profileMgr = [iTermKeyBindingMgr singleInstance];
+		aSelector = @selector(kbProfileChanged:);
+		aProfileSelector = kbProfileSelector;
 	}
-	else if(categoryChosen == TERMINAL_PROFILE_TAB)
+	else if(selectedTabViewItem == TERMINAL_PROFILE_TAB)
 	{
 		profileMgr = [iTermTerminalProfileMgr singleInstance];
+		aSelector = @selector(terminalProfileChanged:);
+		aProfileSelector = terminalProfileSelector;
 	}
-	else if(categoryChosen == DISPLAY_PROFILE_TAB)
+	else if(selectedTabViewItem == DISPLAY_PROFILE_TAB)
 	{
 		profileMgr = [iTermDisplayProfileMgr singleInstance];
+		aSelector = @selector(displayProfileChanged:);
+		aProfileSelector = displayProfileSelector;
 	}
 	else
 		return;
 	
-	if(returnCode == NSOKButton)
+	if(returnCode == NSOKButton && [[profileName stringValue] length] > 0)
 	{
-        [profileMgr addProfileWithName: [profileName stringValue] 
-                           copyProfile: [profileMgr defaultProfileName]];
-		[profileOutline reloadData];
-        [self selectProfile:[profileName stringValue]  withInCategory: categoryChosen];
-        [deleteButton setEnabled:YES];
-        [duplicateButton setEnabled:NO];
+		
+		// make sure this profile does not already exist
+		if([aProfileSelector indexOfItemWithTitle: [profileName stringValue]] >= 0)
+		{
+			NSBeep();
+			[addProfile close];
+			return;
+		}
+		
+		[profileMgr addProfileWithName: [profileName stringValue] 
+													copyProfile: [aProfileSelector titleOfSelectedItem]];
+		
+		[aProfileSelector removeAllItems];
+		aProfileEnumerator = [[profileMgr profiles] keyEnumerator];
+		while((aString = [aProfileEnumerator nextObject]) != nil)
+			[aProfileSelector addItemWithTitle: aString];	
+		[aProfileSelector selectItemWithTitle: [profileName stringValue]];
+		[self performSelector: aSelector];
 	}
 	
 	[addProfile close];
@@ -1275,6 +760,10 @@ static BOOL addingKBEntry;
 - (void)_deleteProfileSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
 {
 	int selectedTabViewItem;
+	NSPopUpButton *aProfileSelector;
+	NSEnumerator *aProfileEnumerator;
+	SEL aSelector;
+	NSString *aString;
 	id profileMgr;
 	
 	selectedTabViewItem  = [profileTabView indexOfTabViewItem: [profileTabView selectedTabViewItem]];
@@ -1282,41 +771,53 @@ static BOOL addingKBEntry;
 	if(selectedTabViewItem == KEYBOARD_PROFILE_TAB)
 	{
 		profileMgr = [iTermKeyBindingMgr singleInstance];
+		aSelector = @selector(kbProfileChanged:);
+		aProfileSelector = kbProfileSelector;
 	}
 	else if(selectedTabViewItem == TERMINAL_PROFILE_TAB)
 	{
 		profileMgr = [iTermTerminalProfileMgr singleInstance];
+		aSelector = @selector(terminalProfileChanged:);
+		aProfileSelector = terminalProfileSelector;
 	}
 	else if(selectedTabViewItem == DISPLAY_PROFILE_TAB)
 	{
 		profileMgr = [iTermDisplayProfileMgr singleInstance];
+		aSelector = @selector(displayProfileChanged:);
+		aProfileSelector = displayProfileSelector;
 	}
 	else
 		return;
 	
-	if(returnCode == NSAlertDefaultReturn)
+	if(returnCode == NSOKButton)
 	{
 		
-		[profileMgr deleteProfileWithName: selectedProfile];
+		[profileMgr deleteProfileWithName: [aProfileSelector titleOfSelectedItem]];
 		
-	    [profileOutline reloadData];
-        [profileOutline deselectAll: nil];
-        [deleteButton setEnabled:NO];
-        [duplicateButton setEnabled:NO];
-    }
+		[aProfileSelector removeAllItems];
+		aProfileEnumerator = [[profileMgr profiles] keyEnumerator];
+		while((aString = [aProfileEnumerator nextObject]) != nil)
+			[aProfileSelector addItemWithTitle: aString];
+		if([aProfileSelector numberOfItems] > 0)
+			[aProfileSelector selectItemAtIndex: 0];
+		[self performSelector: aSelector];
+	}
 	
-	[sheet close];
+	[deleteProfile close];
 }
 
 - (void) _updateFontsDisplay
 {
+	NSString *theProfile;
 	float horizontalSpacing, verticalSpacing;
+	
+	theProfile = [displayProfileSelector titleOfSelectedItem];
 	
 	// load the fonts
 	NSString *fontName;
 	NSFont *font;
 	
-	font = [[iTermDisplayProfileMgr singleInstance] windowFontForProfile: selectedProfile];
+	font = [[iTermDisplayProfileMgr singleInstance] windowFontForProfile: theProfile];
 	if(font != nil)
 	{
 		fontName = [NSString stringWithFormat: @"%@ %g", [font fontName], [font pointSize]];
@@ -1330,7 +831,7 @@ static BOOL addingKBEntry;
 		fontName = @"Unknown Font";
 		[displayFontTextField setStringValue: fontName];
 	}
-	font = [[iTermDisplayProfileMgr singleInstance] windowNAFontForProfile: selectedProfile];
+	font = [[iTermDisplayProfileMgr singleInstance] windowNAFontForProfile: theProfile];
 	if(font != nil)
 	{
 		fontName = [NSString stringWithFormat: @"%@ %g", [font fontName], [font pointSize]];
@@ -1345,8 +846,8 @@ static BOOL addingKBEntry;
 		[displayNAFontTextField setStringValue: fontName];
 	}
 	
-	horizontalSpacing = [[iTermDisplayProfileMgr singleInstance] windowHorizontalCharSpacingForProfile: selectedProfile];
-	verticalSpacing = [[iTermDisplayProfileMgr singleInstance] windowVerticalCharSpacingForProfile: selectedProfile];
+	horizontalSpacing = [[iTermDisplayProfileMgr singleInstance] windowHorizontalCharSpacingForProfile: theProfile];
+	verticalSpacing = [[iTermDisplayProfileMgr singleInstance] windowVerticalCharSpacingForProfile: theProfile];
 
 	[displayFontSpacingWidth setFloatValue: horizontalSpacing];
 	[displayFontSpacingHeight setFloatValue: verticalSpacing];
