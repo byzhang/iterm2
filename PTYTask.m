@@ -1,10 +1,12 @@
 // -*- mode:objc -*-
+// $Id: PTYTask.m,v 1.5 2003-02-25 16:16:36 ujwal Exp $
+//
 /*
  **  PTYTask.m
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -27,650 +29,515 @@
  */
 
 // Debug option
-#define DEBUG_ALLOC         0
-#define DEBUG_METHOD_TRACE  0
+#define DEBUG_THREAD          0
+#define DEBUG_ALLOC           0
+#define DEBUG_METHOD_TRACE    0
 
+#import <stdio.h>
+#import <stdlib.h>
+#import <unistd.h>
+#import <util.h>
+#import <sys/ioctl.h>
+#import <sys/types.h>
+#import <sys/wait.h>
+#import <sys/time.h>
 
-#define MAXRW 2048
-
-#import <Foundation/Foundation.h>
-
-#include <unistd.h>
-#include <util.h>
-#include <sys/ioctl.h>
-#include <sys/select.h>
-
-#import <iTerm/PTYTask.h>
-#import <iTerm/PreferencePanel.h>
-
-#include <dlfcn.h>
-#include <sys/mount.h>
-/* Definition stolen from libproc.h */
-#define PROC_PIDVNODEPATHINFO 9
-//int proc_pidinfo(pid_t pid, int flavor, uint64_t arg,  void *buffer, int buffersize);
-
-struct vinfo_stat {
-	uint32_t	vst_dev;	/* [XSI] ID of device containing file */
-	uint16_t	vst_mode;	/* [XSI] Mode of file (see below) */
-	uint16_t	vst_nlink;	/* [XSI] Number of hard links */
-	uint64_t	vst_ino;	/* [XSI] File serial number */
-	uid_t		vst_uid;	/* [XSI] User ID of the file */
-	gid_t		vst_gid;	/* [XSI] Group ID of the file */
-	int64_t		vst_atime;	/* [XSI] Time of last access */
-	int64_t		vst_atimensec;	/* nsec of last access */
-	int64_t		vst_mtime;	/* [XSI] Last data modification time */
-	int64_t		vst_mtimensec;	/* last data modification nsec */
-	int64_t		vst_ctime;	/* [XSI] Time of last status change */
-	int64_t		vst_ctimensec;	/* nsec of last status change */
-	int64_t		vst_birthtime;	/*  File creation time(birth)  */
-	int64_t		vst_birthtimensec;	/* nsec of File creation time */
-	off_t		vst_size;	/* [XSI] file size, in bytes */
-	int64_t		vst_blocks;	/* [XSI] blocks allocated for file */
-	int32_t		vst_blksize;	/* [XSI] optimal blocksize for I/O */
-	uint32_t	vst_flags;	/* user defined flags for file */
-	uint32_t	vst_gen;	/* file generation number */
-	uint32_t	vst_rdev;	/* [XSI] Device ID */
-	int64_t		vst_qspare[2];	/* RESERVED: DO NOT USE! */
-};
-
-struct vnode_info {
-	struct vinfo_stat	vi_stat;
-	int			vi_type;
-	fsid_t			vi_fsid;
-	int			vi_pad;
-};
-
-struct vnode_info_path {
-	struct vnode_info	vip_vi;
-	char vip_path[MAXPATHLEN];  /* tail end of it  */
-};
-
-struct proc_vnodepathinfo {
-	struct vnode_info_path pvi_cdir;
-	struct vnode_info_path pvi_rdir;
-};
-
-
-
-
-@interface TaskNotifier : NSObject
-{
-	NSMutableArray* tasks;
-	int unblockPipeR;
-	int unblockPipeW;
-}
-
-+ (TaskNotifier*)sharedInstance;
-
-- (id)init;
-- (void)dealloc;
-
-- (void)registerTask:(PTYTask*)task;
-- (void)deregisterTask:(PTYTask*)task;
-
-- (void)unblock;
-- (void)run;
-
-@end
-
-@implementation TaskNotifier
-
-static TaskNotifier* taskNotifier = nil;
-
-+ (TaskNotifier*)sharedInstance
-{
-	if(!taskNotifier) {
-		taskNotifier = [[TaskNotifier alloc] init];
-		[NSThread detachNewThreadSelector:@selector(run)
-				toTarget:taskNotifier withObject:nil];
-	}
-	return taskNotifier;
-}
-
-- (id)init
-{
-	if ([super init] == nil)
-		return nil;
-
-	tasks = [[NSMutableArray alloc] init];
-
-	int unblockPipe[2];
-	if(pipe(unblockPipe) != 0) {
-		return nil;
-	}
-	fcntl(unblockPipe[0], F_SETFL, O_NONBLOCK);
-	unblockPipeR = unblockPipe[0];
-	unblockPipeW = unblockPipe[1];
-
-	return self;
-}
-
-- (void)dealloc
-{
-	[tasks release];
-	close(unblockPipeR);
-	close(unblockPipeW);
-	[super dealloc];
-}
-
-- (void)registerTask:(PTYTask*)task
-{
-	[tasks addObject:task];
-	[self unblock];
-}
-
-- (void)deregisterTask:(PTYTask*)task
-{
-	[tasks removeObject:task];
-	[self unblock];
-}
-
-- (void)unblock
-{
-	char dummy = 0;
-	write(unblockPipeW, &dummy, 1);
-}
-
-- (void)run
-{
-	NSAutoreleasePool* outerPool = [[NSAutoreleasePool alloc] init];
-
-	fd_set rfds;
-	fd_set wfds;
-	fd_set efds;
-	int highfd;
-	NSEnumerator* iter;
-	PTYTask* task;
-
-	for(;;) {
-		NSAutoreleasePool* innerPool = [[NSAutoreleasePool alloc] init];
-
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		FD_ZERO(&efds);
-
-		// Unblock pipe to interrupt select() whenever a PTYTask register/unregisters
-		highfd = unblockPipeR;
-		FD_SET(unblockPipeR, &rfds);
-
-		// Add all the PTYTask pipes
-		iter = [tasks objectEnumerator];
-		while(task = [iter nextObject]) {
-			int fd = [task fd];
-			if(fd < 0)
-				goto breakloop;
-			if(fd > highfd)
-				highfd = fd;
-			if([task wantsRead])
-				FD_SET(fd, &rfds);
-			if([task wantsWrite])
-				FD_SET(fd, &wfds);
-			FD_SET(fd, &efds);
-		}
-
-		// Poll...
-		if(select(highfd+1, &rfds, &wfds, &efds, NULL) <= 0) {
-			switch(errno) {
-				case EAGAIN:
-				case EINTR:
-					goto breakloop;
-				default:
-					NSLog(@"Major fail! %s", strerror(errno));
-					exit(1);
-			}
-		}
-
-		// Interrupted?
-		if(FD_ISSET(unblockPipeR, &rfds)) {
-			do {
-				char dummy[32];
-				read(unblockPipeR, dummy, sizeof(dummy));
-			} while(errno != EAGAIN);
-		}
-
-		// Check for read events on PTYTask pipes
-		iter = [tasks objectEnumerator];
-		while(task = [iter nextObject]) {
-			int fd = [task fd];
-			if(fd < 0)
-				goto breakloop;
-			if(FD_ISSET(fd, &rfds))
-				[task processRead];
-			if(FD_ISSET(fd, &wfds))
-				[task processWrite];
-			if(FD_ISSET(fd, &efds))
-				[task brokenPipe];
-		}
-
-		breakloop:
-		[innerPool drain];
-	}
-
-	[outerPool drain];
-}
-
-@end
+#import "PTYTask.h"
 
 @implementation PTYTask
 
 #define CTRLKEY(c)   ((c)-'A'+1)
 
-static void
-setup_tty_param(
-		struct termios* term,
-		struct winsize* win,
-		int width,
-		int height)
+#define MEASURE_PROCESSING_TIME		0
+
+static void setup_tty_param(struct termios *term,
+			    struct winsize *win,
+			    int width,
+			    int height)
 {
-	memset(term, 0, sizeof(struct termios));
-	memset(win, 0, sizeof(struct winsize));
+    memset(term, 0, sizeof(struct termios));
+    memset(win, 0, sizeof(struct winsize));
 
-	term->c_iflag = ICRNL | IXON | IXANY | IMAXBEL | BRKINT;
-	term->c_oflag = OPOST | ONLCR;
-	term->c_cflag = CREAD | CS8 | HUPCL;
-	term->c_lflag = ICANON | ISIG | IEXTEN | ECHO | ECHOE | ECHOK | ECHOKE | ECHOCTL;
+    term->c_iflag = ICRNL | IXON | IXANY | IMAXBEL | BRKINT;
+    term->c_oflag = OPOST | ONLCR;
+    term->c_cflag = CREAD | CS8 | HUPCL;
+    term->c_lflag = ICANON | ISIG | IEXTEN | ECHO | ECHOE | ECHOKE | ECHOCTL;
 
-	term->c_cc[VEOF]	  = CTRLKEY('D');
-	term->c_cc[VEOL]	  = -1;
-	term->c_cc[VEOL2]	  = -1;
-	term->c_cc[VERASE]	  = 0x7f;	// DEL
-	term->c_cc[VWERASE]   = CTRLKEY('W');
-	term->c_cc[VKILL]	  = CTRLKEY('U');
-	term->c_cc[VREPRINT]  = CTRLKEY('R');
-	term->c_cc[VINTR]	  = CTRLKEY('C');
-	term->c_cc[VQUIT]	  = 0x1c;	// Control+backslash
-	term->c_cc[VSUSP]	  = CTRLKEY('Z');
-	term->c_cc[VDSUSP]	  = CTRLKEY('Y');
-	term->c_cc[VSTART]	  = CTRLKEY('Q');
-	term->c_cc[VSTOP]	  = CTRLKEY('S');
-	term->c_cc[VLNEXT]	  = -1;
-	term->c_cc[VDISCARD]  = -1;
-	term->c_cc[VMIN]	  = 1;
-	term->c_cc[VTIME]	  = 0;
-	term->c_cc[VSTATUS]   = -1;
+    term->c_cc[VEOF]      = CTRLKEY('D');
+    term->c_cc[VEOL]      = -1;
+    term->c_cc[VEOL2]     = -1;
+    term->c_cc[VERASE]    = 0x7f;	// DEL
+    term->c_cc[VWERASE]   = CTRLKEY('W');
+    term->c_cc[VKILL]     = CTRLKEY('U');
+    term->c_cc[VREPRINT]  = CTRLKEY('R');
+    term->c_cc[VINTR]     = CTRLKEY('C');
+    term->c_cc[VQUIT]     = 0x1c;	// Control+\
+    term->c_cc[VSUSP]     = CTRLKEY('Z');
+    term->c_cc[VDSUSP]    = CTRLKEY('Y');
+    term->c_cc[VSTART]    = CTRLKEY('Q');
+    term->c_cc[VSTOP]     = CTRLKEY('S');
+    term->c_cc[VLNEXT]    = -1;
+    term->c_cc[VDISCARD]  = -1;
+    term->c_cc[VMIN]      = 1;
+    term->c_cc[VTIME]     = 0;
+    term->c_cc[VSTATUS]   = -1;
 
-	term->c_ispeed = B38400;
-	term->c_ospeed = B38400;
+    term->c_ispeed = B38400;
+    term->c_ospeed = B38400;
 
-	win->ws_row = height;
-	win->ws_col = width;
-	win->ws_xpixel = 0;
-	win->ws_ypixel = 0;
+    win->ws_row = height;
+    win->ws_col = width;
+    win->ws_xpixel = 0;
+    win->ws_ypixel = 0;
+}
+
+static int writep(int fds, char *buf, size_t len)
+{
+    int wrtlen = len;
+    int result = 0;
+    int sts = 0;
+
+    while (wrtlen > 0) {
+	sts = write(fds, &(buf[len - wrtlen]), wrtlen);
+	if (sts <= 0)
+	    break;
+
+	wrtlen -= sts;
+    }
+    if (sts <= 0)
+	result = sts;
+    else
+	result = len;
+
+    return result;
+}
+
++ (void)_processReadThread:(PTYTask *)boss
+{
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    NSConnection *serverConnection;
+    id rootProxy;
+    NSData *data = nil;
+    BOOL exitf = NO;
+#if MEASURE_PROCESSING_TIME
+    struct timeval tv;
+    BOOL newOutput = NO;
+#endif
+
+#if DEBUG_THREAD
+    NSLog(@"%s(%d):+[PTYTask _processReadThread:%@] start",
+	  __FILE__, __LINE__, [boss description]);
+#endif
+
+    serverConnection = [[NSConnection alloc] 
+               initWithReceivePort:boss->SENDPORT
+			  sendPort:boss->RECVPORT];
+    rootProxy = [serverConnection rootProxy];
+
+    /*
+      data receive loop
+    */
+    while (exitf == NO) {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	fd_set rfds,efds;
+	int sts;
+	char readbuf[4096];
+
+	FD_ZERO(&rfds);
+	FD_ZERO(&efds);
+	FD_SET(boss->FILDES, &rfds);
+	FD_SET(boss->FILDES, &efds);
+
+#if MEASURE_PROCESSING_TIME
+	tv.tv_sec = 0;
+	tv.tv_usec = 100000;
+
+	sts = select(boss->FILDES + 1, &rfds, NULL, &efds, &tv);
+#else
+	sts = select(boss->FILDES + 1, &rfds, NULL, &efds, NULL);
+#endif
+	
+	if (sts < 0) {
+	    break;
+	}
+	else if (FD_ISSET(boss->FILDES, &efds)) {
+	    sts = read(boss->FILDES, readbuf, 1);
+#if 0 // debug
+	    fprintf(stderr, "read except:%d byte ", sts);
+	    if (readbuf[0] & TIOCPKT_FLUSHREAD)
+		fprintf(stderr, "TIOCPKT_FLUSHREAD ");
+	    if (readbuf[0] & TIOCPKT_FLUSHWRITE)
+		fprintf(stderr, "TIOCPKT_FLUSHWRITE ");
+	    if (readbuf[0] & TIOCPKT_STOP)
+		fprintf(stderr, "TIOCPKT_STOP ");
+	    if (readbuf[0] & TIOCPKT_START)
+		fprintf(stderr, "TIOCPKT_START ");
+	    if (readbuf[0] & TIOCPKT_DOSTOP)
+		fprintf(stderr, "TIOCPKT_DOSTOP ");
+	    if (readbuf[0] & TIOCPKT_NOSTOP)
+		fprintf(stderr, "TIOCPKT_NOSTOP ");
+	    fprintf(stderr, "\n");
+#endif
+	    if (sts == 0) {
+		// session close
+		exitf = YES;
+                [rootProxy readTask: nil];
+	    }
+	}
+	else if (FD_ISSET(boss->FILDES, &rfds)) {
+	    sts = read(boss->FILDES, readbuf, sizeof(readbuf));
+
+	    if (sts == 1 && readbuf[0] != '\0') {
+		data = nil;
+	    }
+	    else if (sts > 1) {
+		data = [NSData dataWithBytes:readbuf +1 length:sts - 1];
+	    }
+            else if (sts == 0) {
+                data = nil;
+
+		exitf = YES;
+            }
+	    else {
+		data = nil;
+            }
+
+#if MEASURE_PROCESSING_TIME
+	    if(newOutput == NO)
+	    {
+		NSLog(@"PTYTask: Start new output");
+		newOutput = YES;
+	    }
+#endif
+
+	    if (data != nil)
+		[rootProxy readTask:data];
+	}
+#if MEASURE_PROCESSING_TIME
+	else if (sts == 0)
+	{
+	    if(newOutput == YES)
+	    {
+		NSLog(@"PTYTask: End new output");
+		newOutput = NO;
+	    }	    
+	}
+#endif
+
+	[pool release];
+    }
+
+    [rootProxy brokenPipe];
+
+    [serverConnection release];
+
+#if DEBUG_THREAD
+    NSLog(@"%s(%d):+[PTYTask _processReadThread:] finish",
+	  __FILE__, __LINE__);
+#endif
+
+    [pool release];
+    [NSThread exit];
 }
 
 - (id)init
 {
 #if DEBUG_ALLOC
-	NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
+    NSLog(@"%s(%d):-[PTYTask init]", __FILE__, __LINE__);
 #endif
-	if ([super init] == nil)
-		return nil;
+    if ([super init] == nil)
+	return nil;
 
-	pid = (pid_t)-1;
-	status = 0;
-	delegate = nil;
-	fd = -1;
-	tty = nil;
-	logPath = nil;
-	logHandle = nil;
-	hasOutput = NO;
+    PID = (pid_t)-1;
+    STATUS = 0;
+    DELEGATEOBJECT = nil;
+    RECVDATA = [[NSMutableData data] retain];
+    FILDES = -1;
+    TTY = nil;
+    SENDPORT = nil;
+    RECVPORT = nil;
+    CONNECTION = nil;
+    LOG_PATH = nil;
+    LOG_HANDLE = nil;
 
-	writeBuffer = [[NSMutableData alloc] init];
-	writeLock = [[NSLock alloc] init];
-
-	return self;
+    return self;
 }
 
 - (void)dealloc
 {
 #if DEBUG_ALLOC
-	NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
+    NSLog(@"%s(%d):-[PTYTask dealloc]", __FILE__, __LINE__);
 #endif
-	[[TaskNotifier sharedInstance] deregisterTask:self];
+    if (PID > 0)
+	kill(PID, SIGKILL);
+    if (FILDES >= 0)
+	close(FILDES);
 
-	if (pid > 0)
-		kill(pid, SIGKILL);
+    [DELEGATEOBJECT release];
+    [RECVDATA release];
+    [TTY release];
+    [PATH release];
+    [SENDPORT release];
+    [RECVPORT release];
+    //[CONNECTION release];
 
-	if (fd >= 0)
-		close(fd);
-
-	[writeLock release];
-	[writeBuffer release];
-	[tty release];
-	[path release];
-	[super dealloc];
+    [super dealloc];
 }
 
-- (void)launchWithPath:(NSString*)progpath
-		arguments:(NSArray*)args environment:(NSDictionary*)env
-		width:(int)width height:(int)height
+- (void)launchWithPath:(NSString *)progpath
+	     arguments:(NSArray *)args
+	   environment:(NSDictionary *)env
+		 width:(int)width
+		height:(int)height
 {
-	struct termios term;
-	struct winsize win;
-	char ttyname[PATH_MAX];
-	int sts;
+    struct termios term;
+    struct winsize win;
+    char ttyname[PATH_MAX];
+    int sts;
+    int one = 1;
 
-	path = [progpath copy];
+    PATH = [progpath copy];
 
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[launchWithPath:%@ arguments:%@ environment:%@ width:%d height:%d", __FILE__, __LINE__, progpath, args, env, width, height);
-#endif
+    NSLog(@"%s(%d):-[launchWithPath:%@ arguments:%@ environment:%@ width:%d height:%d", __FILE__, __LINE__, progpath, args, env, width, height);
+#endif    
+    setup_tty_param(&term, &win, width, height);
+    PID = forkpty(&FILDES, ttyname, &term, &win);
+    if (PID == (pid_t)0) {
+	const char *path = [[progpath stringByStandardizingPath] cString];
+	int max = args == nil ? 0: [args count];
+	const char *argv[max + 2];
 
-	setup_tty_param(&term, &win, width, height);
-	pid = forkpty(&fd, ttyname, &term, &win);
-	if (pid == (pid_t)0) {
-		const char* argpath = [[progpath stringByStandardizingPath] cString];
-		int max = args == nil ? 0: [args count];
-		const char* argv[max + 2];
-
-		argv[0] = argpath;
-		if (args != nil) {
-			int i;
-			for (i = 0; i < max; ++i)
-				argv[i + 1] = [[args objectAtIndex:i] cString];
-		}
-		argv[max + 1] = NULL;
-
-		if (env != nil ) {
-			NSArray* keys = [env allKeys];
-			int i, max = [keys count];
-			for (i = 0; i < max; ++i) {
-				NSString* key;
-				NSString* value;
-				key = [keys objectAtIndex:i];
-				value = [env objectForKey:key];
-				if (key != nil && value != nil)
-					setenv([key cString], [value cString], 1);
-			}
-		}
-		chdir([[[env objectForKey:@"PWD"] stringByExpandingTildeInPath] cString]);
-		sts = execvp(argpath, (char* const*)argv);
-
-		/* exec error */
-		fprintf(stdout, "## exec failed ##\n");
-		fprintf(stdout, "%s %s\n", argpath, strerror(errno));
-
-		sleep(1);
-		_exit(-1);
+	argv[0] = path;
+	if (args != nil) {
+            int i;
+	    for (i = 0; i < max; ++i)
+		argv[i + 1] = [[args objectAtIndex:i] cString];
 	}
-	else if (pid < (pid_t)0) {
-		NSLog(@"%@ %s", progpath, strerror(errno));
-		NSRunCriticalAlertPanel(NSLocalizedStringFromTableInBundle(@"Unable to Fork!",@"iTerm", [NSBundle bundleForClass: [self class]], @"Fork Error"),
-						NSLocalizedStringFromTableInBundle(@"iTerm cannot launch the program for this session.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Fork Error"),
-						NSLocalizedStringFromTableInBundle(@"Close Session",@"iTerm", [NSBundle bundleForClass: [self class]], @"Fork Error"),
-						nil,nil);
-		if([delegate respondsToSelector:@selector(closeSession:)]) {
-			[delegate performSelector:@selector(closeSession:) withObject:delegate];
-		}
-		return;
+	argv[max + 1] = NULL;
+
+	if (env != nil ) {
+	    NSArray *keys = [env allKeys];
+	    int i, max = [keys count];
+	    for (i = 0; i < max; ++i) {
+		NSString *key, *value;
+		key = [keys objectAtIndex:i];
+		value = [env objectForKey:key];
+		if (key != nil && value != nil) 
+		    setenv([key cString], [value cString], 1);
+	    }
 	}
+        chdir([[[env objectForKey:@"PWD"] stringByExpandingTildeInPath] cString]);
+	sts = execvp(path, (char * const *) argv);
 
-	tty = [[NSString stringWithCString:ttyname] retain];
-	NSParameterAssert(tty != nil);
+	/*
+	  exec error
+	*/
+	fprintf(stdout, "## exec failed ##\n");
+	fprintf(stdout, "%s %s\n", path, strerror(errno));
 
-	fcntl(fd,F_SETFL,O_NONBLOCK);
-	[[TaskNotifier sharedInstance] registerTask:self];
-}
+	sleep(1);
+	_exit(-1);
+    }
+    else if (PID < (pid_t)0) {
+	NSLog(@"%@ %s", progpath, strerror(errno));
+    }
 
-- (BOOL)wantsRead
-{
-	return YES;
-}
+    sts = ioctl(FILDES, TIOCPKT, &one);
+    NSParameterAssert(sts >= 0);
 
-- (BOOL)wantsWrite
-{
-	return [writeBuffer length] > 0;
-}
+    TTY = [[NSString stringWithCString:ttyname] retain];
+    NSParameterAssert(TTY != nil);
 
-- (void)processRead
-{
-#if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):+[PTYTask processRead]", __FILE__, __LINE__);
-#endif
+    /*
+      create data receive thread 
+    */
+    SENDPORT = [NSPort port]; 
+    RECVPORT = [NSPort port];
+    CONNECTION = [[NSConnection alloc] initWithReceivePort:RECVPORT
+						  sendPort:SENDPORT];
+    [CONNECTION setRootObject:self];
+    [self release];
 
-	// Only write up to MAXRW bytes, then release control
-	NSMutableData* data = [NSMutableData dataWithLength:MAXRW];
-	ssize_t bytesread = read(fd, [data mutableBytes], MAXRW);
+    NSParameterAssert(SENDPORT != nil && RECVPORT != nil);
+    NSParameterAssert(CONNECTION != nil);
 
-	// No data?
-	if(bytesread < 0 && !(errno == EAGAIN || errno == EINTR)) {
-		[self brokenPipe];
-		return;
-	}
-
-	// Send data to the terminal
-	[data setLength:bytesread];
-	hasOutput = YES;
-	[self readTask:data];
-}
-
-- (void)processWrite
-{
-#if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTask processWrite] with writeBuffer length %d",
-			__FILE__, __LINE__, [writeBuffer length]);
-#endif
-
-	// Retain to prevent the object from being released during this method
-	// Lock to protect the writeBuffer from the main thread
-	[self retain];
-	[writeLock lock];
-
-	// Only write up to MAXRW bytes, then release control
-	const char* ptr = [writeBuffer mutableBytes];
-	unsigned int length = [writeBuffer length];
-	if(length > MAXRW) length = MAXRW;
-	ssize_t written = write(fd, [writeBuffer mutableBytes], length);
-
-	// No data?
-	if(written < 0 && !(errno == EAGAIN || errno == EINTR)) {
-		[self brokenPipe];
-		return;
-	}
-
-	// Shrink the writeBuffer
-	length = [writeBuffer length] - written;
-	memmove(ptr, ptr+written, length);
-	[writeBuffer setLength:length];
-
-	// Clean up locks
-	[writeLock unlock];
-	[self autorelease];
-}
-
-- (BOOL)hasOutput
-{
-	return hasOutput;
+    [NSThread detachNewThreadSelector:@selector(_processReadThread:)
+            	             toTarget:[PTYTask class]
+	                   withObject:self];
 }
 
 - (void)setDelegate:(id)object
 {
-	delegate = object;
+    [DELEGATEOBJECT release];
+    DELEGATEOBJECT = object;
+    [DELEGATEOBJECT retain];
 }
 
 - (id)delegate
 {
-	return delegate;
+    return DELEGATEOBJECT;
 }
 
-- (void)readTask:(NSData*)data
+- (NSData *)readData
 {
-#if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTask readTask:%@]", __FILE__, __LINE__, data);
-#endif
-	if([self logging]) {
-		[logHandle writeData:data];
-	}
+    NSData *result = [NSData dataWithData:RECVDATA];
 
-	// forward the data to our delegate
-	if([delegate respondsToSelector:@selector(readTask:)]) {
-		[delegate performSelectorOnMainThread:@selector(readTask:)
-				withObject:data waitUntilDone:YES];
-	}
+    [RECVDATA release];
+    RECVDATA = [[NSMutableData data] retain];
+    NSParameterAssert(RECVDATA != nil);
+
+    return result;
 }
 
-- (void)writeTask:(NSData*)data
+- (void)readTask:(NSData *)data
 {
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTask writeTask:%@]", __FILE__, __LINE__, data);
+    NSLog(@"%s(%d):-[PTYTask readTask:%@]", __FILE__, __LINE__, data);
+#endif
+    [LOG_HANDLE writeData:data];
+
+    if (DELEGATEOBJECT == nil) {
+	[RECVDATA appendData:data];
+    }
+    else {
+	if ([DELEGATEOBJECT respondsToSelector:@selector(readTask:)]) {
+	    [DELEGATEOBJECT readTask:data];
+	}
+    }
+}
+
+- (void)writeTask:(NSData *)data
+{
+    const void *datap = [data bytes];
+    size_t len = [data length];
+    int sts;
+    
+#if DEBUG_METHOD_TRACE
+    NSLog(@"%s(%d):-[PTYTask writeTask:%@]", __FILE__, __LINE__, data);
 #endif
 
-	// Write as much as we can now through the non-blocking pipe
-	// Lock to protect the writeBuffer from the IO thread
-	[writeLock lock];
-	[writeBuffer appendData:data];
-	[[TaskNotifier sharedInstance] unblock];
-	[writeLock unlock];
+    sts = writep(FILDES, (char *)datap, len);
+    if (sts < 0 ) {
+	NSLog(@"%s(%d): writep() %s", __FILE__, __LINE__, strerror(errno));
+    }
+    else if (sts == 0) {
+	[self brokenPipe];
+    }
 }
 
 - (void)brokenPipe
 {
-	[[TaskNotifier sharedInstance] deregisterTask:self];
-	if([delegate respondsToSelector:@selector(brokenPipe)]) {
-		[delegate performSelectorOnMainThread:@selector(brokenPipe)
-				withObject:nil waitUntilDone:YES];
-	}
+    if ([DELEGATEOBJECT respondsToSelector:@selector(brokenPipe)]) {
+	[DELEGATEOBJECT brokenPipe];
+    }
 }
 
 - (void)sendSignal:(int)signo
 {
-	if (pid >= 0)
-		kill(pid, signo);
+    if (PID >= 0)
+	kill(PID, signo);
 }
 
 - (void)setWidth:(int)width height:(int)height
 {
-	struct winsize winsize;
+    struct winsize winsize;
 
-	if(fd == -1)
-		return;
-
-	ioctl(fd, TIOCGWINSZ, &winsize);
-	if (winsize.ws_col != width || winsize.ws_row != height) {
-		winsize.ws_col = width;
-		winsize.ws_row = height;
-		ioctl(fd, TIOCSWINSZ, &winsize);
-	}
-}
-
-- (int)fd
-{
-	return fd;
+    ioctl(FILDES, TIOCGWINSZ, &winsize);
+    winsize.ws_col = width;
+    winsize.ws_row = height;
+    ioctl(FILDES, TIOCSWINSZ, &winsize);
 }
 
 - (pid_t)pid
 {
-	return pid;
+    return PID;
 }
 
 - (int)wait
 {
-	if (pid >= 0)
-		waitpid(pid, &status, 0);
+    if (PID >= 0) 
+	waitpid(PID, &STATUS, WNOHANG);
 
-	return status;
+    return STATUS;
+}
+
+- (BOOL)exist
+{
+    BOOL result;
+
+    if (WIFEXITED(STATUS))
+	result = YES;
+    else
+	result = NO;
+
+    return result;
 }
 
 - (void)stop
 {
-	[self sendSignal:SIGKILL];
-	usleep(10000);
-	if(fd >= 0)
-		close(fd);
-	fd = -1;
+    [self sendSignal:SIGQUIT];
+    [self wait];
+}
 
-	[self wait];
+- (void)stopNoWait
+{
+    [self sendSignal:SIGQUIT];
 }
 
 - (int)status
 {
-	return status;
+    return STATUS;
 }
 
-- (NSString*)tty
+- (NSString *)tty
 {
-	return tty;
+    return TTY;
 }
 
-- (NSString*)path
+- (NSString *)path
 {
-	return path;
+    return PATH;
 }
 
-- (BOOL)loggingStartWithPath:(NSString*)aPath
+- (BOOL)loggingStartWithPath:(NSString *)path
 {
-	[logPath autorelease];
-	logPath = [[aPath stringByStandardizingPath] copy];
+    [LOG_PATH autorelease];
+    LOG_PATH = [[path stringByStandardizingPath ] copy];
 
-	[logHandle autorelease];
-	logHandle = [NSFileHandle fileHandleForWritingAtPath:logPath];
-	if (logHandle == nil) {
-		NSFileManager* fm = [NSFileManager defaultManager];
-		[fm createFileAtPath:logPath contents:nil attributes:nil];
-		logHandle = [NSFileHandle fileHandleForWritingAtPath:logPath];
-	}
-	[logHandle retain];
-	[logHandle seekToEndOfFile];
+    [LOG_HANDLE autorelease];
+    LOG_HANDLE = [NSFileHandle fileHandleForWritingAtPath:LOG_PATH];
+    if (LOG_HANDLE == nil) {
+	NSFileManager *fm = [NSFileManager defaultManager];
+	[fm createFileAtPath:LOG_PATH
+		    contents:nil
+		  attributes:nil];
+	LOG_HANDLE = [NSFileHandle fileHandleForWritingAtPath:LOG_PATH];
+    }
+    [LOG_HANDLE retain];
+    [LOG_HANDLE seekToEndOfFile];
 
-	return logHandle == nil ? NO:YES;
+    return LOG_HANDLE == nil ? NO:YES;
 }
 
 - (void)loggingStop
 {
-	[logHandle closeFile];
+    [LOG_HANDLE closeFile];
 
-	[logPath autorelease];
-	[logHandle autorelease];
-	logPath = nil;
-	logHandle = nil;
+    [LOG_PATH autorelease];
+    [LOG_HANDLE autorelease];
+    LOG_PATH = nil;
+    LOG_HANDLE = nil;
 }
 
 - (BOOL)logging
 {
-	return logHandle == nil ? NO : YES;
+    return LOG_HANDLE == nil ? NO : YES;
 }
 
-- (NSString*)description
+- (NSString *)description
 {
-	return [NSString stringWithFormat:@"PTYTask(pid %d, fildes %d)", pid, fd];
-}
-
-- (NSString*)getWorkingDirectory
-{
-	static int loadedAttempted = 0;
-	static int(*proc_pidinfo)(pid_t pid, int flavor, uint64_t arg, void* buffer, int buffersize) = NULL;
-	if (!proc_pidinfo) {
-		if (loadedAttempted) {
-			/* Hmm, we can't find the symbols that we need... so lets not try */
-			return nil;
-		}
-		loadedAttempted = 1;
-
-		/* We need to load the function first */
-		void* handle = dlopen("libSystem.B.dylib", RTLD_LAZY);
-		if (!handle)
-			return nil;
-		proc_pidinfo = dlsym(handle, "proc_pidinfo");
-		if (!proc_pidinfo)
-			return nil;
-	}
-
-	struct proc_vnodepathinfo vpi;
-	int ret;
-	/* This only works if the child process is owned by our uid */
-	ret = proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &vpi, sizeof(vpi));
-	if (ret <= 0) {
-		/* An error occured */
-		return nil;
-	} else if (ret != sizeof(vpi)) {
-		/* Now this is very bad... */
-		return nil;
-	} else {
-		/* All is good */
-		NSString* ret = [NSString stringWithUTF8String:vpi.pvi_cdir.vip_path];
-		return ret;
-	}
+    return [NSString stringWithFormat:@"PTYTask(pid %d, fildes %d)", PID, FILDES];
 }
 
 @end
-
