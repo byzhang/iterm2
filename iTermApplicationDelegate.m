@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermApplicationDelegate.m,v 1.70 2008-10-23 04:57:13 yfabian Exp $
+// $Id: iTermApplicationDelegate.m,v 1.67 2008-09-21 01:41:17 yfabian Exp $
 /*
  **  iTermApplicationDelegate.m
  **
@@ -79,6 +79,18 @@ static BOOL usingAutoLaunchScript = NO;
 	[iTermProfileWindowController sharedInstance];
     [iTermBookmarkController sharedInstance];
     [PreferencePanel sharedInstance];
+    
+	
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+	NSString *appCast = [[PreferencePanel sharedInstance] checkTestRelease] ? 
+		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURL"] : 
+		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinalRelease"];
+	[[NSUserDefaults standardUserDefaults] setObject: appCast forKey:@"SUFeedURL"];
+#else
+	NSString *appCast = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForPanther"];
+	[[NSUserDefaults standardUserDefaults] setObject: appCast forKey:@"SUFeedURL"];
+#endif
+	
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
@@ -104,10 +116,10 @@ static BOOL usingAutoLaunchScript = NO;
 {
 	NSArray *terminals;
 	
-	terminals = [[iTermController sharedInstance] terminals];
-
+    terminals = [[iTermController sharedInstance] terminals];
+    
 	// Display prompt if we need to
-    if ([[PreferencePanel sharedInstance] promptOnClose] && [terminals count] && (![[PreferencePanel sharedInstance] onlyWhenMoreTabs] || [terminals count] >1 || 
+    if ([[PreferencePanel sharedInstance] promptOnClose] && (![[PreferencePanel sharedInstance] onlyWhenMoreTabs] || [terminals count] >1 || 
                                                              [[[[iTermController sharedInstance] currentTerminal] tabView] numberOfTabViewItems] > 1 )
         && 
 	    NSRunAlertPanel(NSLocalizedStringFromTableInBundle(@"Quit iTerm?",@"iTerm", [NSBundle bundleForClass: [self class]], @"Close window"),
@@ -116,14 +128,11 @@ static BOOL usingAutoLaunchScript = NO;
 					   NSLocalizedStringFromTableInBundle(@"Cancel",@"iTerm", [NSBundle bundleForClass: [self class]], @"Cancel")
 					   ,nil)!=NSAlertDefaultReturn)
 		return (NO);
-
-	// Ensure [iTermController dealloc] is called before prefs are saved
-	[iTermController sharedInstanceRelease];
-
+    
 	// save preferences
 	[[PreferencePanel sharedInstance] savePreferences];
-
-	return (YES);
+	
+    return (YES);
 }
 
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
@@ -251,7 +260,7 @@ static BOOL usingAutoLaunchScript = NO;
 - (void) dealloc
 {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
-	
+
     [super dealloc];
 }
 
@@ -374,7 +383,7 @@ static BOOL usingAutoLaunchScript = NO;
     webSite = [[NSAttributedString alloc] initWithString: @"http://iterm.sourceforge.net" attributes: linkAttributes];
 
     // Bug report
-    bugURL = [NSURL URLWithString: @"http://iterm.sourceforge.net/tracker-bug"];
+    bugURL = [NSURL URLWithString: @"https://sourceforge.net/tracker/?func=add&group_id=67789&atid=518973"];
     linkAttributes= [NSDictionary dictionaryWithObjectsAndKeys: bugURL, NSLinkAttributeName,
         [NSNumber numberWithInt: NSSingleUnderlineStyle], NSUnderlineStyleAttributeName,
         [NSColor blueColor], NSForegroundColorAttributeName,
@@ -445,10 +454,10 @@ static BOOL usingAutoLaunchScript = NO;
     if(displayProfile == nil)
         displayProfile = [displayProfileMgr defaultProfileName];
     
-    [frontTerminal setFont: [displayProfileMgr windowFontForProfile: displayProfile] 
-                    nafont: [displayProfileMgr windowNAFontForProfile: displayProfile]];
     [frontTerminal resizeWindow: [displayProfileMgr windowColumnsForProfile: displayProfile]
                          height: [displayProfileMgr windowRowsForProfile: displayProfile]];
+    [frontTerminal setFont: [displayProfileMgr windowFontForProfile: displayProfile] 
+                    nafont: [displayProfileMgr windowNAFontForProfile: displayProfile]];
 					
 }
 
@@ -544,7 +553,7 @@ static BOOL usingAutoLaunchScript = NO;
 		
         if(i < 10)
         {
-            aMenuItem  = [[NSMenuItem alloc] initWithTitle: [aSession name] action: @selector(selectSessionAtIndexAction:) keyEquivalent:@""];
+            aMenuItem  = [[NSMenuItem alloc] initWithTitle: [aSession name] action: @selector(selectSessionAtIndexAction:) keyEquivalent: [NSString stringWithFormat: @"%d", i]];
             [aMenuItem setTag: i-1];
 			
             [aMenu addItem: aMenuItem];

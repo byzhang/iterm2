@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: VT100Terminal.h,v 1.35 2008-10-21 05:43:52 yfabian Exp $
+// $Id: VT100Terminal.h,v 1.33 2008-08-20 17:20:37 delx Exp $
 /*
  **  VT100Terminal.h
  **
@@ -118,14 +118,6 @@
 #define XTERMCC_LOWER        99
 #define XTERMCC_SU			 100	 // scroll up
 #define XTERMCC_SD			 101     // scroll down
-#define XTERMCC_REPORT_WIN_STATE	102
-#define XTERMCC_REPORT_WIN_POS		103
-#define XTERMCC_REPORT_WIN_PIX_SIZE	104
-#define XTERMCC_REPORT_WIN_SIZE		105
-#define XTERMCC_REPORT_SCREEN_SIZE	106
-#define XTERMCC_REPORT_ICON_TITLE	107
-#define XTERMCC_REPORT_WIN_TITLE	108
-#define XTERMCC_SET_RGB	109
 
 // Some ansi stuff
 #define ANSICSI_CHA	     3000	// Cursor Horizontal Absolute
@@ -246,6 +238,7 @@ typedef enum {
 
 // for background colors
 #define DEFAULT_BG_COLOR_CODE	0x101
+#define SELECTION_MASK 0x200
 
 // terminfo stuff
 enum {
@@ -279,6 +272,7 @@ typedef enum {
     NSString          *termType;
     NSStringEncoding  ENCODING;
     VT100Screen       *SCREEN;
+	NSLock			  *streamLock;
 
 	unsigned char     *STREAM;
 	int				  current_stream_length;
@@ -303,9 +297,9 @@ typedef enum {
     
     int FG_COLORCODE;
     int BG_COLORCODE;
-    int	bold, under, blink, reversed;
+    int	bold, under, blink, reversed, highlight;
 
-    int saveBold, saveUnder, saveBlink, saveReversed;
+    int saveBold, saveUnder, saveBlink, saveReversed, saveHighlight;
     int saveCHARSET;
     
     BOOL TRACE;
@@ -342,7 +336,7 @@ typedef enum {
 - (void)setEncoding:(NSStringEncoding)encoding;
 
 - (void)cleanStream;
-- (void)putStreamData:(NSData*)data;
+- (void)putStreamData:(char *)data length: (int)length;
 - (VT100TCC)getNextToken;
 
 - (void)saveCursorAttributes;
@@ -388,14 +382,13 @@ typedef enum {
 - (int)foregroundColorCodeReal;
 - (int)backgroundColorCodeReal;
 
-- (NSData *)reportActivePositionWithX:(int)x Y:(int)y withQuestion:(BOOL)q;
+- (NSData *)reportActivePositionWithX:(int)x Y:(int)y;
 - (NSData *)reportStatus;
 - (NSData *)reportDeviceAttribute;
 - (NSData *)reportSecondaryDeviceAttribute;
 
 - (void)_setMode:(VT100TCC)token;
 - (void)_setCharAttr:(VT100TCC)token;
-- (void)_setRGB:(VT100TCC)token;
 
 - (void) setScreen:(VT100Screen *)sc;
 @end

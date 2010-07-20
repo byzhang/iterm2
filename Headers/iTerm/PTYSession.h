@@ -40,51 +40,58 @@
 @class iTermGrowlDelegate;
 
 @interface PTYSession : NSResponder
-{
-	// Owning tab view item
-	NSTabViewItem* tabViewItem;
+{        
+    // Owning tab view item
+    NSTabViewItem *tabViewItem;
+	
+    // tty device
+    NSString *tty;
+    
+    PseudoTerminal *parent;  // parent controller
+    NSString *name;
+	NSString *defaultName;
+    NSString *windowTitle;
+	
+    PTYTask *SHELL;
+    VT100Terminal *TERMINAL;
+    NSString *TERM_VALUE;
+    NSString *COLORFGBG_VALUE;
+    VT100Screen   *SCREEN;
+    BOOL EXIT;
+    NSView *view;
+    PTYScrollView *SCROLLVIEW;
+    PTYTextView *TEXTVIEW;
+    
+    // anti-idle
+    BOOL antiIdle;
+    char ai_code;
 
-	// tty device
-	NSString* tty;
-
-	PseudoTerminal* parent;  // parent controller
-	NSString* name;
-	NSString* defaultName;
-	NSString* windowTitle;
-
-	PTYTask* SHELL;
-	VT100Terminal* TERMINAL;
-	NSString* TERM_VALUE;
-	NSString* COLORFGBG_VALUE;
-	VT100Screen* SCREEN;
-	BOOL EXIT;
-	NSView* view;
-	PTYScrollView* SCROLLVIEW;
-	PTYTextView* TEXTVIEW;
-	NSTimer *updateTimer;
-
-	// anti-idle
-	NSTimer* antiIdleTimer;
-	char ai_code;
-
-	BOOL autoClose;
-	BOOL doubleWidth;
+    BOOL autoClose;
+    BOOL doubleWidth;
 	BOOL xtermMouseReporting;
-	int bell;
+    int bell;
 
-	NSString* backgroundImagePath;
-	NSDictionary* addressBookEntry;
+    NSString *backgroundImagePath;
+    NSDictionary *addressBookEntry;
 
 	// Growl stuff
 	iTermGrowlDelegate* gd;
-
-	// Status reporting
-	struct timeval lastInput, lastOutput, lastBlink;
-	int objectCount;
-	NSImage* icon;
+    
+    // Status reporting
+    struct timeval lastInput, lastOutput, lastUpdate, lastBlink;
+    int objectCount;
+	NSImage *icon;
 	BOOL isProcessing;
-	BOOL newOutput;
-	BOOL growlIdle, growlNewOutput;
+    BOOL newOutput;
+    BOOL growlIdle, growlNewOutput;
+		
+	// semaphore to coordinate updating UI
+	MPSemaphoreID	updateSemaphore;
+	
+	// update timer stuff
+    int timerMode;
+	NSTimer *updateTimer;
+	unsigned int updateCount;
 }
 
 // init/dealloc
@@ -103,8 +110,8 @@
 - (void) setPreferencesFromAddressBookEntry: (NSDictionary *) aePrefs;
 
 // PTYTask
-- (void)writeTask:(NSData*)data;
-- (void)readTask:(NSData*)data;
+- (void)writeTask:(NSData *)data;
+- (void)readTask:(char *)buf length:(int)length;
 - (void)brokenPipe;
 
 // PTYTextView
@@ -132,6 +139,7 @@
 
 // misc
 - (void) handleOptionClick: (NSEvent *) theEvent;
+- (void) doIdleTasks;
 
 
 // Contextual menu
@@ -219,7 +227,7 @@
 - (void) setDisableBold: (BOOL) boldFlag;
 - (BOOL) disableBold;
 - (void) setDisableBold: (BOOL) boldFlag;
-- (void) setColorTable:(int) index color:(NSColor *) c;
+- (void) setColorTable:(int) index highLight:(BOOL)hili color:(NSColor *) c;
 - (int) optionKey;
 
 // Session status
@@ -236,8 +244,10 @@
 
 // Display timer stuff
 - (void)updateDisplay;
-- (void)doAntiIdle;
-- (void)scheduleUpdateSoon:(BOOL)soon;
+
+enum {FAST_MODE, SLOW_MODE, PAUSE_MODE};
+- (int) timerMode;
+- (void)setTimerMode:(int)mode;
 
 @end
 
@@ -255,5 +265,6 @@
 @interface PTYSession (Private)
 
 - (NSString*)_getLocale;
+- (void)_updateTimerTick:(NSTimer *)aTimer;
 
 @end

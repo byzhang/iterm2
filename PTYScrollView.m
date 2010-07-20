@@ -31,7 +31,6 @@
 #define DEBUG_ALLOC           0
 #define DEBUG_METHOD_TRACE    0
 
-#import <iTerm/iTerm.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTextView.h>
 
@@ -212,6 +211,12 @@
 		transparency = theTransparency;
 		[self setNeedsDisplay: YES];
     }
+}
+
+- (void)reflectScrolledClipView:(NSClipView *)aClipView
+{
+	[super reflectScrolledClipView: aClipView];
+	[[self documentView] setForceUpdate: YES];
 }
 
 @end

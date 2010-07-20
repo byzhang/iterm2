@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermController.m,v 1.78 2008-10-17 04:02:45 yfabian Exp $
+// $Id: iTermController.m,v 1.74 2008-09-13 00:07:17 delx Exp $
 /*
  **  iTermController.m
  **
@@ -44,12 +44,6 @@
 #import <iTermProfileWindowController.h>
 #import <iTermBookmarkController.h>
 
-
-@interface NSApplication (Undocumented)
-- (void)_cycleWindowsReversed:(BOOL)back;
-@end
-
-
 static NSString* APPLICATION_SUPPORT_DIRECTORY = @"~/Library/Application Support";
 static NSString *SUPPORT_DIRECTORY = @"~/Library/Application Support/iTerm";
 static NSString *SCRIPT_DIRECTORY = @"~/Library/Application Support/iTerm/Scripts";
@@ -65,26 +59,14 @@ static int _compareEncodingByLocalizedName(id a, id b, void *unused)
 
 @implementation iTermController
 
-static iTermController* shared = nil;
-static BOOL initDone = NO;
-
 + (iTermController*)sharedInstance;
 {
-	if(!shared && !initDone) {
-		shared = [[iTermController alloc] init];
-		initDone = YES;
-	}
-	if(!shared && initDone) {
-		NSLog(@"Bad call to [iTermController sharedInstance]");
-	}
-
-	return shared;
-}
-
-+ (void)sharedInstanceRelease
-{
-	[shared release];
-	shared = nil;
+    static iTermController* shared = nil;
+    
+    if (!shared)
+        shared = [[iTermController alloc] init];
+    
+    return shared;
 }
 
 
@@ -123,25 +105,18 @@ static BOOL initDone = NO;
 - (void) dealloc
 {
 #if DEBUG_ALLOC
-	NSLog(@"%s(%d):-[iTermController dealloc]",
-		__FILE__, __LINE__);
+    NSLog(@"%s(%d):-[iTermController dealloc]",
+          __FILE__, __LINE__);
 #endif
-	NSEnumerator* iterator;
-	PseudoTerminal* terminal;
-
-	// Close all terminal windows
-	iterator = [terminalWindows objectEnumerator];
-	while(terminal = [iterator nextObject]) {
-		[[terminal window] close];
-	}
-	NSAssert([terminalWindows count] == 0, @"Expected terminals to be gone");
-	[terminalWindows release];
-
-	// Release the GrowlDelegate
-	if(gd)
+	
+    // Release the GrowlDelegate
+	if( gd )
 		[gd release];
-
-	[super dealloc];
+    
+    [terminalWindows removeAllObjects];
+    [terminalWindows release];
+    
+    [super dealloc];
 }
 
 // Action methods
@@ -214,13 +189,58 @@ static BOOL initDone = NO;
 }
 
 // navigation
-- (IBAction) previousTerminal:(id)sender
+- (IBAction) previousTerminal: (id) sender
 {
-	[NSApp _cycleWindowsReversed:YES];
+    unsigned int currentIndex;
+    BOOL looped = NO;
+	
+    currentIndex = [[self terminals] indexOfObject: FRONT];
+    if(FRONT == nil || currentIndex == NSNotFound)
+    {
+		NSBeep();
+		return;
+    }
+	
+    // get the previous terminal
+    do {
+        if(currentIndex == 0) {
+            if (looped) return;
+            currentIndex = [[self terminals] count] - 1;
+            looped = YES;
+        }
+        else
+			currentIndex--;
+    } while ([[[[self terminals] objectAtIndex: currentIndex] window] isMiniaturized]);
+    
+    // make sure that terminal's window active
+    [[[[self terminals] objectAtIndex: currentIndex] window] makeKeyAndOrderFront: self];
+    
 }
-- (IBAction)nextTerminal:(id)sender
+- (IBAction)nextTerminal: (id) sender
 {
-	[NSApp _cycleWindowsReversed:NO];
+    unsigned int currentIndex;
+    BOOL looped = NO;
+	
+    currentIndex = [[self terminals] indexOfObject: FRONT];
+    if(FRONT == nil || currentIndex == NSNotFound)
+    {
+		NSBeep();
+		return;
+    }
+	
+    // get the next terminal
+    do {
+        if(currentIndex == [[self terminals] count] - 1) {
+            if (looped) return;
+            currentIndex = 0;
+            looped = YES;
+        }
+        else
+            currentIndex++;
+    } while ([[[[self terminals] objectAtIndex: currentIndex] window] isMiniaturized]);
+	
+    // make sure that terminal's window active
+    [[[[self terminals] objectAtIndex: currentIndex] window] makeKeyAndOrderFront: self];
 }
 
 - (PseudoTerminal *) currentTerminal
@@ -377,35 +397,8 @@ static BOOL initDone = NO;
     NSDictionary *aDict;
 	
 	aDict = bookmarkData;
-	if(aDict == nil || [[aDict objectForKey:KEY_COMMAND] isEqualToString:@"$$"]) {
-		NSMutableDictionary *tempDict = [NSMutableDictionary dictionaryWithDictionary: aDict ? aDict : [[ITAddressBookMgr sharedInstance] defaultBookmarkData]];
-		NSURL *urlRep = [NSURL URLWithString: url];
-		NSString *urlType = [urlRep scheme];
-		
-		if ([urlType compare:@"ssh" options:NSCaseInsensitiveSearch] == NSOrderedSame) {
-			NSMutableString *tempString = [NSMutableString stringWithString:@"ssh "];
-			if ([urlRep user]) [tempString appendFormat:@"-l %@ ", [urlRep user]];
-			if ([urlRep port]) [tempString appendFormat:@"-p %@ ", [urlRep port]];
-			if ([urlRep host]) [tempString appendString:[urlRep host]];
-			[tempDict setObject:tempString forKey:KEY_COMMAND];
-			aDict = tempDict;
-		}
-		else if ([urlType compare:@"ftp" options:NSCaseInsensitiveSearch] == NSOrderedSame) {
-			NSMutableString *tempString = [NSMutableString stringWithFormat:@"ftp %@", url];
-			[tempDict setObject:tempString forKey:KEY_COMMAND];
-			aDict = tempDict;
-		}
-		else if ([urlType compare:@"telnet" options:NSCaseInsensitiveSearch] == NSOrderedSame) {
-			NSMutableString *tempString = [NSMutableString stringWithString:@"telnet "];
-			if ([urlRep user]) [tempString appendFormat:@"-l %@ ", [urlRep user]];
-			if ([urlRep host]) {
-				[tempString appendString:[urlRep host]];
-				if ([urlRep port]) [tempString appendFormat:@" %@", [urlRep port]];
-			}
-			[tempDict setObject:tempString forKey:KEY_COMMAND];
-			aDict = tempDict;
-		}
-	}
+	if(aDict == nil)
+		aDict = [[ITAddressBookMgr sharedInstance] defaultBookmarkData];
 	
 	// Where do we execute this command?
     if(theTerm == nil)
@@ -548,3 +541,7 @@ NSString *terminalsKey = @"terminals";
 
 @end
 
+@implementation iTermController (Private)
+
+
+@end

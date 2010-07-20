@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: VT100Screen.h,v 1.38 2008-09-30 06:21:12 yfabian Exp $
+// $Id: VT100Screen.h,v 1.37 2008-09-12 21:40:55 yfabian Exp $
 /*
  **  VT100Screen.h
  **
@@ -30,6 +30,8 @@
 #import <Cocoa/Cocoa.h>
 #import <iTerm/VT100Terminal.h>
 
+enum { NO_CHANGE, CHANGE, CHANGE_PIXEL };
+	
 @class PTYTask;
 @class PTYSession;
 @class PTYTextView;
@@ -52,8 +54,6 @@ typedef struct screen_char_t
     int CURSOR_Y;
     int SAVE_CURSOR_X;
     int SAVE_CURSOR_Y;
-    int ALT_SAVE_CURSOR_X;
-    int ALT_SAVE_CURSOR_Y;
     int SCROLL_TOP;
     int SCROLL_BOTTOM;
     BOOL tabStop[TABWINDOW];
@@ -88,8 +88,8 @@ typedef struct screen_char_t
 	screen_char_t *scrollback_top;
 	
 	// default line stuff
-	int default_bg_code;
-	int default_fg_code;
+	char default_bg_code;
+	char default_fg_code;
 	int default_line_width;
 
 	//scroll back stuff
@@ -98,15 +98,25 @@ typedef struct screen_char_t
     unsigned int  max_scrollback_lines;
 	// current number of lines in scrollback buffer
 	unsigned int current_scrollback_lines;
-	// how many scrollback lines have been lost due to overflow
-	int scrollback_overflow;
+		
 	
 	// print to ansi...
 	BOOL printToAnsi;		// YES=ON, NO=OFF, default=NO;
 	NSMutableString *printToAnsiString;
 	
+	NSLock *screenLock;
+
 	// Growl stuff
 	iTermGrowlDelegate* gd;
+	
+	// UI related
+	int changeSize;
+	int newWidth,  newHeight;
+	NSString *newWinTitle;
+	NSString *newIconTitle;
+	BOOL bell;
+	int scrollUpLines;
+	BOOL printPending;
 }
 
 
@@ -145,6 +155,11 @@ typedef struct screen_char_t
 - (screen_char_t *) getLineAtScreenIndex: (int) theIndex;
 - (char *) dirty;
 - (NSString *) getLineString: (screen_char_t *) theLine;
+
+// lock
+- (void) acquireLock;
+- (void) releaseLock;
+- (BOOL) tryLock;
 
 // edit screen buffer
 - (void)putToken:(VT100TCC)token;
@@ -187,13 +202,11 @@ typedef struct screen_char_t
 - (void)insertLines: (int)n;
 - (void)deleteLines: (int)n;
 - (void)blink;
-- (int)cursorX;
-- (int)cursorY;
+- (int) cursorX;
+- (int) cursorY;
 
-- (int)numberOfLines;
-
-- (int)scrollbackOverflow;
-- (void)resetScrollbackOverflow;
+- (void)updateScreen;
+- (int) numberOfLines;
 
 - (void)resetDirty;
 - (void)setDirty;
@@ -204,6 +217,19 @@ typedef struct screen_char_t
 - (void) printStringToAnsi: (NSString *) aString;
 
 // UI stuff
+- (int)changeSize;
+- (void)setChangeSize:(int)change;
+- (int)newWidth;
+- (int)newHeight;
+- (void) resetChangeSize;
+- (NSString *) newWinTitle;
+- (NSString *) newIconTitle;
+- (void) resetChangeTitle;
+- (void) updateBell;
+- (void) setBell;
+- (int) scrollUpLines;
+- (void) resetScrollUpLines;
+- (BOOL) printPending;
 - (void) doPrint;
 
 // double width

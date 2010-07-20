@@ -1,4 +1,4 @@
-// $Id: PreferencePanel.m,v 1.162 2008-10-02 03:48:36 yfabian Exp $
+// $Id: PreferencePanel.m,v 1.161 2008-09-17 20:23:15 yfabian Exp $
 /*
  **  PreferencePanel.m
  **
@@ -122,11 +122,6 @@ static NSString *NoHandler = @"<No Handler>";
 - (void) readPreferences
 {
     prefs = [NSUserDefaults standardUserDefaults];
-
-	// Force antialiasing to be allowed on small font sizes
-	[prefs setInteger:1 forKey:@"AppleAntiAliasingThreshold"];
-	[prefs setInteger:1 forKey:@"AppleSmoothFixedFontsSizeThreshold"];
-	[prefs setInteger:0 forKey:@"AppleScrollAnimationEnabled"];
          
 	defaultWindowStyle=[prefs objectForKey:@"WindowStyle"]?[prefs integerForKey:@"WindowStyle"]:0;
     defaultTabViewType=[prefs objectForKey:@"TabViewType"]?[prefs integerForKey:@"TabViewType"]:0;
@@ -142,21 +137,17 @@ static NSString *NoHandler = @"<No Handler>";
 	defaultCmdSelection = [prefs objectForKey:@"CommandSelection"]?[[prefs objectForKey:@"CommandSelection"] boolValue]: YES;
 	defaultMaxVertically = [prefs objectForKey:@"MaxVertically"]?[[prefs objectForKey:@"MaxVertically"] boolValue]: YES;
 	defaultUseCompactLabel = [prefs objectForKey:@"UseCompactLabel"]?[[prefs objectForKey:@"UseCompactLabel"] boolValue]: YES;
-	defaultRefreshRate = [prefs objectForKey:@"RefreshRate"]?[[prefs objectForKey:@"RefreshRate"] intValue]: 10;
+	defaultRefreshRate = [prefs objectForKey:@"RefreshRate"]?[[prefs objectForKey:@"RefreshRate"] intValue]: 25;
 	[defaultWordChars release];
 	defaultWordChars = [prefs objectForKey: @"WordCharacters"]?[[prefs objectForKey: @"WordCharacters"] retain]:@"/-+\\~_.";
     defaultOpenBookmark = [prefs objectForKey:@"OpenBookmark"]?[[prefs objectForKey:@"OpenBookmark"] boolValue]: NO;
 	defaultQuitWhenAllWindowsClosed = [prefs objectForKey:@"QuitWhenAllWindowsClosed"]?[[prefs objectForKey:@"QuitWhenAllWindowsClosed"] boolValue]: NO;
 	defaultCursorType=[prefs objectForKey:@"CursorType"]?[prefs integerForKey:@"CursorType"]:2;
-	defaultCheckUpdate = [prefs objectForKey:@"SUEnableAutomaticChecks"]?[[prefs objectForKey:@"SUEnableAutomaticChecks"] boolValue]: YES;
+    defaultCheckUpdate = [prefs objectForKey:@"SUCheckAtStartup"]?[[prefs objectForKey:@"SUCheckAtStartup"] boolValue]: YES;
 	defaultUseBorder = [prefs objectForKey:@"UseBorder"]?[[prefs objectForKey:@"UseBorder"] boolValue]: NO;
 	defaultHideScrollbar = [prefs objectForKey:@"HideScrollbar"]?[[prefs objectForKey:@"HideScrollbar"] boolValue]: NO;
 	defaultCheckTestRelease = [prefs objectForKey:@"CheckTestRelease"]?[[prefs objectForKey:@"CheckTestRelease"] boolValue]: YES;
-	NSString *appCast = defaultCheckTestRelease ?
-		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForTesting"] :
-		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinal"];
-	[[NSUserDefaults standardUserDefaults] setObject:appCast forKey:@"SUFeedURL"];
-
+	
 	NSArray *urlArray;
 	NSDictionary *tempDict = [prefs objectForKey:@"URLHandlers"];
 	int i;
@@ -209,7 +200,7 @@ static NSString *NoHandler = @"<No Handler>";
 	[prefs setObject: [[iTermTerminalProfileMgr singleInstance] profiles] forKey: @"Terminals"];
 	[prefs setObject: [[ITAddressBookMgr sharedInstance] bookmarks] forKey: @"Bookmarks"];
 	[prefs setBool:defaultQuitWhenAllWindowsClosed forKey:@"QuitWhenAllWindowsClosed"];
-	[prefs setBool:defaultCheckUpdate forKey:@"SUEnableAutomaticChecks"];
+    [prefs setBool:defaultCheckUpdate forKey:@"SUCheckAtStartup"];
 	[prefs setInteger:defaultCursorType forKey:@"CursorType"];
 	[prefs setBool:defaultUseBorder forKey:@"UseBorder"];
 	[prefs setBool:defaultHideScrollbar forKey:@"HideScrollbar"];
@@ -246,7 +237,6 @@ static NSString *NoHandler = @"<No Handler>";
     [hideTab setState:defaultHideTab?NSOnState:NSOffState];
     [promptOnClose setState:defaultPromptOnClose?NSOnState:NSOffState];
 	[onlyWhenMoreTabs setState:defaultOnlyWhenMoreTabs?NSOnState:NSOffState];
-	[onlyWhenMoreTabs setEnabled: defaultPromptOnClose];
 	[focusFollowsMouse setState: defaultFocusFollowsMouse?NSOnState:NSOffState];
 	[enableBonjour setState: defaultEnableBonjour?NSOnState:NSOffState];
 	[enableGrowl setState: defaultEnableGrowl?NSOnState:NSOffState];
@@ -257,7 +247,7 @@ static NSString *NoHandler = @"<No Handler>";
     [refreshRate setIntValue: defaultRefreshRate];
 	[wordChars setStringValue: ([defaultWordChars length] > 0)?defaultWordChars:@""];	
 	[quitWhenAllWindowsClosed setState: defaultQuitWhenAllWindowsClosed?NSOnState:NSOffState];
-	[checkUpdate setState: defaultCheckUpdate?NSOnState:NSOffState];
+    [checkUpdate setState: defaultCheckUpdate?NSOnState:NSOffState];
 	[cursorType selectCellWithTag:defaultCursorType];
 	[useBorder setState: defaultUseBorder?NSOnState:NSOffState];
 	[hideScrollbar setState: defaultHideScrollbar?NSOnState:NSOffState];
@@ -297,8 +287,7 @@ static NSString *NoHandler = @"<No Handler>";
         defaultPasteFromClipboard=([middleButtonPastesFromClipboard state]==NSOnState);
         defaultPromptOnClose = ([promptOnClose state] == NSOnState);
         defaultOnlyWhenMoreTabs = ([onlyWhenMoreTabs state] == NSOnState);
-        [onlyWhenMoreTabs setEnabled: defaultPromptOnClose];
-		defaultFocusFollowsMouse = ([focusFollowsMouse state] == NSOnState);
+        defaultFocusFollowsMouse = ([focusFollowsMouse state] == NSOnState);
         defaultEnableBonjour = ([enableBonjour state] == NSOnState);
         defaultEnableGrowl = ([enableGrowl state] == NSOnState);
         defaultCmdSelection = ([cmdSelection state] == NSOnState);
@@ -309,15 +298,20 @@ static NSString *NoHandler = @"<No Handler>";
         defaultWordChars = [[wordChars stringValue] retain];
         defaultQuitWhenAllWindowsClosed = ([quitWhenAllWindowsClosed state] == NSOnState);
         defaultCheckUpdate = ([checkUpdate state] == NSOnState);
-        
+       
 		if (defaultCheckTestRelease != ([checkTestRelease state] == NSOnState)) {
 		
 			defaultCheckTestRelease = ([checkTestRelease state] == NSOnState);
 
-			NSString *appCast = defaultCheckTestRelease ?
-				[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForTesting"] : 
-				[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinal"];
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+			NSString *appCast = defaultCheckTestRelease ? 
+				[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURL"] : 
+				[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinalRelease"];
 			[[NSUserDefaults standardUserDefaults] setObject: appCast forKey:@"SUFeedURL"];
+#else
+			NSString *appCast = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForPanther"];
+			[[NSUserDefaults standardUserDefaults] setObject: appCast forKey:@"SUFeedURL"];
+#endif
 		}
 	}
 }
@@ -468,10 +462,12 @@ static NSString *NoHandler = @"<No Handler>";
 
 // The following are preferences with no UI, but accessible via "defaults read/write"
 // examples:
-//  defaults write net.sourceforge.iTerm UseUnevenTabs -bool true
-//  defaults write net.sourceforge.iTerm MinTabWidth -int 100        
-//  defaults write net.sourceforge.iTerm MinCompactTabWidth -int 120
-//  defaults write net.sourceforge.iTerm OptimumTabWidth -int 100
+//  defaults write iTerm UseUnevenTabs -bool true
+//  defaults write iTerm MinTabWidth -int 100        
+//  defaults write iTerm MinCompactTabWidth -int 120
+//  defaults write iTerm OptimumTabWidth -int 100
+//  defaults write iTerm StrokeWidth -float -1
+//  defaults write iTerm BoldStrokeWidth -float -3
 
 - (BOOL) useUnevenTabs
 {
@@ -491,6 +487,21 @@ static NSString *NoHandler = @"<No Handler>";
 - (int) optimumTabWidth
 {
     return [prefs objectForKey:@"OptimumTabWidth"]?[[prefs objectForKey:@"OptimumTabWidth"] intValue]:175;
+}
+
+- (float) strokeWidth
+{
+    return [prefs objectForKey:@"StrokeWidth"]?[[prefs objectForKey:@"StrokeWidth"] floatValue]:0;
+}
+
+- (float) boldStrokeWidth
+{
+    return [prefs objectForKey:@"BoldStrokeWidth"]?[[prefs objectForKey:@"BoldStrokeWidth"] floatValue]:-2;
+}
+
+- (int) cacheSize
+{
+    return [prefs objectForKey:@"CacheSize"]?[[prefs objectForKey:@"CacheSize"] intValue]:2048;
 }
 
 - (NSString *) searchCommand

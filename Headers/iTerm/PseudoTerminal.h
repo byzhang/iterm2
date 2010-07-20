@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PseudoTerminal.h,v 1.62 2009-02-06 15:07:24 delx Exp $
+// $Id: PseudoTerminal.h,v 1.58 2008-09-12 15:25:53 delx Exp $
 /*
  **  PseudoTerminal.h
  **
@@ -67,19 +67,16 @@
 	BOOL sendInputToAllSessions;
 	BOOL fontSizeFollowWindowResize;
 	BOOL suppressContextualMenu;
-	BOOL tempTitle;
 	
-	// For send input to all sessions highlighting
-	NSColor *normalBackgroundColor;
+	BOOL EXIT;
 	
 	// flags
 	BOOL _resizeInProgressFlag;
 	
 	// for full screen windows
-	NSRect oldFrame;
 	int oldWidth, oldHeight;
 	float oldCharHorizontalSpacingMultiplier, oldCharVerticalSpacingMultiplier;
-	NSFont *oldFont, *oldNAFont;
+    NSFont *oldFont, *oldNAFont;
 }
 
 
@@ -125,7 +122,6 @@
 - (void) setAntiAlias: (BOOL) bAntiAlias;
 - (int)width;
 - (int)height;
-- (NSRect)oldFrame;
 - (int)oldWidth;
 - (int)oldHeight;
 - (void)setWidth:(int)width height:(int)height;
@@ -142,8 +138,6 @@
 - (void) setBlur: (BOOL) flag;
 - (void) enableBlur;
 - (void) disableBlur;
-- (BOOL) tempTitle;
-- (void) resetTempTitle;
 
 // controls which sessions see key events
 - (BOOL) sendInputToAllSessions;
@@ -179,7 +173,6 @@
 - (void) resizeWindow:(int)w height:(int)h;
 - (void) resizeWindowToPixelsWidth:(int)w height:(int)h;
 - (NSRect)windowWillUseStandardFrame:(NSWindow *)sender defaultFrame:(NSRect)defaultFrame;
-- (void)windowWillShowInitial;
 
 // Contextual menu
 - (void) menuForEvent:(NSEvent *)theEvent menu: (NSMenu *) theMenu;

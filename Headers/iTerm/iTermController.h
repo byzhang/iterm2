@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermController.h,v 1.29 2008-10-08 05:54:50 yfabian Exp $
+// $Id: iTermController.h,v 1.27 2008-09-13 00:07:22 delx Exp $
 /*
  **  iTermController.h
  **
@@ -43,7 +43,6 @@
 }
 
 + (iTermController*)sharedInstance;
-+ (void)sharedInstanceRelease;
 
 // actions are forwarded form application
 - (IBAction)newWindow:(id)sender;
@@ -86,3 +85,7 @@
 
 @end
 
+
+@interface iTermController (Private)
+
+@end

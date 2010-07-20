@@ -29,7 +29,7 @@
 typedef unsigned int CGSWorkspaceID;
 
 /*! The space id given when we're switching spaces. */
-static const CGSWorkspaceID kCGSTransitioningWorkspaceID = 65538;
+const CGSWorkspaceID kCGSTransitioningWorkspaceID = 65538;
 
 
 

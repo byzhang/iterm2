@@ -24,7 +24,7 @@
 #pragma once
 
 typedef int CGSConnectionID;
-static const CGSConnectionID kCGSNullConnectionID = 0;
+const CGSConnectionID kCGSNullConnectionID = 0;
 
 
 CG_EXTERN_C_BEGIN

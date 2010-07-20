@@ -1182,7 +1182,6 @@ static BOOL addingKBEntry;
         }
 }
 
-
 @end
 
 @implementation iTermProfileWindowController (Private)

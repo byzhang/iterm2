@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: VT100Terminal.m,v 1.136 2008-10-21 05:43:52 yfabian Exp $
+// $Id: VT100Terminal.m,v 1.133 2008-09-21 01:41:16 yfabian Exp $
 //
 /*
  **  VT100Terminal.m
@@ -120,12 +120,11 @@
 #define KEY_FUNCTION_FORMAT  "\033[%d~"
 
 #define REPORT_POSITION      "\033[%d;%dR"
-#define REPORT_POSITION_Q    "\033[?%d;%dR"
 #define REPORT_STATUS        "\033[0n"
 // Device Attribute : VT100 with Advanced Video Option
 #define REPORT_WHATAREYOU    "\033[?1;2c"
 // Secondary Device Attribute: VT100
-#define REPORT_SDA			 "\033[>0;95;c"
+#define REPORT_SDA			 "\033[1;0;0c"
 #define REPORT_VT52          "\033/Z"
 
 #define MOUSE_REPORT_FORMAT	"\033[M%c%c%c"
@@ -339,7 +338,7 @@ static size_t getCSIParam(unsigned char *datap,
 		else {
             switch (*datap) {
                 case VT100CC_ENQ: break;
-                case VT100CC_BEL: [SCREEN activateBell]; break;
+                case VT100CC_BEL: [SCREEN setBell]; break;
                 case VT100CC_BS:  [SCREEN backSpace]; break;
                 case VT100CC_HT:  [SCREEN setTab]; break;
                 case VT100CC_LF:
@@ -545,27 +544,6 @@ static VT100TCC decode_csi(unsigned char *datap,
                         case 6:
                             result.type = XTERMCC_LOWER;
                             break;
-                        case 11:
-                            result.type = XTERMCC_REPORT_WIN_STATE;
-                            break;
-                        case 13:
-                            result.type = XTERMCC_REPORT_WIN_POS;
-                            break;
-                        case 14:
-                            result.type = XTERMCC_REPORT_WIN_PIX_SIZE;
-                            break;
-                        case 18:
-                            result.type = XTERMCC_REPORT_WIN_SIZE;
-                            break;
-                        case 19:
-                            result.type = XTERMCC_REPORT_SCREEN_SIZE;
-                            break;
-                        case 20:
-                            result.type = XTERMCC_REPORT_ICON_TITLE;
-                            break;
-                        case 21:
-                            result.type = XTERMCC_REPORT_WIN_TITLE;
-                            break;
 						default:
 							result.type = VT100_NOTSUPPORT;
 							break;
@@ -762,9 +740,6 @@ static VT100TCC decode_xterm(unsigned char *datap,
             case 2:
                 result.type = XTERMCC_WIN_TITLE;
 				break;
-				case 4:
-				result.type = XTERMCC_SET_RGB;
-				break;
             default:
 				result.type = VT100_NOTSUPPORT;
 				break;
@@ -901,27 +876,6 @@ static VT100TCC decode_other(unsigned char *datap,
 		case 'c':
 			result.type = VT100CSI_RIS;
 			*rmlen = 2;
-			break;
-		case ' ':
-			if (c2<0) {
-				result.type = VT100_WAIT;
-			}
-			else {
-				switch (c2) {
-					case 'L':
-					case 'M':
-					case 'N':
-					case 'F':
-					case 'G':
-						*rmlen = 3;
-						result.type = VT100_NOTSUPPORT;
-						break;
-					default:
-						*rmlen = 1;
-						result.type = VT100_NOTSUPPORT;
-						break;
-				}
-			}
 			break;
 			
 		default:
@@ -1366,6 +1320,8 @@ static VT100TCC decode_string(unsigned char *datap,
     STREAM = malloc(total_stream_length);
 	current_stream_length = 0;
 
+	streamLock = [[NSLock alloc] init];
+    
     termType = nil;
     for(i = 0; i < TERMINFO_KEYS; i ++) {
         key_strings[i]=NULL;
@@ -1387,6 +1343,7 @@ static VT100TCC decode_string(unsigned char *datap,
     XON = YES;
     bold=blink=reversed=under=0;
     saveBold=saveBlink=saveReversed=saveUnder = 0;
+    highlight = saveHighlight = NO;
     FG_COLORCODE = DEFAULT_FG_COLOR_CODE;
     BG_COLORCODE = DEFAULT_BG_COLOR_CODE;
 	MOUSE_MODE = MOUSE_REPORTING_NONE;
@@ -1411,6 +1368,8 @@ static VT100TCC decode_string(unsigned char *datap,
 #endif
     
     free(STREAM);
+///	[streamLock unlock];
+	[streamLock release];
     [termType release];
 
 	int i;
@@ -1480,6 +1439,7 @@ static VT100TCC decode_string(unsigned char *datap,
 	saveUnder=under;
 	saveBlink=blink;
 	saveReversed=reversed;
+	saveHighlight=highlight;
 	saveCHARSET=CHARSET;
 }
 
@@ -1489,6 +1449,7 @@ static VT100TCC decode_string(unsigned char *datap,
 	under=saveUnder;
 	blink=saveBlink;
 	reversed=saveReversed;
+	highlight = saveHighlight;
 	CHARSET=saveCHARSET;
 }
 
@@ -1509,6 +1470,7 @@ static VT100TCC decode_string(unsigned char *datap,
     XON = YES;
     bold=blink=reversed=under=0;
     saveBold=saveBlink=saveReversed=saveUnder = 0;
+    highlight = saveHighlight = NO;
     FG_COLORCODE = DEFAULT_FG_COLOR_CODE;
     BG_COLORCODE = DEFAULT_BG_COLOR_CODE;
 	MOUSE_MODE = MOUSE_REPORTING_NONE;
@@ -1562,22 +1524,26 @@ static VT100TCC decode_string(unsigned char *datap,
 
 - (void)cleanStream
 {
+	[streamLock lock];
 	current_stream_length = 0;
+	[streamLock unlock];
 }
 
-- (void)putStreamData:(NSData*)data
+- (void)putStreamData:(char *)data length: (int)length
 {
-	if (current_stream_length + [data length] > total_stream_length) {
-		int n = ([data length] + current_stream_length) / STANDARD_STREAM_SIZE;
+	[streamLock lock];
+	if (current_stream_length + length > total_stream_length) {
+		int n = (length + current_stream_length) / STANDARD_STREAM_SIZE;
 		
 		total_stream_length += n*STANDARD_STREAM_SIZE;
 		STREAM = reallocf(STREAM, total_stream_length);
 	}
 	
-	memcpy(STREAM+current_stream_length, [data bytes], [data length]);
-	current_stream_length += [data length];
+	memcpy(STREAM+current_stream_length, data, length);
+	current_stream_length += length;
     if(current_stream_length == 0)
 		streamOffset = 0;
+	[streamLock unlock];
 }
 
 - (VT100TCC)getNextToken
@@ -1586,6 +1552,10 @@ static VT100TCC decode_string(unsigned char *datap,
     size_t datalen;
     VT100TCC result;
 
+	// acquire lock
+	[streamLock lock];
+
+	
 #if 0
     NSLog(@"buffer data = %s", STREAM);
 #endif
@@ -1622,7 +1592,6 @@ static VT100TCC decode_string(unsigned char *datap,
 			result.position = datap;
 			[self _setMode:result];
 			[self _setCharAttr:result];
-			[self _setRGB:result];
 		}
 		else {
             if (isString(datap,ENCODING)) {
@@ -1653,6 +1622,10 @@ static VT100TCC decode_string(unsigned char *datap,
 			streamOffset += rmlen;
 		}
     }
+	
+ 	
+	// release lock
+	[streamLock unlock];
 	
     return result;
 }
@@ -2024,8 +1997,8 @@ static VT100TCC decode_string(unsigned char *datap,
 	static char buf[7];
 	char cb;
 	
-	cb = button;
-	if (button > 3) cb += 64 - 4; // Subtract 4 for scroll wheel buttons
+	cb = button % 3;
+	if (button > 3) cb += 64;
 	if (modflag & NSControlKeyMask) cb += 16;
 	if (modflag & NSShiftKeyMask) cb += 4;
 	if (modflag & NSAlternateKeyMask) cb += 8;
@@ -2130,7 +2103,10 @@ static VT100TCC decode_string(unsigned char *datap,
 
 - (int)foregroundColorCode
 {
-	return (reversed?BG_COLORCODE:FG_COLORCODE)+bold*BOLD_MASK+under*UNDER_MASK+blink*BLINK_MASK;
+	if (FG_COLORCODE % 256 >7)
+		return (reversed?BG_COLORCODE:FG_COLORCODE)+bold*BOLD_MASK+under*UNDER_MASK+blink*BLINK_MASK;
+	else
+		return (reversed?BG_COLORCODE:FG_COLORCODE+(highlight?1:bold)*8)+bold*BOLD_MASK+under*UNDER_MASK+blink*BLINK_MASK;
 }
 
 - (int)backgroundColorCode
@@ -2140,7 +2116,10 @@ static VT100TCC decode_string(unsigned char *datap,
 
 - (int)foregroundColorCodeReal
 {
-	return FG_COLORCODE+bold*BOLD_MASK+under*UNDER_MASK+blink*BLINK_MASK;
+	if (FG_COLORCODE % 256 >7)
+		return (FG_COLORCODE)+bold*BOLD_MASK+under*UNDER_MASK+blink*BLINK_MASK;
+	else
+		return (FG_COLORCODE+(highlight?1:bold)*8)+bold*BOLD_MASK+under*UNDER_MASK+blink*BLINK_MASK;
 }
 
 - (int)backgroundColorCodeReal
@@ -2148,11 +2127,11 @@ static VT100TCC decode_string(unsigned char *datap,
     return BG_COLORCODE;
 }
 
-- (NSData *)reportActivePositionWithX:(int)x Y:(int)y withQuestion:(BOOL)q
+- (NSData *)reportActivePositionWithX:(int)x Y:(int)y
 {
     char buf[64];
 	
-    snprintf(buf, sizeof(buf), q?REPORT_POSITION_Q:REPORT_POSITION, y, x);
+    snprintf(buf, sizeof(buf), REPORT_POSITION, y, x);
 	
     return [NSData dataWithBytes:buf length:strlen(buf)];
 }
@@ -2204,16 +2183,14 @@ static VT100TCC decode_string(unsigned char *datap,
 					if(mode) {
 						[self saveCursorAttributes];
 						[SCREEN saveCursorPosition];
-						[SCREEN saveBuffer];
-						[SCREEN clearScreen];
 					}
 					else {
-						[SCREEN restoreBuffer];
+						// XXX - shouldn't really reuse this token, but meh
+						token.u.csi.p[0] = 2;
+						[SCREEN eraseInDisplay:token];
 						[self restoreCursorAttributes];
 						[SCREEN restoreCursorPosition];
 					}
-					break;
-
 				case 47:
 					// alternate screen buffer mode
 					if(mode)
@@ -2274,7 +2251,7 @@ static VT100TCC decode_string(unsigned char *datap,
 		
         if (token.u.csi.count == 0) {
             // all attribute off
-            bold=under=blink=reversed=0;
+            bold=under=blink=reversed=highlight=0;
 			FG_COLORCODE = DEFAULT_FG_COLOR_CODE;
 			BG_COLORCODE = DEFAULT_BG_COLOR_CODE; 
         }
@@ -2285,7 +2262,7 @@ static VT100TCC decode_string(unsigned char *datap,
                 switch (n) {
 					case VT100CHARATTR_ALLOFF:
 						// all attribute off
-						bold=under=blink=reversed=0;
+						bold=under=blink=reversed=highlight=0;
 						FG_COLORCODE = DEFAULT_FG_COLOR_CODE;
 						BG_COLORCODE = DEFAULT_BG_COLOR_CODE;
 						break;
@@ -2336,16 +2313,20 @@ static VT100TCC decode_string(unsigned char *datap,
 						// 8 color support
 						if (n>=VT100CHARATTR_FG_BLACK&&n<=VT100CHARATTR_FG_WHITE) {
 							FG_COLORCODE = n - VT100CHARATTR_FG_BASE - COLORCODE_BLACK;
+							highlight = 0;
 						}
 						else if (n>=VT100CHARATTR_BG_BLACK&&n<=VT100CHARATTR_BG_WHITE) {
 							BG_COLORCODE = n - VT100CHARATTR_BG_BASE - COLORCODE_BLACK;
+							highlight = 0;
 						}
 						// 16 color support
 						if (n>=VT100CHARATTR_FG_HI_BLACK&&n<=VT100CHARATTR_FG_HI_WHITE) {
-							FG_COLORCODE = n - VT100CHARATTR_FG_HI_BASE - COLORCODE_BLACK + 8;
+							FG_COLORCODE = n - VT100CHARATTR_FG_HI_BASE - COLORCODE_BLACK;
+							highlight = 1;
 						}
 						else if (n>=VT100CHARATTR_BG_HI_BLACK&&n<=VT100CHARATTR_BG_HI_WHITE) {
-							BG_COLORCODE = n - VT100CHARATTR_BG_HI_BASE - COLORCODE_BLACK + 8;
+							BG_COLORCODE = n - VT100CHARATTR_BG_HI_BASE - COLORCODE_BLACK;
+							highlight = 1;
 						}
                 }
             }
@@ -2353,49 +2334,6 @@ static VT100TCC decode_string(unsigned char *datap,
 	}
 }
 
-
-- (void)_setRGB:(VT100TCC)token
-{
-	if (token.type == XTERMCC_SET_RGB) {
-		// The format of this command is "<index>;rgb:<redhex>/<greenhex>/<bluehex>", e.g. "105;rgb:00/cc/ff"
-		const char *s = [token.u.string UTF8String];
-		int index = 0;
-		while (isdigit(*s))
-			index = 10*index + *s++ - '0';
-		if (*s++ != ';')
-			return;
-		if (*s++ != 'r')
-			return;
-		if (*s++ != 'g')
-			return;
-		if (*s++ != 'b')
-			return;
-		if (*s++ != ':')
-			return;
-		int r = 0, g = 0, b = 0;
-
-		while (isxdigit(*s))
-			r = 16*r + (*s>='a' ? *s++ - 'a' + 10 : *s>='A' ? *s++ - 'A' + 10 : *s++ - '0');
-		
-		if (*s++ != '/')
-			return;
-		
-		while (isxdigit(*s))
-			g = 16*g + (*s>='a' ? *s++ - 'a' + 10 : *s>='A' ? *s++ - 'A' + 10 : *s++ - '0');
-		
-		if (*s++ != '/')
-			return;
-		
-		while (isxdigit(*s))
-			b = 16*b + (*s>='a' ? *s++ - 'a' + 10 : *s>='A' ? *s++ - 'A' + 10 : *s++ - '0');
-		
-		if (index >= 16 && index <= 255 && // ignore assigns to the systems colors or outside the palette
-			 r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) { // ignore bad colors
-			[[SCREEN session] setColorTable:index
-											  color:[NSColor colorWithCalibratedRed:r/256.0 green:g/256.0 blue:b/256.0 alpha:1]];
-		}
-	}
-}
 
 - (void) setScreen:(VT100Screen*) sc
 {
