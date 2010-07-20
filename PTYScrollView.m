@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PTYScrollView.m,v 1.23 2008-09-09 22:10:05 yfabian Exp $
+// $Id: PTYScrollView.m,v 1.20 2006-11-23 02:08:03 yfabian Exp $
 /*
  **  PTYScrollView.m
  **
@@ -31,7 +31,6 @@
 #define DEBUG_ALLOC           0
 #define DEBUG_METHOD_TRACE    0
 
-#import <iTerm/iTerm.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTextView.h>
 
@@ -87,13 +86,6 @@
     userScroll=scroll;
 }
 
-- (NSScrollerPart)hitPart
-{
-	NSScrollerPart h = [super hitPart];
-	
-	return h;
-}
-
 @end
 
 @implementation PTYScrollView
@@ -125,9 +117,8 @@
     PTYScroller *aScroller;
 	
     aScroller=[[PTYScroller alloc] init];
-	//[aScroller setControlSize:NSSmallControlSize];
-	[self setVerticalScroller: aScroller];
-	[aScroller release];
+    [self setVerticalScroller: aScroller];
+    [aScroller release];
 	
     return self;
 }
@@ -160,14 +151,11 @@
 - (void)scrollWheel:(NSEvent *)theEvent
 {
     PTYScroller *verticalScroller = (PTYScroller *)[self verticalScroller];
-    NSRect scrollRect;
 	
-	scrollRect= [self documentVisibleRect];
-	scrollRect.origin.y-=[theEvent deltaY] * [self verticalLineScroll];
-	[[self documentView] scrollRectToVisible: scrollRect];
+    [super scrollWheel: theEvent];
 	
-	scrollRect= [self documentVisibleRect];
-	if(scrollRect.origin.y+scrollRect.size.height < [[self documentView] frame].size.height)
+    //NSLog(@"PTYScrollView: scrollWheel: %f", [verticalScroller floatValue]);
+    if([verticalScroller floatValue] < 1.0)
 		[verticalScroller setUserScroll: YES];
     else
 		[verticalScroller setUserScroll: NO];
@@ -175,11 +163,11 @@
 
 - (void)detectUserScroll
 {
-    NSRect scrollRect;
     PTYScroller *verticalScroller = (PTYScroller *)[self verticalScroller];
 	
-    scrollRect= [self documentVisibleRect];
-    if(scrollRect.origin.y+scrollRect.size.height < [[self documentView] frame].size.height)
+    //NSLog(@"PTYScrollView: detectUserScroll: %f", [verticalScroller floatValue]);
+    
+    if([verticalScroller floatValue] < 1.0)
 		[verticalScroller setUserScroll: YES];
     else
 		[verticalScroller setUserScroll: NO];
@@ -212,6 +200,12 @@
 		transparency = theTransparency;
 		[self setNeedsDisplay: YES];
     }
+}
+
+- (void)reflectScrolledClipView:(NSClipView *)aClipView
+{
+	[super reflectScrolledClipView: aClipView];
+	[[self documentView] setForceUpdate: YES];
 }
 
 @end

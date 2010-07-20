@@ -23,7 +23,6 @@
 
 /* Close window */
 "Close Window?" = "Close Window?";
-"Quit iTerm?" = "Quit iTerm?";
 
 /* Close Session */
 "This session will be closed."="This session will be closed.";
@@ -152,7 +151,6 @@
 "scroll page up"="scroll page up";
 "send ^["="send ^[";
 "send hex code"="send hex code";
-"send"="send";
 "ignore"="ignore";
 "unknown action ID"="unknown action ID";
 
@@ -186,7 +184,6 @@
 /* Bookmarks */
 "Show Bookmark Drawer" = "Show Bookmark Drawer";
 "Hide Bookmark Drawer"="Hide Bookmark Drawer";
-"Delete Bookmark"="Delete Bookmark";
 
 /* Warning */
 "Warning!" = "Warning!";
@@ -217,18 +214,4 @@
 "Display Profiles" = "Display Profiles";
 "Terminal Profiles" = "Terminal Profiles";
 "eg. [OC for ESC [OC." = "eg. [OC for ESC [OC.";
-"eg. 7F for backward delete." = "eg. 7F for backward delete.";
-"use \n for new-line, etc" = "use \n for new-line, etc";
-
-/* Error */
-"Out of memory" = "Out of memory";
-"New sesssion cannot be created. Try smaller buffer sizes." = "New sesssion cannot be created. Try smaller buffer sizes.";
-
-/* Security Warnings */
-"Bad User Shell" = "Bad User Shell";
-"The shell for this account is not a valid shell as defined in /etc/shells. Contact your system administrator." = "The shell for this account is not matched by a valid shell as defined in /etc/shells. Contact your system administrator.";
-
-/* Fork Error*/
-"Unable to Fork!"="Unable to Fork!";
-"iTerm cannot launch the program for this session."="iTerm cannot launch the program for this session.";
-"Close Session"="Close Session";
+"eg. 7F for forward delete." = "eg. 7F for forward delete.";

@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermApplicationDelegate.m,v 1.70 2008-10-23 04:57:13 yfabian Exp $
+// $Id: iTermApplicationDelegate.m,v 1.48 2006-12-05 02:59:52 yfabian Exp $
 /*
  **  iTermApplicationDelegate.m
  **
@@ -41,7 +41,6 @@
 #import <iTermDisplayProfileMgr.h>
 #import <Tree.h>
 
-#include <unistd.h>
 
 static NSString *SCRIPT_DIRECTORY = @"~/Library/Application Support/iTerm/Scripts";
 static NSString* AUTO_LAUNCH_SCRIPT = @"~/Library/Application Support/iTerm/AutoLaunch.scpt";
@@ -73,12 +72,20 @@ static BOOL usingAutoLaunchScript = NO;
     putenv("TERM_PROGRAM=iTerm.app");
 
 	[self buildScriptMenu:nil];
-		
+	
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+	NSString *patherAppCast = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURL"];
+	[[NSUserDefaults standardUserDefaults] setObject: patherAppCast forKey:@"SUFeedURL"];
+#else
+	NSString *patherAppCast = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForPanther"];
+	[[NSUserDefaults standardUserDefaults] setObject: patherAppCast forKey:@"SUFeedURL"];
+#endif
+	
 	// read preferences
-    [PreferencePanel migratePreferences];
-	[iTermProfileWindowController sharedInstance];
+    [iTermProfileWindowController sharedInstance];
     [iTermBookmarkController sharedInstance];
     [PreferencePanel sharedInstance];
+	
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
@@ -104,48 +111,39 @@ static BOOL usingAutoLaunchScript = NO;
 {
 	NSArray *terminals;
 	
-	terminals = [[iTermController sharedInstance] terminals];
-
 	// Display prompt if we need to
-    if ([[PreferencePanel sharedInstance] promptOnClose] && [terminals count] && (![[PreferencePanel sharedInstance] onlyWhenMoreTabs] || [terminals count] >1 || 
-                                                             [[[[iTermController sharedInstance] currentTerminal] tabView] numberOfTabViewItems] > 1 )
-        && 
-	    NSRunAlertPanel(NSLocalizedStringFromTableInBundle(@"Quit iTerm?",@"iTerm", [NSBundle bundleForClass: [self class]], @"Close window"),
-					   NSLocalizedStringFromTableInBundle(@"All sessions will be closed",@"iTerm", [NSBundle bundleForClass: [self class]], @"Close window"),
-					   NSLocalizedStringFromTableInBundle(@"OK",@"iTerm", [NSBundle bundleForClass: [self class]], @"OK"),
-					   NSLocalizedStringFromTableInBundle(@"Cancel",@"iTerm", [NSBundle bundleForClass: [self class]], @"Cancel")
-					   ,nil)!=NSAlertDefaultReturn)
+	terminals = [[iTermController sharedInstance] terminals];
+    if(([terminals count] > 0) && 
+	   [[PreferencePanel sharedInstance] promptOnClose] && 
+	   ![[terminals objectAtIndex: 0] showCloseWindow])
 		return (NO);
-
-	// Ensure [iTermController dealloc] is called before prefs are saved
-	[iTermController sharedInstanceRelease];
-
+    
 	// save preferences
 	[[PreferencePanel sharedInstance] savePreferences];
-
-	return (YES);
+	
+    return (YES);
 }
 
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
 {
 	//NSLog(@"%s: %@", __PRETTY_FUNCTION__, filename);
-		
-	if (filename) {
-		// Verify whether filename is a script or a folder
-		BOOL isDir;
-		[[NSFileManager defaultManager] fileExistsAtPath:filename isDirectory:&isDir];
-		if (!isDir) {
-			NSString *aString = [NSString stringWithFormat:@"\"%@\"", filename];
-			[[iTermController sharedInstance] launchBookmark:nil inTerminal:nil withCommand:aString];
-		}
-		else {
-			NSString *aString = [NSString stringWithFormat:@"cd \"%@\"\n", filename];
-			[[iTermController sharedInstance] launchBookmark:nil inTerminal:nil];
-			// Sleeping a while waiting for the login.
-			sleep(1);
-			[[[[iTermController sharedInstance] currentTerminal] currentSession] insertText:aString];
-		}
-	}
+	
+	// open a new default session in the front terminal
+	[self newSession: self];
+	
+	// launch the command
+	NSData *data = nil;
+    NSString *aString = nil;
+	PseudoTerminal *theTerminal = [[iTermController sharedInstance] currentTerminal];
+	PTYSession *theSession = [theTerminal currentSession];
+	if(filename != nil)
+    {
+		aString = [NSString stringWithFormat:@"%@\n", filename];
+		data = [aString dataUsingEncoding: [[theSession TERMINAL] encoding]];
+		[theSession writeTask: data];
+    }
+	
+	
 	return (YES);
 }
 
@@ -197,7 +195,7 @@ static BOOL usingAutoLaunchScript = NO;
 - (id)init
 {
     self = [super init];
-	
+
     // Add ourselves as an observer for notifications.
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(reloadMenus:)
@@ -232,7 +230,7 @@ static BOOL usingAutoLaunchScript = NO;
 	[[NSAppleEventManager sharedAppleEventManager] setEventHandler:self andSelector:@selector(getUrl:withReplyEvent:) forEventClass:kInternetEventClass andEventID:kAEGetURL];
 
 	aboutController = nil;
-	
+
     return self;
 }
 
@@ -251,7 +249,7 @@ static BOOL usingAutoLaunchScript = NO;
 - (void) dealloc
 {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
-	
+
     [super dealloc];
 }
 
@@ -262,7 +260,7 @@ static BOOL usingAutoLaunchScript = NO;
 }
 
 - (IBAction)newSession:(id)sender
-{	
+{
     [[iTermController sharedInstance] newSession:sender];
 }
 
@@ -341,8 +339,9 @@ static BOOL usingAutoLaunchScript = NO;
 // transparency
 - (IBAction) useTransparency: (id) sender
 {
-	[[[iTermController sharedInstance] currentTerminal] setUseTransparency:![sender state]];
-	
+  BOOL b = [[[[iTermController sharedInstance] currentTerminal] currentSession] useTransparency];
+  [[[[iTermController sharedInstance] currentTerminal] currentSession] setUseTransparency: !b];
+
   // Post a notification
   [[NSNotificationCenter defaultCenter] postNotificationName: @"iTermWindowDidResize" object: self userInfo: nil];    
 }
@@ -357,28 +356,24 @@ static BOOL usingAutoLaunchScript = NO;
 	
     NSURL *webURL, *bugURL;
     NSAttributedString *webSite, *bugReport;
-    NSAttributedString *tmpAttrString;
-    NSDictionary *linkAttributes, *otherAttributes;
+    NSMutableAttributedString *tmpAttrString;
+    NSDictionary *linkAttributes;
 //    [NSApp orderFrontStandardAboutPanel:nil];
 
-	otherAttributes= [NSDictionary dictionaryWithObjectsAndKeys: [NSCursor pointingHandCursor], NSCursorAttributeName,
-		NULL];
-	
+        
     // Web URL
     webURL = [NSURL URLWithString: @"http://iterm.sourceforge.net"];
     linkAttributes= [NSDictionary dictionaryWithObjectsAndKeys: webURL, NSLinkAttributeName,
                         [NSNumber numberWithInt: NSSingleUnderlineStyle], NSUnderlineStyleAttributeName,
 					    [NSColor blueColor], NSForegroundColorAttributeName,
-						[NSCursor pointingHandCursor], NSCursorAttributeName,
 					    NULL];
     webSite = [[NSAttributedString alloc] initWithString: @"http://iterm.sourceforge.net" attributes: linkAttributes];
 
     // Bug report
-    bugURL = [NSURL URLWithString: @"http://iterm.sourceforge.net/tracker-bug"];
-    linkAttributes= [NSDictionary dictionaryWithObjectsAndKeys: bugURL, NSLinkAttributeName,
+    bugURL = [NSURL URLWithString: @"https://sourceforge.net/tracker/?func=add&group_id=67789&atid=518973"];
+    linkAttributes= [NSDictionary dictionaryWithObjectsAndKeys: webURL, NSLinkAttributeName,
         [NSNumber numberWithInt: NSSingleUnderlineStyle], NSUnderlineStyleAttributeName,
         [NSColor blueColor], NSForegroundColorAttributeName,
-		[NSCursor pointingHandCursor], NSCursorAttributeName,
         NULL];
     bugReport = [[NSAttributedString alloc] initWithString: NSLocalizedStringFromTableInBundle(@"Report A Bug", @"iTerm", [NSBundle bundleForClass: [self class]], @"About") attributes: linkAttributes];
 
@@ -387,12 +382,12 @@ static BOOL usingAutoLaunchScript = NO;
     NSString *versionString = [@"Build " stringByAppendingString: (NSString *)[myDict objectForKey:@"CFBundleVersion"]];
     
     [[AUTHORS textStorage] deleteCharactersInRange: NSMakeRange(0, [[AUTHORS textStorage] length])];
-    tmpAttrString = [[[NSAttributedString alloc] initWithString: versionString attributes: otherAttributes] autorelease];
+    tmpAttrString = [[[NSAttributedString alloc] initWithString: versionString] autorelease];
     [[AUTHORS textStorage] appendAttributedString: tmpAttrString];
-    tmpAttrString = [[[NSAttributedString alloc] initWithString: @"\n\n" attributes: otherAttributes] autorelease];
+    tmpAttrString = [[[NSAttributedString alloc] initWithString: @"\n\n"] autorelease];
     [[AUTHORS textStorage] appendAttributedString: tmpAttrString];
     [[AUTHORS textStorage] appendAttributedString: webSite];
-    tmpAttrString = [[[NSAttributedString alloc] initWithString: @"\n" attributes: otherAttributes] autorelease];
+    tmpAttrString = [[[NSAttributedString alloc] initWithString: @"\n"] autorelease];
     [[AUTHORS textStorage] appendAttributedString: tmpAttrString];
     [[AUTHORS textStorage] appendAttributedString: bugReport];
     [AUTHORS setAlignment: NSCenterTextAlignment range: NSMakeRange(0, [[AUTHORS textStorage] length])];
@@ -445,10 +440,10 @@ static BOOL usingAutoLaunchScript = NO;
     if(displayProfile == nil)
         displayProfile = [displayProfileMgr defaultProfileName];
     
-    [frontTerminal setFont: [displayProfileMgr windowFontForProfile: displayProfile] 
-                    nafont: [displayProfileMgr windowNAFontForProfile: displayProfile]];
     [frontTerminal resizeWindow: [displayProfileMgr windowColumnsForProfile: displayProfile]
                          height: [displayProfileMgr windowRowsForProfile: displayProfile]];
+    [frontTerminal setFont: [displayProfileMgr windowFontForProfile: displayProfile] 
+                    nafont: [displayProfileMgr windowNAFontForProfile: displayProfile]];
 					
 }
 
@@ -456,7 +451,8 @@ static BOOL usingAutoLaunchScript = NO;
 // Notifications
 - (void) reloadMenus: (NSNotification *) aNotification
 {
-	PseudoTerminal *frontTerminal = [self currentTerminal];
+
+    PseudoTerminal *frontTerminal = [self currentTerminal];
     if (frontTerminal != [aNotification object]) return;
 	
 	unsigned int drawerState;
@@ -501,7 +497,7 @@ static BOOL usingAutoLaunchScript = NO;
 		else
 		{
 			[toggleBookmarksView setTitle: 
-				NSLocalizedStringFromTableInBundle(@"Hide Bookmark Drawer", @"iTerm", [NSBundle bundleForClass: [self class]], @"Bookmarks")];
+				NSLocalizedStringFromTableInBundle(@"Hide Bookmarks Drawer", @"iTerm", [NSBundle bundleForClass: [self class]], @"Bookmarks")];
 		}
 	}
 	else {
@@ -544,7 +540,7 @@ static BOOL usingAutoLaunchScript = NO;
 		
         if(i < 10)
         {
-            aMenuItem  = [[NSMenuItem alloc] initWithTitle: [aSession name] action: @selector(selectSessionAtIndexAction:) keyEquivalent:@""];
+            aMenuItem  = [[NSMenuItem alloc] initWithTitle: [aSession name] action: @selector(selectSessionAtIndexAction:) keyEquivalent: [NSString stringWithFormat: @"%d", i]];
             [aMenuItem setTag: i-1];
 			
             [aMenu addItem: aMenuItem];
@@ -585,7 +581,7 @@ static BOOL usingAutoLaunchScript = NO;
 	else {
 		[logStart setEnabled: ![aSession logging]];
 		[logStop setEnabled: [aSession logging]];
-		[toggleTransparency setState: [currentTerminal useTransparency] ? NSOnState : NSOffState];
+		[toggleTransparency setState: [aSession useTransparency] ? NSOnState : NSOffState];
 		[toggleTransparency setEnabled: YES];
 	}
 }
@@ -594,7 +590,7 @@ static BOOL usingAutoLaunchScript = NO;
 {
   if ([menuItem action] == @selector(useTransparency:)) 
   {
-    BOOL b = [[[iTermController sharedInstance] currentTerminal] useTransparency];
+    BOOL b = [[[[iTermController sharedInstance] currentTerminal] currentSession] useTransparency];
     [menuItem setState: b == YES ? NSOnState : NSOffState];
   }
   return YES;
@@ -602,7 +598,7 @@ static BOOL usingAutoLaunchScript = NO;
 
 - (IBAction)buildScriptMenu:(id)sender
 {
-	if ([[[[NSApp mainMenu] itemAtIndex: 5] title] isEqualToString:NSLocalizedStringFromTableInBundle(@"Script",@"iTerm", [NSBundle bundleForClass: [iTermController class]], @"Script")])
+	if ([[[[NSApp mainMenu] itemAtIndex: 5] title] isEqualToString:@"Script"])
 		[[NSApp mainMenu] removeItemAtIndex:5];
 
 	// add our script menu to the menu bar
@@ -655,6 +651,7 @@ static BOOL usingAutoLaunchScript = NO;
         [scriptMenuItem setTitle: NSLocalizedStringFromTableInBundle(@"Script",@"iTerm", [NSBundle bundleForClass: [iTermController class]], @"Script")];
     }
 }
+
 
 @end
 

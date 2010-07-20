@@ -97,7 +97,6 @@
 	IBOutlet NSSlider *displayFontSpacingWidth;
 	IBOutlet NSSlider *displayFontSpacingHeight;
 	IBOutlet NSButton *displayAntiAlias;
-	IBOutlet NSButton *displayBlur;
 	IBOutlet NSButton *displayDisableBold;
 	
 	BOOL changingNAFont;
@@ -114,8 +113,6 @@
 	IBOutlet NSButton *terminalDoubleWidth;
 	IBOutlet NSButton *terminalSendIdleChar;
 	IBOutlet NSTextField *terminalIdleChar;
-	IBOutlet NSButton *terminalAppendTitle;
-	IBOutlet NSButton *terminalNoResizing;
 	IBOutlet NSButton *xtermMouseReporting;
 
     NSString *selectedProfile;
@@ -144,7 +141,6 @@
 // Display profile UI
 - (void) displayProfileChangedTo: (NSString *) profile;
 - (IBAction) displaySetAntiAlias: (id) sender;
-- (IBAction) displaySetBlur: (id) sender;
 - (IBAction) displaySetDisableBold: (id) sender;
 - (IBAction) displayChangeColor: (id) sender;
 - (IBAction) displayBackgroundImage: (id) sender;
@@ -166,8 +162,6 @@
 - (IBAction) terminalSetDoubleWidth: (id) sender;
 - (IBAction) terminalSetSendIdleChar: (id) sender;
 - (IBAction) terminalSetXtermMouseReporting: (id) sender;
-- (IBAction) terminalSetAppendTitle: (id) sender;
-- (IBAction) terminalSetNoResizing: (id) sender;
 
 - (void)selectProfile:(NSString *)profile withInCategory: (int) category;
 

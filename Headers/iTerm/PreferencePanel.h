@@ -46,7 +46,6 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
 	IBOutlet NSButton *middleButtonPastesFromClipboard;
     IBOutlet id hideTab;
     IBOutlet id promptOnClose;
-    IBOutlet id onlyWhenMoreTabs;
     IBOutlet NSButton *focusFollowsMouse;
 	IBOutlet NSTextField *wordChars;
 	IBOutlet NSButton *enableBonjour;
@@ -59,10 +58,7 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
 	IBOutlet NSButton *quitWhenAllWindowsClosed;
     IBOutlet NSButton *checkUpdate;
 	IBOutlet NSMatrix *cursorType;
-	IBOutlet NSButton *useBorder;
-	IBOutlet NSButton *hideScrollbar;
-    IBOutlet NSButton *checkTestRelease;
-	
+    
     NSUserDefaults *prefs;
 
 	int defaultWindowStyle;
@@ -71,7 +67,6 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
     BOOL defaultHideTab;
     int defaultTabViewType;
     BOOL defaultPromptOnClose;
-    BOOL defaultOnlyWhenMoreTabs;
     BOOL defaultFocusFollowsMouse;
 	BOOL defaultEnableBonjour;
 	BOOL defaultEnableGrowl;
@@ -83,9 +78,6 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
 	NSString *defaultWordChars;
     BOOL defaultQuitWhenAllWindowsClosed;
 	BOOL defaultCheckUpdate;
-	BOOL defaultUseBorder;
-	BOOL defaultHideScrollbar;
-	BOOL defaultCheckTestRelease;
 	ITermCursorType defaultCursorType;
 	
 	// url handler stuff
@@ -96,7 +88,6 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
 
 + (PreferencePanel*)sharedInstance;
 
-+ (BOOL) migratePreferences;
 - (void) readPreferences;
 - (void) savePreferences;
 
@@ -115,7 +106,6 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
 - (int) windowStyle;
 - (void) setTabViewType: (NSTabViewType) type;
 - (BOOL) promptOnClose;
-- (BOOL) onlyWhenMoreTabs;
 - (BOOL) focusFollowsMouse;
 - (BOOL) enableBonjour;
 - (BOOL) enableGrowl;
@@ -123,12 +113,9 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
 - (BOOL) maxVertically;
 - (BOOL) useCompactLabel;
 - (BOOL) openBookmark;
-- (BOOL) useBorder;
-- (BOOL) hideScrollbar;
 - (int)  refreshRate;
 - (NSString *) wordChars;
 - (BOOL) quitWhenAllWindowsClosed;
-- (BOOL) checkTestRelease;
 - (ITermCursorType) cursorType;
 - (TreeNode *) handlerBookmarkForURL:(NSString *)url;
 
@@ -137,6 +124,9 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
 - (int) minTabWidth;
 - (int) minCompactTabWidth;
 - (int) optimumTabWidth;
+- (float) strokeWidth;
+- (float) boldStrokeWidth;
+- (int) cacheSize;
 - (NSString *) searchCommand;
 
 @end
