@@ -30,6 +30,13 @@
         {CLASS = PTYScrollView; LANGUAGE = ObjC; SUPERCLASS = NSScrollView; }, 
         {CLASS = PTYTextView; LANGUAGE = ObjC; SUPERCLASS = NSTextView; }, 
         {
+            ACTIONS = {toggleToolbarShown = id; }; 
+            CLASS = PTYWindow; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {drawer = NSDrawer; }; 
+            SUPERCLASS = NSWindow; 
+        }, 
+        {
             ACTIONS = {
                 clearBuffer = id; 
                 clearScrollbackBuffer = id; 
@@ -49,6 +56,7 @@
             }; 
             CLASS = PseudoTerminal; 
             LANGUAGE = ObjC; 
+            OUTLETS = {bookmarksView = NSOutlineView; }; 
             SUPERCLASS = NSWindowController; 
         }
     ); 

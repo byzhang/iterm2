@@ -1,5 +1,5 @@
 /* -*- mode:objc -*- */
-/* $Id: PTYWindow.h,v 1.6 2008-09-07 21:54:44 yfabian Exp $ */
+/* $Id: PTYWindow.h,v 1.4 2004-10-10 07:04:17 ujwal Exp $ */
 /* Incorporated into iTerm.app by Ujwal S. Setlur */
 /*
  **  PTYWindow.h
@@ -40,9 +40,6 @@
 @interface PTYWindow : NSWindow 
 {
 	IBOutlet NSDrawer *drawer;
-
-	int blurFilter;
-	BOOL layoutDone;
 }
 
 - initWithContentRect:(NSRect)contentRect 
@@ -53,15 +50,4 @@
 - (void)toggleToolbarShown:(id)sender;
 
 - (NSDrawer *) drawer;
-- (void) setDrawer: (NSDrawer *) aDrawer;
-
-- (void)smartLayout;
-- (void)setLayoutDone;
-
-- (void)enableBlur;
-- (void)disableBlur;
-
-- (int)screenNumber;
-
 @end
-

@@ -33,78 +33,79 @@
 @class iTermController;
 @class TreeNode;
 
-typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
-
 @interface PreferencePanel : NSWindowController
 {
-    
-	IBOutlet NSPopUpButton *windowStyle;
 	IBOutlet NSPopUpButton *tabPosition;
-    IBOutlet NSOutlineView *urlHandlerOutline;
-	IBOutlet NSTableView *urlTable;
     IBOutlet NSButton *selectionCopiesText;
 	IBOutlet NSButton *middleButtonPastesFromClipboard;
     IBOutlet id hideTab;
     IBOutlet id promptOnClose;
-    IBOutlet id onlyWhenMoreTabs;
     IBOutlet NSButton *focusFollowsMouse;
 	IBOutlet NSTextField *wordChars;
-	IBOutlet NSButton *enableBonjour;
-    IBOutlet NSButton *enableGrowl;
-    IBOutlet NSButton *cmdSelection;
+	IBOutlet NSWindow *profilesWindow;
+	IBOutlet NSButton *enableRendezvous;
+	IBOutlet NSButton *cmdSelection;
 	IBOutlet NSButton *maxVertically;
-	IBOutlet NSButton *useCompactLabel;
-    IBOutlet NSButton *openBookmark;
-    IBOutlet NSSlider *refreshRate;
-	IBOutlet NSButton *quitWhenAllWindowsClosed;
-    IBOutlet NSButton *checkUpdate;
-	IBOutlet NSMatrix *cursorType;
-	IBOutlet NSButton *useBorder;
-	IBOutlet NSButton *hideScrollbar;
-    IBOutlet NSButton *checkTestRelease;
 	
+	// Bookmark stuff
+	IBOutlet NSOutlineView *bookmarksView;
+	IBOutlet NSPanel *addBookmarkFolderPanel;
+	IBOutlet NSPanel *deleteBookmarkPanel;
+	IBOutlet NSPanel *editBookmarkPanel;
+	IBOutlet NSButton *bookmarkDeleteButton;
+	IBOutlet NSButton *bookmarkEditButton;
+	IBOutlet NSTextField *bookmarkFolderName;
+	IBOutlet NSTextField *bookmarkName;
+	IBOutlet NSTextField *bookmarkCommand;
+	IBOutlet NSTextField *bookmarkWorkingDirectory;
+	IBOutlet NSPopUpButton *bookmarkTerminalProfile;
+	IBOutlet NSPopUpButton *bookmarkKeyboardProfile;
+	IBOutlet NSPopUpButton *bookmarkDisplayProfile;
+	IBOutlet NSPopUpButton *bookmarkShortcut;
+	NSArray	 		*draggedNodes;
+	IBOutlet NSButton *defaultSessionButton;
+
+    
     NSUserDefaults *prefs;
 
-	int defaultWindowStyle;
+
     BOOL defaultCopySelection;
 	BOOL defaultPasteFromClipboard;
     BOOL defaultHideTab;
     int defaultTabViewType;
     BOOL defaultPromptOnClose;
-    BOOL defaultOnlyWhenMoreTabs;
     BOOL defaultFocusFollowsMouse;
-	BOOL defaultEnableBonjour;
-	BOOL defaultEnableGrowl;
+	BOOL defaultEnableRendezvous;
 	BOOL defaultCmdSelection;
 	BOOL defaultMaxVertically;
-    BOOL defaultUseCompactLabel;
-    BOOL defaultOpenBookmark;
-    int  defaultRefreshRate;
 	NSString *defaultWordChars;
-    BOOL defaultQuitWhenAllWindowsClosed;
-	BOOL defaultCheckUpdate;
-	BOOL defaultUseBorder;
-	BOOL defaultHideScrollbar;
-	BOOL defaultCheckTestRelease;
-	ITermCursorType defaultCursorType;
-	
-	// url handler stuff
-	NSMutableArray *urlTypes;
-	NSMutableDictionary *urlHandlers;
 }
 
 
 + (PreferencePanel*)sharedInstance;
+- (id)initWithWindowNibName: (NSString *) windowNibName;
 
-+ (BOOL) migratePreferences;
 - (void) readPreferences;
 - (void) savePreferences;
 
-- (IBAction)settingChanged:(id)sender;
-- (IBAction)connectURL:(id)sender;
+- (IBAction)ok:(id)sender;
+- (IBAction)cancel:(id)sender;
 
 - (void)run;
 
+// Bookmark actions
+- (IBAction) addBookmarkFolder: (id) sender;
+- (IBAction) addBookmarkFolderConfirm: (id) sender;
+- (IBAction) addBookmarkFolderCancel: (id) sender;
+- (IBAction) deleteBookmarkFolder: (id) sender;
+- (IBAction) deleteBookmarkConfirm: (id) sender;
+- (IBAction) deleteBookmarkCancel: (id) sender;
+- (IBAction) addBookmark: (id) sender;
+- (IBAction) addBookmarkConfirm: (id) sender;
+- (IBAction) addBookmarkCancel: (id) sender;
+- (IBAction) deleteBookmark: (id) sender;
+- (IBAction) editBookmark: (id) sender;
+- (IBAction) setDefaultSession: (id) sender;
 
 - (BOOL) copySelection;
 - (void) setCopySelection: (BOOL) flag;
@@ -112,35 +113,24 @@ typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
 - (void) setPasteFromClipboard: (BOOL) flag;
 - (BOOL) hideTab;
 - (NSTabViewType) tabViewType;
-- (int) windowStyle;
 - (void) setTabViewType: (NSTabViewType) type;
 - (BOOL) promptOnClose;
-- (BOOL) onlyWhenMoreTabs;
 - (BOOL) focusFollowsMouse;
-- (BOOL) enableBonjour;
-- (BOOL) enableGrowl;
+- (BOOL) enableRendezvous;
 - (BOOL) cmdSelection;
 - (BOOL) maxVertically;
-- (BOOL) useCompactLabel;
-- (BOOL) openBookmark;
-- (BOOL) useBorder;
-- (BOOL) hideScrollbar;
-- (int)  refreshRate;
 - (NSString *) wordChars;
-- (BOOL) quitWhenAllWindowsClosed;
-- (BOOL) checkTestRelease;
-- (ITermCursorType) cursorType;
-- (TreeNode *) handlerBookmarkForURL:(NSString *)url;
-
-// Hidden preferences
-- (BOOL) useUnevenTabs;
-- (int) minTabWidth;
-- (int) minCompactTabWidth;
-- (int) optimumTabWidth;
-- (NSString *) searchCommand;
 
 @end
 
 @interface PreferencePanel (Private)
+
+- (void)_addBookmarkFolderSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
+- (void)_deleteBookmarkSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
+- (void)_editBookmarkSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo;
+- (void) _loadProfiles;
+- (NSArray*) _draggedNodes;
+- (NSArray *) _selectedNodes;
+- (void)_performDropOperation:(id <NSDraggingInfo>)info onNode:(TreeNode*)parentNode atIndex:(int)childIndex;
 
 @end

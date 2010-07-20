@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PTYScrollView.m,v 1.23 2008-09-09 22:10:05 yfabian Exp $
+// $Id: PTYScrollView.m,v 1.17 2004-03-14 06:05:36 ujwal Exp $
 /*
  **  PTYScrollView.m
  **
@@ -31,7 +31,6 @@
 #define DEBUG_ALLOC           0
 #define DEBUG_METHOD_TRACE    0
 
-#import <iTerm/iTerm.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTextView.h>
 
@@ -87,13 +86,6 @@
     userScroll=scroll;
 }
 
-- (NSScrollerPart)hitPart
-{
-	NSScrollerPart h = [super hitPart];
-	
-	return h;
-}
-
 @end
 
 @implementation PTYScrollView
@@ -101,7 +93,7 @@
 - (void) dealloc
 {
 #if DEBUG_ALLOC
-    NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
+    NSLog(@"%s(%d):-[PTYScrollView dealloc]", __FILE__, __LINE__);
 #endif
 	
 	[backgroundImage release];
@@ -112,8 +104,8 @@
 - (id)initWithFrame:(NSRect)frame
 {
 #if DEBUG_ALLOC
-    NSLog(@"%s: 0x%x: initWithFrame:%d,%d,%d,%d",
-		  __PRETTY_FUNCTION__, self,
+    NSLog(@"%s(%d):-[PTYScrollView initWithFrame:%d,%d,%d,%d]",
+		  __FILE__, __LINE__, 
 		  frame.origin.x, frame.origin.y, 
 		  frame.size.width, frame.size.height);
 #endif
@@ -125,9 +117,8 @@
     PTYScroller *aScroller;
 	
     aScroller=[[PTYScroller alloc] init];
-	//[aScroller setControlSize:NSSmallControlSize];
-	[self setVerticalScroller: aScroller];
-	[aScroller release];
+    [self setVerticalScroller: aScroller];
+    [aScroller release];
 	
     return self;
 }
@@ -154,20 +145,17 @@
 	srcRect.origin.y = [backgroundImage size].height - srcRect.origin.y - srcRect.size.height;
 	
 	// draw the image rect
-	[[self backgroundImage] compositeToPoint: NSMakePoint(rect.origin.x, rect.origin.y + rect.size.height) fromRect: srcRect operation: NSCompositeCopy fraction: (1.0 - [self transparency])];
+	[[self backgroundImage] compositeToPoint: NSMakePoint(rect.origin.x, rect.origin.y + rect.size.height) fromRect: srcRect operation: NSCompositeSourceOver fraction: (1.0 - [self transparency])];
 }
 
 - (void)scrollWheel:(NSEvent *)theEvent
 {
     PTYScroller *verticalScroller = (PTYScroller *)[self verticalScroller];
-    NSRect scrollRect;
 	
-	scrollRect= [self documentVisibleRect];
-	scrollRect.origin.y-=[theEvent deltaY] * [self verticalLineScroll];
-	[[self documentView] scrollRectToVisible: scrollRect];
+    [super scrollWheel: theEvent];
 	
-	scrollRect= [self documentVisibleRect];
-	if(scrollRect.origin.y+scrollRect.size.height < [[self documentView] frame].size.height)
+    //NSLog(@"PTYScrollView: scrollWheel: %f", [verticalScroller floatValue]);
+    if([verticalScroller floatValue] < 1.0)
 		[verticalScroller setUserScroll: YES];
     else
 		[verticalScroller setUserScroll: NO];
@@ -175,11 +163,11 @@
 
 - (void)detectUserScroll
 {
-    NSRect scrollRect;
     PTYScroller *verticalScroller = (PTYScroller *)[self verticalScroller];
 	
-    scrollRect= [self documentVisibleRect];
-    if(scrollRect.origin.y+scrollRect.size.height < [[self documentView] frame].size.height)
+    //NSLog(@"PTYScrollView: detectUserScroll: %f", [verticalScroller floatValue]);
+    
+    if([verticalScroller floatValue] < 1.0)
 		[verticalScroller setUserScroll: YES];
     else
 		[verticalScroller setUserScroll: NO];
@@ -193,11 +181,13 @@
 
 - (void) setBackgroundImage: (NSImage *) anImage
 {
+	
 	[backgroundImage release];
 	[anImage retain];
 	backgroundImage = anImage;
 	[backgroundImage setScalesWhenResized: YES];
 	[backgroundImage setSize: [self documentVisibleRect].size];
+
 }
 
 - (float) transparency

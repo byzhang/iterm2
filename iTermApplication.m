@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermApplication.m,v 1.10 2006-11-07 08:03:08 yfabian Exp $
+// $Id: iTermApplication.m,v 1.6 2005-04-03 17:50:29 ujwal Exp $
 //
 /*
  **  iTermApplication.m
@@ -37,32 +37,46 @@
 
 @implementation iTermApplication
 
-// override to catch key press events very early on
-- (void)sendEvent:(NSEvent*)event
+// override to catch key mappings with command key down
+- (void)sendEvent:(NSEvent *)anEvent
 {
-	if([event type] == NSKeyDown) {
-		if([[self keyWindow] isKindOfClass:[PTYWindow class]]) {
-			PseudoTerminal* currentTerminal = [[iTermController sharedInstance] currentTerminal];
-			PTYTabView* tabView = [currentTerminal tabView];
-			PTYSession* currentSession = [currentTerminal currentSession];
-
-			if(([event modifierFlags] & 0xffff0000) == NSCommandKeyMask) {
-				int digit = [[event charactersIgnoringModifiers] intValue];
-				if(digit >= 1 && digit <= [tabView numberOfTabViewItems]) {
-					[tabView selectTabViewItemAtIndex:digit-1];
-					return;
-				}
-			}
-
-			if([currentSession hasKeyMappingForEvent:event highPriority:YES]) {
-				[currentSession keyDown:event];
-				return;
-			}
-		}
+	id aWindow;
+	PseudoTerminal *currentTerminal;
+	PTYSession *currentSession;
+	unsigned int modflag;
+    NSString *unmodkeystr;
+    unichar unmodunicode = 0;	
+	
+	
+	if([anEvent type] == NSKeyDown)
+	{
+		modflag = [anEvent modifierFlags];
+		unmodkeystr = [anEvent charactersIgnoringModifiers];
+		unmodunicode = [unmodkeystr length]>0?[unmodkeystr characterAtIndex:0]:0;	
 	}
+	
+	if([anEvent type] == NSKeyDown && (([anEvent modifierFlags] & NSCommandKeyMask) || (unmodunicode == NSHelpFunctionKey)))
+	{
+		
+		aWindow = [self keyWindow];
+		
+		if([aWindow isKindOfClass: [PTYWindow class]])
+		{
+						
+			currentTerminal = [[iTermController sharedInstance] currentTerminal];
+			currentSession = [currentTerminal currentSession];
+			
+			if([currentSession hasKeyMappingForEvent: anEvent])
+				[currentSession keyDown: anEvent];
+			else
+				[super sendEvent: anEvent];
+		}
+		else
+		   [super sendEvent: anEvent];
 
-	[super sendEvent: event];
+	}
+	else
+		[super sendEvent: anEvent];
 }
 
 @end
-

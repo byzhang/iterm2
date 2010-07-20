@@ -24,7 +24,6 @@
  **  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#import "ITAddressBookMgr.h"
 #import <iTerm/iTermKeyBindingMgr.h>
 
 static iTermKeyBindingMgr *singleInstance = nil;
@@ -153,7 +152,6 @@ static iTermKeyBindingMgr *singleInstance = nil;
 {
 	if([aString length] > 0)
 	{
-		[self updateBookmarkProfile: aString with:@"Default"];
 		[profiles removeObjectForKey: aString];
 	}
 }
@@ -184,7 +182,7 @@ static iTermKeyBindingMgr *singleInstance = nil;
 	//NSLog(@"%s: %@", __PRETTY_FUNCTION__, profile);
 	
 	keyMappings = [[profiles objectForKey: profile] objectForKey: @"Key Mappings"];
-	allKeys = [[keyMappings allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+	allKeys = [keyMappings allKeys];
 	
 	if(index >= 0 && index < [allKeys count])
 	{
@@ -258,8 +256,7 @@ static iTermKeyBindingMgr *singleInstance = nil;
 		case NSHelpFunctionKey:
 			aString = NSLocalizedStringFromTableInBundle(@"help",@"iTerm", 
 														 [NSBundle bundleForClass: [self class]], 
-														 @"Key Names");	
-			break;
+														 @"Key Names");			
 		case NSHomeFunctionKey:
 			aString = NSLocalizedStringFromTableInBundle(@"home",@"iTerm", 
 														 [NSBundle bundleForClass: [self class]], 
@@ -315,12 +312,6 @@ static iTermKeyBindingMgr *singleInstance = nil;
 														 [NSBundle bundleForClass: [self class]], 
 														 @"Key Names");
 			break;
-		case NSInsertCharFunctionKey:
-			aString = NSLocalizedStringFromTableInBundle(@"insert",@"iTerm", 
-														 [NSBundle bundleForClass: [self class]], 
-														 @"Key Names");
-			break;
-			
 		default:
 			aString = [NSString stringWithFormat: @"%@ 0x%x", 
 				NSLocalizedStringFromTableInBundle(@"hex code",@"iTerm", 
@@ -365,18 +356,16 @@ static iTermKeyBindingMgr *singleInstance = nil;
 	int action;
 	NSString *actionString;
 	NSString *auxText;
-	BOOL priority;
 	
 	//NSLog(@"%s: %@", __PRETTY_FUNCTION__, profile);
 	
 	keyMappings = [[profiles objectForKey: profile] objectForKey: @"Key Mappings"];
-	allKeys = [[keyMappings allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+	allKeys = [keyMappings allKeys];
 	
 	if(index >= 0 && index < [allKeys count])
 	{
 		action = [[[keyMappings objectForKey: [allKeys objectAtIndex: index]] objectForKey: @"Action"] intValue];
 		auxText = [[keyMappings objectForKey: [allKeys objectAtIndex: index]] objectForKey: @"Text"];
-		priority = [[keyMappings objectForKey: [allKeys objectAtIndex: index]] objectForKey: @"Priority"] ? [[[keyMappings objectForKey: [allKeys objectAtIndex: index]] objectForKey: @"Priority"] boolValue] : NO;
 	}
 	else
 		return (nil);
@@ -447,13 +436,6 @@ static iTermKeyBindingMgr *singleInstance = nil;
 															  @"Key Binding Actions"),
 				auxText];
 			break;			
-		case KEY_ACTION_TEXT:
-			actionString = [NSString stringWithFormat:@"%@ \"%@\"", 
-				NSLocalizedStringFromTableInBundle(@"send",@"iTerm", 
-												   [NSBundle bundleForClass: [self class]], 
-												   @"Key Binding Actions"),
-				auxText];
-			break;
 		case KEY_ACTION_IGNORE:
 			actionString = NSLocalizedStringFromTableInBundle(@"ignore",@"iTerm", 
 															  [NSBundle bundleForClass: [self class]], 
@@ -468,14 +450,13 @@ static iTermKeyBindingMgr *singleInstance = nil;
 			break;
 	}
 	
-	return (priority?[actionString stringByAppendingString:@" (!)"] : actionString);
+	return (actionString);
 }
 
 
 - (void) addEntryForKeyCode: (unsigned int) hexCode 
 				  modifiers: (unsigned int) modifiers
 					 action: (unsigned int) action
-			   highPriority: (BOOL) highPriority
 					   text: (NSString *) text
 					profile: (NSString *) profile
 {
@@ -500,7 +481,6 @@ static iTermKeyBindingMgr *singleInstance = nil;
 	[keyBinding setObject: [NSNumber numberWithInt: action] forKey: @"Action"];
 	if([text length] > 0)
 		[keyBinding setObject:[[text copy] autorelease] forKey: @"Text"];
-	[keyBinding setObject: [NSNumber numberWithBool:highPriority] forKey: @"Priority"];
 	[keyMappings setObject: keyBinding forKey: keyString];
 	[keyBinding release];
 	
@@ -509,7 +489,6 @@ static iTermKeyBindingMgr *singleInstance = nil;
 - (void) addEntryForKey: (unsigned int) key 
 			  modifiers: (unsigned int) modifiers
 				 action: (unsigned int) action
-		   highPriority: (BOOL) highPriority
 				   text: (NSString *) text
 				profile: (NSString *) profile
 {
@@ -621,15 +600,12 @@ static iTermKeyBindingMgr *singleInstance = nil;
 		case KEY_PAGE_UP:
 			keyUnicode = NSPageUpFunctionKey;
 			break;
-		case KEY_INS:
-			keyUnicode = NSInsertCharFunctionKey;
-			break;
 		default:
 			NSLog(@"%s: unknown key %d", __PRETTY_FUNCTION__, key);
 			return;
 	}
 	
-	[self addEntryForKeyCode: keyUnicode modifiers: keyModifiers action: action highPriority: highPriority text: text profile: profile];
+	[self addEntryForKeyCode: keyUnicode modifiers: keyModifiers action: action text: text profile: profile];
 		
 }
 
@@ -640,8 +616,7 @@ static iTermKeyBindingMgr *singleInstance = nil;
 	NSString *keyString;
 	
 	keyMappings = [[profiles objectForKey: profile] objectForKey: @"Key Mappings"];
-	allKeys = [[keyMappings allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
-
+	allKeys = [keyMappings allKeys];
 	if(index >= 0 && index < [allKeys count])
 	{
 		keyString = [allKeys objectAtIndex: index];
@@ -699,19 +674,15 @@ static iTermKeyBindingMgr *singleInstance = nil;
 	return (aProfileName);
 }
 
-- (NSString *) defaultProfileName
-{
-	return [self globalProfileName];
-}
 
-- (int) actionForKeyCode: (unichar)keyCode modifiers: (unsigned int) keyModifiers highPriority: (BOOL *) highPriority text: (NSString **) text profile: (NSString *)profile
+- (int) actionForKeyCode: (unichar)keyCode modifiers: (unsigned int) keyModifiers text: (NSString **) text profile: (NSString *)profile
 {
 	int retCode = -1;
 	NSString *globalProfile;
 			
 	// search the specified profile first
 	if([profile length] > 0)
-		retCode = [self _actionForKeyCode: keyCode modifiers: keyModifiers highPriority: highPriority text: text profile: profile];
+		retCode = [self _actionForKeyCode: keyCode modifiers: keyModifiers text: text profile: profile];
 	
 	// If we found something in the common profile, return that
 	if(retCode >= 0)
@@ -721,48 +692,16 @@ static iTermKeyBindingMgr *singleInstance = nil;
 	
 	// search the common profile if a match was not found
 	if([globalProfile length] > 0)
-		retCode = [self _actionForKeyCode: keyCode modifiers: keyModifiers highPriority: highPriority text: text profile: globalProfile];	
+		retCode = [self _actionForKeyCode: keyCode modifiers: keyModifiers text: text profile: globalProfile];	
 	
 	
 	return (retCode);
 }
 
-- (void) updateBookmarkNode: (TreeNode *)node forProfile: (NSString*) oldProfile with:(NSString*)newProfile
-{
-	int i;
-	TreeNode *child;
-	NSDictionary *aDict;
-	int n = [node numberOfChildren];
-	
-	for (i=0;i<n;i++) {
-		child = [node childAtIndex:i];
-		if ([child isLeaf]) {
-			aDict = [child nodeData];
-			if ([[aDict objectForKey:KEY_KEYBOARD_PROFILE] isEqualToString: oldProfile]) {
-				NSMutableDictionary *newBookmark= [[NSMutableDictionary alloc] initWithDictionary: aDict];
-				[newBookmark setObject: newProfile forKey: KEY_KEYBOARD_PROFILE];
-				[child setNodeData: newBookmark];
-				[newBookmark release];
-			}
-		}
-		else {
-			[self updateBookmarkNode: child forProfile: oldProfile with:newProfile];
-		}
-	}
-}
-
-- (void) updateBookmarkProfile: (NSString*) oldProfile with:(NSString*)newProfile
-{
-	[self updateBookmarkNode: [[ITAddressBookMgr sharedInstance] rootNode] forProfile: oldProfile with:newProfile];
-	
-	// Post a notification for all listeners that bookmarks have changed
-	[[NSNotificationCenter defaultCenter] postNotificationName: @"iTermReloadAddressBook" object: nil userInfo: nil];    		
-}
-
 @end
 
 @implementation iTermKeyBindingMgr (Private)
-- (int) _actionForKeyCode: (unichar)keyCode modifiers: (unsigned int) keyModifiers highPriority: (BOOL *) highPriority text: (NSString **) text profile: (NSString *)profile
+- (int) _actionForKeyCode: (unichar)keyCode modifiers: (unsigned int) keyModifiers text: (NSString **) text profile: (NSString *)profile
 {
 	NSDictionary *keyMappings;
 	NSString *keyString;
@@ -806,7 +745,6 @@ static iTermKeyBindingMgr *singleInstance = nil;
 	retCode = [[theKeyMapping objectForKey: @"Action"] intValue];
 	if(text != nil)
 		*text = [theKeyMapping objectForKey: @"Text"];
-	*highPriority = [theKeyMapping objectForKey: @"Priority"] ? [[theKeyMapping objectForKey: @"Priority"] boolValue] : NO;
 	
 	return (retCode);
 	

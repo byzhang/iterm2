@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermController.h,v 1.29 2008-10-08 05:54:50 yfabian Exp $
+// $Id: iTermController.h,v 1.15 2005-04-05 03:08:58 ujwal Exp $
 /*
  **  iTermController.h
  **
@@ -32,18 +32,16 @@
 @class PseudoTerminal;
 @class PTYTextView;
 @class TreeNode;
-@class ItermGrowlDelegate;
 
 @interface iTermController : NSObject
 {
+    
     // PseudoTerminal objects
     NSMutableArray *terminalWindows;
     id FRONT;
-	ItermGrowlDelegate *gd;
 }
 
 + (iTermController*)sharedInstance;
-+ (void)sharedInstanceRelease;
 
 // actions are forwarded form application
 - (IBAction)newWindow:(id)sender;
@@ -53,13 +51,13 @@
 - (void)newSessionInTabAtIndex: (id) sender;
 - (void)newSessionInWindowAtIndex: (id) sender;
 
+// Utility methods
++ (void) breakDown:(NSString *)cmdl cmdPath: (NSString **) cmd cmdArgs: (NSArray **) path;
 - (PseudoTerminal *) currentTerminal;
 - (void) terminalWillClose: (PseudoTerminal *) theTerminalWindow;
 - (NSArray *) sortedEncodingList;
-- (void) alternativeMenu: (NSMenu *)aMenu forNode: (TreeNode *) theNode target: (id) aTarget withShortcuts: (BOOL) withShortcuts;
+- (NSMenu *) buildAddressBookMenuWithTarget:(id)target withShortcuts: (BOOL) withShortcuts;
 - (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm;
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withCommand: (NSString *)command;
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withURL: (NSString *)url;
 - (PTYTextView *) frontTextView;
 
 @end
@@ -86,3 +84,9 @@
 
 @end
 
+
+@interface iTermController (Private)
+
+- (NSMenu *) _menuForNode: (TreeNode *) theNode action: (SEL) aSelector target: (id) aTarget withShortcuts: (BOOL) withShortcuts;
+
+@end
