@@ -32,7 +32,6 @@
 	IBOutlet NSPopUpButton *bookmarkDisplayProfile;
 	NSArray	 		*draggedNodes;
 	IBOutlet NSButton *defaultSessionButton;
-	IBOutlet NSTextField *addFolderPanelTitle;
 }
 
 + (iTermBookmarkController*)sharedInstance;
@@ -50,7 +49,6 @@
 - (IBAction) addBookmarkCancel: (id) sender;
 - (IBAction) deleteBookmark: (id) sender;
 - (IBAction) editBookmark: (id) sender;
-- (IBAction) sortBookmark: (id) sender;
 - (IBAction) setDefaultSession: (id) sender;
 - (IBAction) launchSession: (id) sender;
 @end

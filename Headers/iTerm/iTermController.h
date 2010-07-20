@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermController.h,v 1.29 2008-10-08 05:54:50 yfabian Exp $
+// $Id: iTermController.h,v 1.26 2007-01-23 04:46:14 yfabian Exp $
 /*
  **  iTermController.h
  **
@@ -40,10 +40,12 @@
     NSMutableArray *terminalWindows;
     id FRONT;
 	ItermGrowlDelegate *gd;
+
+	// Full screen  mode
+	PseudoTerminal *_fullScreenTerminal;
 }
 
 + (iTermController*)sharedInstance;
-+ (void)sharedInstanceRelease;
 
 // actions are forwarded form application
 - (IBAction)newWindow:(id)sender;
@@ -61,6 +63,10 @@
 - (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withCommand: (NSString *)command;
 - (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withURL: (NSString *)url;
 - (PTYTextView *) frontTextView;
+
+// full screen support
+- (PseudoTerminal *) fullScreenTerminal;
+- (void) setFullScreenTerminal:(PseudoTerminal *)terminal;
 
 @end
 
@@ -86,3 +92,7 @@
 
 @end
 
+
+@interface iTermController (Private)
+
+@end

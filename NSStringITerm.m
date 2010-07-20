@@ -1,4 +1,4 @@
-// $Id: NSStringITerm.m,v 1.11 2008-09-24 22:35:38 yfabian Exp $
+// $Id: NSStringITerm.m,v 1.8 2006-11-13 08:01:04 yfabian Exp $
 /*
  **  NSStringIterm.m
  **
@@ -29,7 +29,7 @@
 #define NSSTRINGJTERMINAL_CLASS_COMPILE
 #import <iTerm/NSStringITerm.h>
 
-#define AMB_CHAR_NUMBER (sizeof(ambiguous_chars) / sizeof(unichar))
+#define AMB_CHAR_NUMBER 252
 
 static const unichar ambiguous_chars[] = {
 	0xa1,
@@ -261,6 +261,27 @@ static const unichar ambiguous_chars[] = {
 	0x25e4,
 	0x25e5,
 	0x25ef,
+	0x2605,
+	0x2606,
+	0x2609,
+	0x260e,
+	0x260f,
+	0x261c,
+	0x261e,
+	0x2640,
+	0x2642,
+	0x2660,
+	0x2661,
+	0x2663,
+	0x2664,
+	0x2665,
+	0x2667,
+	0x2668,
+	0x2669,
+	0x266a,
+	0x266c,
+	0x266d,
+	0x266f,
 	0x273d,
 	0xfffd,
 };
@@ -273,102 +294,19 @@ static const unichar ambiguous_chars[] = {
     return [NSString stringWithFormat:@"%d", num];
 }
 
-+ (BOOL)isCJKEncoding:(NSStringEncoding)encoding
-{
-    static NSMutableDictionary *isEncodingCJK = nil; // cache for encoding to isCJK mapping
-    static NSStringEncoding previousEncoding = 1; // ASCII
-    static BOOL isCJK = NO;
-    NSNumber *key, *val;
-    NSString *localeIdentifier;
-    
-    if (encoding == previousEncoding) {
-        //NSLog(@"encoding[0x%08lx] is %s, again", encoding, isCJK ? "CJK" : "not CJK");
-        return isCJK;
-    }
-
-    previousEncoding = encoding;
-
-    key = [NSNumber numberWithUnsignedInt:encoding];
-
-    if (isEncodingCJK == nil) {
-        isEncodingCJK = [[NSMutableDictionary alloc] init];
-    }
-    else {
-        val = [isEncodingCJK objectForKey:key];
-
-        if (val != nil) {
-            isCJK = [val boolValue];
-            //NSLog(@"encoding[0x%08lx] is %s, IIRC", encoding, isCJK ? "CJK" : "not CJK");
-            return isCJK;
-        }
-    }
-
-    switch (encoding) {
-      // Simplified Chinese
-      case 0x80000019: // Mac
-      case 0x80000421: // Windows
-      case 0x80000631: // GBK
-      case 0x80000632: // GB 18030
-      case 0x80000930: // EUC
-      // Traditional Chinese
-      case 0x80000002: // Mac
-      case 0x80000423: // Windows
-      case 0x80000931: // EUC
-      case 0x80000A03: // Big5
-      case 0x80000A06: // Big5 HKSCS
-      // Japanese
-      case 0x00000003: // EUC
-      case 0x00000008: // Windows
-      case 0x00000015: // ISO-2022-JP
-      case 0x80000001: // Mac
-      case 0x80000628: // Shift JIS X0213
-      case 0x80000A01: // Shift JIS
-      // Korean
-      case 0x80000003: // Mac
-      case 0x80000422: // Windows
-      case 0x80000840: // ISO-2022-KR
-      case 0x80000940: // EUC
-        isCJK = YES;
-        //NSLog(@"0x%08lx is known to be %s", encoding, isCJK ? "CJK" : "not CJK");
-        break;
-
-      case 0x00000004: // UTF-8
- #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
-        localeIdentifier = [[NSLocale currentLocale] localeIdentifier];
-        isCJK = [localeIdentifier hasPrefix:@"ja_"] ||
-          [localeIdentifier hasPrefix:@"kr_"] ||
-          [localeIdentifier hasPrefix:@"zh_"];
-        //NSLog(@"locale[%@] looks %s", localeIdentifier, isCJK ? "CJK" : "not CJK");
-#else
-        return NO;
-#endif
-        break;
-
-      default:
-        isCJK = NO;
-        //NSLog(@"encoding[0x%08lx] is not known to be CJK", encoding);
-        break;
-    }
-
-    // Store in cache
-    val = [NSNumber numberWithBool:isCJK];
-    [isEncodingCJK setObject:val forKey:key];
-
-    return isCJK;
-}
-
 + (BOOL)isDoubleWidthCharacter:(unichar)unicode encoding:(NSStringEncoding) e
 {
-	if (unicode <= 0xa0 || (unicode>0x452 && unicode <0x1100))
+	if (unicode <= 0xa0 || (unicode>0x452 && unicode <0x200f))
 		return NO;
-	// Unicode character width check.
-	// Character ranges: http://www.alanwood.net/unicode/unicode_samples.html
-	// Also: http://www.unicode.org
-	// EastAsianWidth-3.2.0.txt
+    /*
+     unicode character width check
+     see. http://www.unicode.org
+     EastAsianWidth-3.2.0.txt 
+     */
     if ((unicode >= 0x1100 &&  unicode <= 0x115f) || // Hangule choseong
         unicode == 0x2329 ||	// left pointing angle bracket
         unicode == 0x232a ||	// right pointing angle bracket
-        (unicode >= 0x2600 && unicode <= 0x26C3) || // Miscellaneous symbols, etc
+        //(unicode >= 0x2500 && unicode <= 0x267f) || // Box lines, Miscellaneous symbols, etc
         (unicode >= 0x2e80 && unicode <= 0x2fff) || // 
         (unicode >= 0x3000 && unicode <= 0x303E) ||
 		(unicode >= 0x3041 && unicode <= 0x33ff) || // HIRAGANA, KATAKANA, BOPOMOFO, Hangul, etc
@@ -387,7 +325,11 @@ static const unichar ambiguous_chars[] = {
 	
 	/* Ambiguous ones */
 	
-	if ([self isCJKEncoding:e])
+	if ((e)==0x80000019||(e)==0x80000421||(e)==0x80000631||(e)==0x80000632||(e)==0x80000930 || //GB
+		(e)==0x80000002||(e)==0x80000423||(e)==0x80000931||(e)==0x80000a03||(e)==0x80000a06 || //BIG5
+		(e)==0x80000001||(e)==0x8||(e)==0x15 || //JP
+		(e)==0x80000628||(e)==0x80000a01 || //SJIS
+		(e)==0x80000422||(e)==0x80000003||(e)==0x80000840||(e)==0x80000940) //KR
 	{
 		if ((unicode >=0xfe00 && unicode <=0xfe0f) ||
 			(unicode >=0x2776 && unicode <=0x277f) ||

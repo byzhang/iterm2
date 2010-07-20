@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PseudoTerminal.h,v 1.62 2009-02-06 15:07:24 delx Exp $
+// $Id: PseudoTerminal.h,v 1.54 2007-01-30 00:37:54 yfabian Exp $
 /*
  **  PseudoTerminal.h
  **
@@ -59,7 +59,6 @@
     NSFont *FONT, *NAFONT;
 	BOOL antiAlias;
 	BOOL useTransparency;
-	BOOL blur;
 	
 	BOOL _fullScreen;
     
@@ -67,18 +66,14 @@
 	BOOL sendInputToAllSessions;
 	BOOL fontSizeFollowWindowResize;
 	BOOL suppressContextualMenu;
-	BOOL tempTitle;
 	
-	// For send input to all sessions highlighting
-	NSColor *normalBackgroundColor;
+	BOOL EXIT;
 	
 	// flags
 	BOOL _resizeInProgressFlag;
 	
 	// for full screen windows
-	NSRect oldFrame;
 	int oldWidth, oldHeight;
-	float oldCharHorizontalSpacingMultiplier, oldCharVerticalSpacingMultiplier;
 	NSFont *oldFont, *oldNAFont;
 }
 
@@ -101,7 +96,7 @@
 - (NSString *) currentSessionName;
 - (void) setCurrentSessionName: (NSString *) theSessionName;
 
-- (void) updateCurrentSessionProfiles;
+- (void) updateCurretSessionProfiles;
 
 - (void)startProgram:(NSString *)program;
 - (void)startProgram:(NSString *)program
@@ -125,7 +120,6 @@
 - (void) setAntiAlias: (BOOL) bAntiAlias;
 - (int)width;
 - (int)height;
-- (NSRect)oldFrame;
 - (int)oldWidth;
 - (int)oldHeight;
 - (void)setWidth:(int)width height:(int)height;
@@ -134,16 +128,8 @@
 - (int)charHeight;
 - (float) charSpacingVertical;
 - (float) charSpacingHorizontal;
-- (float) oldCharSpacingVertical;
-- (float) oldCharSpacingHorizontal;
 - (BOOL) useTransparency;
 - (void) setUseTransparency: (BOOL) flag;
-- (BOOL) blur;
-- (void) setBlur: (BOOL) flag;
-- (void) enableBlur;
-- (void) disableBlur;
-- (BOOL) tempTitle;
-- (void) resetTempTitle;
 
 // controls which sessions see key events
 - (BOOL) sendInputToAllSessions;
@@ -171,7 +157,6 @@
 - (void)windowDidDeminiaturize:(NSNotification *)aNotification;
 - (BOOL)windowShouldClose:(NSNotification *)aNotification;
 - (void)windowWillClose:(NSNotification *)aNotification;
-- (void)windowWillMiniaturize:(NSNotification *)aNotification;
 - (void)windowDidBecomeKey:(NSNotification *)aNotification;
 - (void)windowDidResignMain:(NSNotification *)aNotification;
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)proposedFrameSize;
@@ -179,7 +164,6 @@
 - (void) resizeWindow:(int)w height:(int)h;
 - (void) resizeWindowToPixelsWidth:(int)w height:(int)h;
 - (NSRect)windowWillUseStandardFrame:(NSWindow *)sender defaultFrame:(NSRect)defaultFrame;
-- (void)windowWillShowInitial;
 
 // Contextual menu
 - (void) menuForEvent:(NSEvent *)theEvent menu: (NSMenu *) theMenu;
@@ -246,7 +230,6 @@
 - (NSFont *) _getMaxFont:(NSFont* ) font 
 				  height:(float) height
 				   lines:(float) lines;
-- (void) hideMenuBar;
 
 @end
 

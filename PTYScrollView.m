@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PTYScrollView.m,v 1.23 2008-09-09 22:10:05 yfabian Exp $
+// $Id: PTYScrollView.m,v 1.22 2007-01-30 00:37:53 yfabian Exp $
 /*
  **  PTYScrollView.m
  **
@@ -31,7 +31,6 @@
 #define DEBUG_ALLOC           0
 #define DEBUG_METHOD_TRACE    0
 
-#import <iTerm/iTerm.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTextView.h>
 
@@ -178,7 +177,6 @@
     NSRect scrollRect;
     PTYScroller *verticalScroller = (PTYScroller *)[self verticalScroller];
 	
-    scrollRect= [self documentVisibleRect];
     if(scrollRect.origin.y+scrollRect.size.height < [[self documentView] frame].size.height)
 		[verticalScroller setUserScroll: YES];
     else
@@ -212,6 +210,12 @@
 		transparency = theTransparency;
 		[self setNeedsDisplay: YES];
     }
+}
+
+- (void)reflectScrolledClipView:(NSClipView *)aClipView
+{
+	[super reflectScrolledClipView: aClipView];
+	[[self documentView] setForceUpdate: YES];
 }
 
 @end

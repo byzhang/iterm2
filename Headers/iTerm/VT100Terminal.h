@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: VT100Terminal.h,v 1.35 2008-10-21 05:43:52 yfabian Exp $
+// $Id: VT100Terminal.h,v 1.27 2007-01-07 03:21:52 yfabian Exp $
 /*
  **  VT100Terminal.h
  **
@@ -118,24 +118,13 @@
 #define XTERMCC_LOWER        99
 #define XTERMCC_SU			 100	 // scroll up
 #define XTERMCC_SD			 101     // scroll down
-#define XTERMCC_REPORT_WIN_STATE	102
-#define XTERMCC_REPORT_WIN_POS		103
-#define XTERMCC_REPORT_WIN_PIX_SIZE	104
-#define XTERMCC_REPORT_WIN_SIZE		105
-#define XTERMCC_REPORT_SCREEN_SIZE	106
-#define XTERMCC_REPORT_ICON_TITLE	107
-#define XTERMCC_REPORT_WIN_TITLE	108
-#define XTERMCC_SET_RGB	109
 
 // Some ansi stuff
 #define ANSICSI_CHA	     3000	// Cursor Horizontal Absolute
 #define ANSICSI_VPA	     3001	// Vert Position Absolute
 #define ANSICSI_VPR	     3002	// Vert Position Relative
 #define ANSICSI_ECH	     3003	// Erase Character
-#define ANSICSI_PRINT	 3004	// Print to Ansi
-#define ANSICSI_SCP      3005   // Save cursor position
-#define ANSICSI_RCP      3006   // Restore cursor position
-#define ANSICSI_CBT	     3007	// Back tab
+#define ANSICSI_PRINT	     3004	// Print to Ansi
 
 // Toggle between ansi/vt52
 #define STRICT_ANSI_MODE		4000
@@ -246,6 +235,7 @@ typedef enum {
 
 // for background colors
 #define DEFAULT_BG_COLOR_CODE	0x101
+#define SELECTION_MASK 0x200
 
 // terminfo stuff
 enum {
@@ -279,6 +269,7 @@ typedef enum {
     NSString          *termType;
     NSStringEncoding  ENCODING;
     VT100Screen       *SCREEN;
+	NSLock			  *streamLock;
 
 	unsigned char     *STREAM;
 	int				  current_stream_length;
@@ -303,17 +294,15 @@ typedef enum {
     
     int FG_COLORCODE;
     int BG_COLORCODE;
-    int	bold, under, blink, reversed;
+    int	bold, under, blink, reversed, highlight;
 
-    int saveBold, saveUnder, saveBlink, saveReversed;
+    int saveBold, saveUnder, saveBlink, saveReversed, saveHighlight;
     int saveCHARSET;
     
     BOOL TRACE;
 
     BOOL strictAnsiMode;
     BOOL allowColumnMode;
-	
-	BOOL allowKeypadMode;
     
     unsigned int streamOffset;
     
@@ -342,11 +331,8 @@ typedef enum {
 - (void)setEncoding:(NSStringEncoding)encoding;
 
 - (void)cleanStream;
-- (void)putStreamData:(NSData*)data;
+- (void)putStreamData:(char *)data length: (int)length;
 - (VT100TCC)getNextToken;
-
-- (void)saveCursorAttributes;
-- (void)restoreCursorAttributes;
 
 - (void)reset;
 
@@ -354,14 +340,15 @@ typedef enum {
 - (NSData *)keyArrowDown:(unsigned int)modflag;
 - (NSData *)keyArrowLeft:(unsigned int)modflag;
 - (NSData *)keyArrowRight:(unsigned int)modflag;
-- (NSData *)keyHome:(unsigned int)modflag;
-- (NSData *)keyEnd:(unsigned int)modflag;
 - (NSData *)keyInsert;
+- (NSData *)keyHome;
 - (NSData *)keyDelete;
 - (NSData *)keyBackspace;
+- (NSData *)keyEnd;
 - (NSData *)keyPageUp;
 - (NSData *)keyPageDown;
 - (NSData *)keyFunction:(int)no;
+- (NSData *)keyPFn: (int) n;
 - (NSData *)keypadData: (unichar) unicode keystr: (NSString *) keystr;
 
 - (NSData *)mousePress: (int)button withModifiers: (unsigned int)modflag atX: (int)x Y: (int)y;
@@ -385,17 +372,14 @@ typedef enum {
 
 - (int)foregroundColorCode;
 - (int)backgroundColorCode;
-- (int)foregroundColorCodeReal;
-- (int)backgroundColorCodeReal;
 
-- (NSData *)reportActivePositionWithX:(int)x Y:(int)y withQuestion:(BOOL)q;
+- (NSData *)reportActivePositionWithX:(int)x Y:(int)y;
 - (NSData *)reportStatus;
 - (NSData *)reportDeviceAttribute;
 - (NSData *)reportSecondaryDeviceAttribute;
 
 - (void)_setMode:(VT100TCC)token;
 - (void)_setCharAttr:(VT100TCC)token;
-- (void)_setRGB:(VT100TCC)token;
 
 - (void) setScreen:(VT100Screen *)sc;
 @end

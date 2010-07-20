@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PTYTask.h,v 1.14 2008-10-24 05:25:58 yfabian Exp $
+// $Id: PTYTask.h,v 1.10 2006-11-23 02:08:04 yfabian Exp $
 /*
  **  PTYTask.h
  **
@@ -28,66 +28,62 @@
  */
 
 /*
-	Delegate
-		readTask:
-		brokenPipe
-		closeSession:
+  Delegate
+      readTask:
+      brokenPipe
 */
 
 #import <Foundation/Foundation.h>
 
 @interface PTYTask : NSObject
 {
-	pid_t pid;
-	int fd;
-	int status;
-	id delegate;
-	NSString* tty;
-	NSString* path;
-	BOOL hasOutput;
+    pid_t PID;
+    int FILDES;
+    int STATUS;
+    id DELEGATEOBJECT;
+    NSString *TTY;
+    NSString *PATH;
 
-	NSLock* writeLock;
-	NSMutableData* writeBuffer;
+    NSString *LOG_PATH;
+    NSFileHandle *LOG_HANDLE;
+    BOOL hasOutput;
+    BOOL firstOutput;
 
-	NSString* logPath;
-	NSFileHandle* logHandle;
+    MPSemaphoreID threadEndSemaphore;
 }
 
 - (id)init;
 - (void)dealloc;
 
-- (void)launchWithPath:(NSString*)progpath
-		arguments:(NSArray*)args environment:(NSDictionary*)env
-		width:(int)width height:(int)height;
+- (void)launchWithPath:(NSString *)progpath
+	     arguments:(NSArray *)args
+	   environment:(NSDictionary *)env
+		 width:(int)width
+		height:(int)height;
 
 - (void)setDelegate:(id)object;
 - (id)delegate;
-- (void)readTask:(NSData*)data;
-- (void)writeTask:(NSData*)data;
 
+- (void) doIdleTasks;
+- (void)readTask:(char *)buf length:(int)length;
+- (void)writeTask:(NSData *)data;
+- (void)brokenPipe;
 - (void)sendSignal:(int)signo;
 - (void)setWidth:(int)width height:(int)height;
+- (pid_t)pid;
 - (int)wait;
 - (void)stop;
-
-- (int)fd;
-- (pid_t)pid;
 - (int)status;
-- (NSString*)tty;
-- (NSString*)path;
-- (NSString*)getWorkingDirectory;
-- (NSString*)description;
-
-- (BOOL)loggingStartWithPath:(NSString*)path;
+- (NSString *)tty;
+- (NSString *)path;
+- (BOOL)loggingStartWithPath:(NSString *)path;
 - (void)loggingStop;
 - (BOOL)logging;
-- (BOOL)hasOutput;
+- (BOOL) hasOutput;
+- (void) setHasOutput: (BOOL) flag;
+- (BOOL) firstOutput;
+- (void) setFirstOutput: (BOOL) flag;
 
-- (BOOL)wantsRead;
-- (BOOL)wantsWrite;
-- (void)brokenPipe;
-- (void)processRead;
-- (void)processWrite;
+- (NSString *)description;
 
 @end
-
