@@ -1,11 +1,11 @@
 // -*- mode:objc -*-
-// $Id: VT100Screen.h,v 1.38 2008-09-30 06:21:12 yfabian Exp $
+// $Id: VT100Screen.h,v 1.2 2003-09-03 01:47:43 yfabian Exp $
 /*
  **  VT100Screen.h
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -32,139 +32,108 @@
 
 @class PTYTask;
 @class PTYSession;
-@class PTYTextView;
-@class iTermGrowlDelegate;
-
-typedef struct screen_char_t
-{
-	unichar ch;    // the actual character
-	unsigned int bg_color; // background color
-	unsigned int fg_color; // foreground color
-} screen_char_t;
 
 #define TABWINDOW	300
 
 @interface VT100Screen : NSObject
 {
-    int WIDTH; // width of screen
-    int HEIGHT; // height of screen
+    int WIDTH;
+    int HEIGHT;
     int CURSOR_X;
     int CURSOR_Y;
     int SAVE_CURSOR_X;
     int SAVE_CURSOR_Y;
-    int ALT_SAVE_CURSOR_X;
-    int ALT_SAVE_CURSOR_Y;
+    int cursorIndex;
     int SCROLL_TOP;
     int SCROLL_BOTTOM;
     BOOL tabStop[TABWINDOW];
-    
+    BOOL CURSOR_IN_MIDDLE;
+
+    NSTextStorage *STORAGE;
+    NSFont *FONT, *NAFONT;
+    NSSize FONT_SIZE;
     VT100Terminal *TERMINAL;
     PTYTask *SHELL;
     PTYSession *SESSION;
     int charset[4], saveCharset[4];
+    NSMutableAttributedString *BUFFER;
+    NSAttributedString *savedBuffer;
+    int updateIndex, minIndex;
     BOOL blinkShow;
-	BOOL PLAYBELL;
-	BOOL SHOWBELL;
-	BOOL GROWL;
+    BOOL clearingBuffer;
 
+    NSMutableArray *screenLines;
     
+    unsigned int  TOP_LINE;
+    unsigned int  scrollbackLines;
+    int OLD_CURSOR_INDEX;
+    NSLock *screenLock;
+    BOOL screenIsLocked;
     BOOL blinkingCursor;
-    PTYTextView *display;
-	
-	// single buffer that holds both scrollback and screen contents
-	screen_char_t *buffer_lines;
-	// buffer holding flags for each char on whether it needs to be redrawn
-	char *dirty;
-	// a single default line
-	screen_char_t *default_line;
-	// temporary buffer to store main buffer in SAVE_BUFFER/RESET_BUFFER mode
-	screen_char_t *temp_buffer;
-	
-	// pointer to last line in buffer
-	screen_char_t *last_buffer_line;
-	// pointer to first screen line
-	screen_char_t *screen_top;
-	//pointer to first scrollback line
-	screen_char_t *scrollback_top;
-	
-	// default line stuff
-	int default_bg_code;
-	int default_fg_code;
-	int default_line_width;
 
-	//scroll back stuff
-	BOOL dynamic_scrollback_size;
-	// max size of scrollback buffer
-    unsigned int  max_scrollback_lines;
-	// current number of lines in scrollback buffer
-	unsigned int current_scrollback_lines;
-	// how many scrollback lines have been lost due to overflow
-	int scrollback_overflow;
-	
-	// print to ansi...
-	BOOL printToAnsi;		// YES=ON, NO=OFF, default=NO;
-	NSMutableString *printToAnsiString;
-	
-	// Growl stuff
-	iTermGrowlDelegate* gd;
+    NSView *display;
+
 }
 
++ (NSSize)requireSizeWithFont:(NSFont *)font
+			width:(int)width
+		       height:(int)height;
++ (NSSize)requireSizeWithFont:(NSFont *)font;
++ (NSSize)screenSizeInFrame:(NSRect)frame  font:(NSFont *)font;
++ (void)setPlayBellFlag:(BOOL)flag;
++ (NSSize) fontSize:(NSFont *)font;
 
 - (id)init;
 - (void)dealloc;
 
 - (NSString *)description;
 
-- (screen_char_t*)initScreenWithWidth:(int)width Height:(int)height;
-- (void)resizeWidth:(int)width height:(int)height;
-- (void)reset;
+- (void)initScreen;
 - (void)setWidth:(int)width height:(int)height;
+- (void)resizeWidth:(int)width height:(int)height;
 - (int)width;
 - (int)height;
 - (unsigned int)scrollbackLines;
 - (void)setScrollback:(unsigned int)lines;
+
 - (void)setTerminal:(VT100Terminal *)terminal;
 - (VT100Terminal *)terminal;
 - (void)setShellTask:(PTYTask *)shell;
 - (PTYTask *)shellTask;
-- (PTYSession *) session;
 - (void)setSession:(PTYSession *)session;
 
-- (PTYTextView *) display;
-- (void) setDisplay: (PTYTextView *) aDisplay;
+- (void)setTextStorage:(NSTextStorage *)storage;
+- (NSTextStorage *)textStorage;
+- (void)setFont:(NSFont *)font nafont:(NSFont *)nafont;
+- (NSFont *)font;
+- (NSFont *)nafont;
+- (NSFont *)tallerFont;
+- (NSSize) characterSize;
+
+- (NSView *) display;
+- (void) setDisplay: (NSView *) aDisplay;
 
 - (BOOL) blinkingCursor;
 - (void) setBlinkingCursor: (BOOL) flag;
-- (void)showCursor:(BOOL)show;
-- (void)setPlayBellFlag:(BOOL)flag;
-- (void)setShowBellFlag:(BOOL)flag;
-- (void)setGrowlFlag:(BOOL)flag;
 
-// line access
-- (screen_char_t *) getLineAtIndex: (int) theIndex;
-- (screen_char_t *) getLineAtScreenIndex: (int) theIndex;
-- (char *) dirty;
-- (NSString *) getLineString: (screen_char_t *) theLine;
 
 // edit screen buffer
 - (void)putToken:(VT100TCC)token;
 - (void)clearBuffer;
 - (void)clearScrollbackBuffer;
-- (void)saveBuffer;
-- (void)restoreBuffer;
+- (void) saveBuffer;
+- (void) restoreBuffer;
 
 // internal
-- (void)setString:(NSString *)s ascii:(BOOL)ascii;
-- (void)setStringToX:(int)x
-				   Y:(int)y
-			  string:(NSString *)string
-			   ascii:(BOOL)ascii;
+- (void)setDoubleWidthString:(NSString *)s;
+- (void)setASCIIString:(NSString *)s;
+- (void)setASCIIStringToX:(int)x
+                     Y:(int)y
+                string:(NSString *)string;
 - (void)setNewLine;
 - (void)deleteCharacters:(int)n;
 - (void)backSpace;
-- (void)backTab;
 - (void)setTab;
-- (void)clearTabStop;
 - (void)clearScreen;
 - (void)eraseInDisplay:(VT100TCC)token;
 - (void)eraseInLine:(VT100TCC)token;
@@ -180,33 +149,44 @@ typedef struct screen_char_t
 - (void)setTopBottom:(VT100TCC)token;
 - (void)scrollUp;
 - (void)scrollDown;
-- (void)activateBell;
+- (void)playBell;
+- (void)removeOverLine;
 - (void)deviceReport:(VT100TCC)token;
 - (void)deviceAttribute:(VT100TCC)token;
 - (void)insertBlank: (int)n;
 - (void)insertLines: (int)n;
 - (void)deleteLines: (int)n;
+- (void)trimLine: (int) y;
+- (void)showCursor;
 - (void)blink;
-- (int)cursorX;
-- (int)cursorY;
+- (int) cursorX;
+- (int) cursorY;
+- (int) topLines;
 
-- (int)numberOfLines;
+- (NSMutableAttributedString *) buffer;
+- (void) updateScreen;
+- (void) forceUpdateScreen;
+- (void) renewBuffer;
+- (int) numberOfLines;
 
-- (int)scrollbackOverflow;
-- (void)resetScrollbackOverflow;
+- (void) setScreenAttributes;
+- (void) setScreenLock;
+- (void) removeScreenLock;
+- (BOOL) screenIsLocked;
 
-- (void)resetDirty;
-- (void)setDirty;
+- (NSAttributedString *)attrString:(NSString *)str ascii:(BOOL)asc;
+- (NSAttributedString *)defaultAttrString:(NSString *)str;
+- (int) getIndexAtX:(int)x Y:(int)y withPadding:(BOOL)padding;
+- (int) getTVIndex:(int)x y:(int)y;
+- (BOOL) isDoubleWidthCharacter:(unichar)code;
 
-// print to ansi...
-- (BOOL) printToAnsi;
-- (void) setPrintToAnsi: (BOOL) aFlag;
-- (void) printStringToAnsi: (NSString *) aString;
+- (void) clearTabStop;
 
-// UI stuff
-- (void) doPrint;
-
-// double width
-- (BOOL) isDoubleWidthCharacter:(unichar) c;
+- (NSString *)translate: (NSString *)s;
+#if USE_CUSTOM_DRAWING
+- (NSMutableAttributedString *)stringAtLine: (int) n;
+- (NSArray *) screenLines;
+#else
+#endif
 
 @end

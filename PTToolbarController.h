@@ -3,7 +3,7 @@
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -31,7 +31,6 @@ extern NSString *NewToolbarItem;
 extern NSString *ABToolbarItem;
 extern NSString *CloseToolbarItem;
 extern NSString *ConfigToolbarItem;
-extern NSString *CommandToolbarItem;
 
 @class PseudoTerminal;
 

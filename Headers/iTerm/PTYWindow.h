@@ -1,12 +1,12 @@
 /* -*- mode:objc -*- */
-/* $Id: PTYWindow.h,v 1.6 2008-09-07 21:54:44 yfabian Exp $ */
-/* Incorporated into iTerm.app by Ujwal S. Setlur */
+/* $Id: PTYWindow.h,v 1.1 2003-08-08 20:12:57 ujwal Exp $ */
+/* Incorporated into iTerm.app by Ujwal S. Sathyam */
 /*
  **  PTYWindow.h
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -31,37 +31,11 @@
 
 #import <Cocoa/Cocoa.h>
 
-@protocol PTYWindowDelegateProtocol
-- (void) windowWillToggleToolbarVisibility: (id) sender;
-- (void) windowDidToggleToolbarVisibility: (id) sender;
-@end
-
-
 @interface PTYWindow : NSWindow 
-{
-	IBOutlet NSDrawer *drawer;
-
-	int blurFilter;
-	BOOL layoutDone;
-}
 
 - initWithContentRect:(NSRect)contentRect 
             styleMask:(unsigned int)aStyle 
 	      backing:(NSBackingStoreType)bufferingType 
 		defer:(BOOL)flag;
 
-- (void)toggleToolbarShown:(id)sender;
-
-- (NSDrawer *) drawer;
-- (void) setDrawer: (NSDrawer *) aDrawer;
-
-- (void)smartLayout;
-- (void)setLayoutDone;
-
-- (void)enableBlur;
-- (void)disableBlur;
-
-- (int)screenNumber;
-
 @end
-

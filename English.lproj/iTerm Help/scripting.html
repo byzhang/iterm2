@@ -7,19 +7,40 @@
 <BODY BGCOLOR="#FFFFFF" LINK="#696969" ALINK="#696969" VLINK="#696969">
 <LINK REL=stylesheet HREF="styles.css" TYPE="text/css">
 <CENTER>
-<TABLE BGCOLOR="#FFFFFF" CELLPADDING="10" CELLSPACING="1" BORDER="0" WIDTH="100%">
+<A HREF="index.html"><IMG SRC="iTerm.png" TITLE="" ALT="iTerm" BORDER="0"></A>
+<H1>iTerm Project Homepage</H1>
+
+<TABLE BGCOLOR="#000000" CELLPADDING="10" CELLSPACING="1" BORDER="0" WIDTH="100%">
 <TR>
-<TD VALIGN="TOP" WIDTH="120" BGCOLOR="#EEEEFF">
-<A HREF="index.html"><IMG SRC="iTerm.png" TITLE="" ALT="iTerm" BORDER="0" WIDTH=96></A><BR><BR>
+<TD VALIGN="TOP" WIDTH="300" BGCOLOR="#FFFFFF">
+<FONT SIZE="5"><STRONG>iTerm Info:</STRONG></FONT><BR>
+<UL>
 <LI><A HREF="index.html">Home</A></LI>
-<LI><A HREF="navigation.html">General Usage</A></LI>
-<LI><A HREF="preferences.html">Preferences</A></LI>
-<LI><A HREF="profiles.html">Profiles</A></LI>
-<LI><A HREF="bookmarks.html">Bookmarks</A></LI>
-<LI><A HREF="scripting.html">Scripting</A></LI>
+<LI><A HREF="navigation.html">Bookmarks</A></LI>
+<LI><A HREF="preferences.html">Configure Panel</A></LI>
+<LI><A HREF="navigation.html">Contextual Menu</A></LI>
 <LI><A HREF="install.html">Installation</A></LI>
 <LI><A HREF="misc.html">Misc</A></LI>
+<LI><A HREF="navigation.html">Navigation</A></LI>
+<LI><A HREF="preferences.html">Preferences</A></LI>
+<LI><A HREF="scripting.html">Scripting</A></LI>
+<LI><A HREF="install.html">System Requirements</A></LI>
+<LI><A HREF="history.html">Version History</A></LI>
+<LI><A HREF="resource.html">Additional Resources</A><IMG src="new.gif"></LI>
+</UL>
+
+<FONT SIZE="5"><STRONG>Links:</STRONG></FONT><BR>
+<UL>
+<A HREF="http://sourceforge.net/projects/iterm/">iTerm (sourceforge project page)</A><BR>
+<A HREF="http://sourceforge.net/tracker/?atid=518976&group_id=67789&func=browse">Request a feature</A><BR>
+<A HREF="http://sourceforge.net/tracker/?atid=518973&group_id=67789&func=browse">Submit a Bug</A><BR>
+<BR>
+<A HREF="http://sourceforge.net">
+<IMG SRC="http://sourceforge.net/sflogo.php?group_id=67789&amp;type=2" WIDTH="125" HEIGHT="37" BORDER="0" ALT="SourceForge Logo">
+</A>
+</UL>
 </TD>
+
 
 <TD VALIGN="TOP" BGCOLOR="#FFFFFF">
 <FONT SIZE="5"><STRONG>Scripting support:</STRONG></FONT><BR>
@@ -75,7 +96,7 @@ tell application "iTerm"
 <br>
 			set background color to "blue"
 <br>
-			set transparency to "0.6"
+			set transparency to "60"
 <br>
 <br>			
 			-- execute a command
@@ -96,7 +117,7 @@ tell application "iTerm"
 <br>		
 		-- launch a saved session from the addressbook.
 <br>
-		launch session "path/to/saved/session"
+		launch session "Root Shell"
 <br>		
 		-- select the previous session
 <br>
@@ -164,12 +185,7 @@ These scripts can then be saved as stand-alone executable applications.
 
 <FONT SIZE="5"><STRONG>Autolaunching script:</STRONG></FONT><BR>
 <UL>
-iTerm supports autolaunching of an Applescript on startup. On startup, iTerm looks for an Applescript called <b>"AutoLaunch.scpt"</b> under <b>~/Library/Application Support/iTerm</b>. If it is found, the <b>AutoLauch.scpt</b> is launched and executed. This feature can be used to launch multiple sessions in defined windows and tabs when iTerm starts up.
-</UL>
-
-<FONT SIZE="5"><STRONG>User defined scripts:</STRONG></FONT><BR>
-<UL>
-iTerm also supports launching of user defined scripts from the "Scripts" menu. The scripts need to be stored under the "~/Library/Application Support/iTerm/Scripts" directory. You can create this directory if it does not already exist. iTerm checks this directory on startup.
+iTerm also supports autolaunching of an Applescript on startup. On startup, iTerm looks for an Applescript called <b>"AutoLaunch.scpt"</b> under <b>~/Library/Application Support/iTerm</b>. If it is found, the <b>AutoLauch.scpt</b> is launched and executed. This feature can be used to launch multiple sessions in defined windows and tabs when iTerm atarts up.
 </UL>
 
 </TD>
@@ -178,8 +194,8 @@ iTerm also supports launching of user defined scripts from the "Scripts" menu. T
 
 <BR>
 <FONT SIZE="-1">
-Modified: Nov 16th, 2006<BR>Created: Dec 18th, 2002<BR>
-<A HREF="MAILTO:fabian@macvillage.net">Fabian</A> and <A HREF="MAILTO:ujwal@setlurgroup.com">Ujwal S. Setlur</A><BR>
+Modified: May 5th, 2003<BR>Created: Dec 18th, 2002<BR>
+<A HREF="MAILTO:fabian@macvillage.net">Fabian</A> and <A HREF="MAILTO:ujwal@setlurgroup.com">Ujwal S. Sathyam</A><BR>
 Support free software by writing one.<BR>
 </FONT>
 

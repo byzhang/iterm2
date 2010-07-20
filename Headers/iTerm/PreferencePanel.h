@@ -3,7 +3,7 @@
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **
  **  Project: iTerm
  **
@@ -31,116 +31,62 @@
 #define OPT_ESC    2
 
 @class iTermController;
-@class TreeNode;
 
-typedef enum { CURSOR_UNDERLINE, CURSOR_VERTICAL, CURSOR_BOX } ITermCursorType;
-
-@interface PreferencePanel : NSWindowController
+@interface PreferencePanel : NSResponder
 {
-    
-	IBOutlet NSPopUpButton *windowStyle;
-	IBOutlet NSPopUpButton *tabPosition;
-    IBOutlet NSOutlineView *urlHandlerOutline;
-	IBOutlet NSTableView *urlTable;
-    IBOutlet NSButton *selectionCopiesText;
-	IBOutlet NSButton *middleButtonPastesFromClipboard;
+    IBOutlet id antiAlias;
+    IBOutlet id copySelection;
     IBOutlet id hideTab;
+    IBOutlet id openAddressBook;
+    IBOutlet id optionKey;
+    IBOutlet id macnavkeys;
+    IBOutlet id prefPanel;
     IBOutlet id promptOnClose;
-    IBOutlet id onlyWhenMoreTabs;
-    IBOutlet NSButton *focusFollowsMouse;
-	IBOutlet NSTextField *wordChars;
-	IBOutlet NSButton *enableBonjour;
-    IBOutlet NSButton *enableGrowl;
-    IBOutlet NSButton *cmdSelection;
-	IBOutlet NSButton *maxVertically;
-	IBOutlet NSButton *useCompactLabel;
-    IBOutlet NSButton *openBookmark;
-    IBOutlet NSSlider *refreshRate;
-	IBOutlet NSButton *quitWhenAllWindowsClosed;
-    IBOutlet NSButton *checkUpdate;
-	IBOutlet NSMatrix *cursorType;
-	IBOutlet NSButton *useBorder;
-	IBOutlet NSButton *hideScrollbar;
-    IBOutlet NSButton *checkTestRelease;
-	
+    IBOutlet id scrollbackLines;
+    IBOutlet id silenceBell;
+    IBOutlet id tabViewType;
+    IBOutlet id blinkingCursor;
+    IBOutlet NSButton *enforceCharacterAlignment;
+    
     NSUserDefaults *prefs;
 
-	int defaultWindowStyle;
+    unsigned int defaultScrollback;
+
+    int defaultOption;
+    BOOL defaultMacNavKeys;
+    BOOL defaultAntiAlias;
     BOOL defaultCopySelection;
-	BOOL defaultPasteFromClipboard;
     BOOL defaultHideTab;
+    BOOL defaultSilenceBell;
     int defaultTabViewType;
+    BOOL defaultOpenAddressBook;
     BOOL defaultPromptOnClose;
-    BOOL defaultOnlyWhenMoreTabs;
-    BOOL defaultFocusFollowsMouse;
-	BOOL defaultEnableBonjour;
-	BOOL defaultEnableGrowl;
-	BOOL defaultCmdSelection;
-	BOOL defaultMaxVertically;
-    BOOL defaultUseCompactLabel;
-    BOOL defaultOpenBookmark;
-    int  defaultRefreshRate;
-	NSString *defaultWordChars;
-    BOOL defaultQuitWhenAllWindowsClosed;
-	BOOL defaultCheckUpdate;
-	BOOL defaultUseBorder;
-	BOOL defaultHideScrollbar;
-	BOOL defaultCheckTestRelease;
-	ITermCursorType defaultCursorType;
-	
-	// url handler stuff
-	NSMutableArray *urlTypes;
-	NSMutableDictionary *urlHandlers;
+    BOOL defaultBlinkingCursor;
+    BOOL defaultEnforceCharacterAlignment;
 }
 
+- (IBAction) editDefaultSession: (id) sender;
 
 + (PreferencePanel*)sharedInstance;
 
-+ (BOOL) migratePreferences;
 - (void) readPreferences;
-- (void) savePreferences;
 
-- (IBAction)settingChanged:(id)sender;
-- (IBAction)connectURL:(id)sender;
+- (IBAction)ok:(id)sender;
+- (IBAction)cancel:(id)sender;
+- (IBAction)restore:(id)sender;
 
 - (void)run;
 
-
+- (BOOL) antiAlias;
+- (int) option;
+- (BOOL) macnavkeys;
 - (BOOL) copySelection;
-- (void) setCopySelection: (BOOL) flag;
-- (BOOL) pasteFromClipboard;
-- (void) setPasteFromClipboard: (BOOL) flag;
 - (BOOL) hideTab;
+- (BOOL) silenceBell;
 - (NSTabViewType) tabViewType;
-- (int) windowStyle;
-- (void) setTabViewType: (NSTabViewType) type;
 - (BOOL) promptOnClose;
-- (BOOL) onlyWhenMoreTabs;
-- (BOOL) focusFollowsMouse;
-- (BOOL) enableBonjour;
-- (BOOL) enableGrowl;
-- (BOOL) cmdSelection;
-- (BOOL) maxVertically;
-- (BOOL) useCompactLabel;
-- (BOOL) openBookmark;
-- (BOOL) useBorder;
-- (BOOL) hideScrollbar;
-- (int)  refreshRate;
-- (NSString *) wordChars;
-- (BOOL) quitWhenAllWindowsClosed;
-- (BOOL) checkTestRelease;
-- (ITermCursorType) cursorType;
-- (TreeNode *) handlerBookmarkForURL:(NSString *)url;
-
-// Hidden preferences
-- (BOOL) useUnevenTabs;
-- (int) minTabWidth;
-- (int) minCompactTabWidth;
-- (int) optimumTabWidth;
-- (NSString *) searchCommand;
-
-@end
-
-@interface PreferencePanel (Private)
+- (BOOL) openAddressBook;
+- (BOOL) blinkingCursor;
+- (BOOL) enforceCharacterAlignment;
 
 @end

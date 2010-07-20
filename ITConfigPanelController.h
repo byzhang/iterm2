@@ -3,7 +3,7 @@
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -36,21 +36,16 @@
     IBOutlet id CONFIG_COL;
     IBOutlet id CONFIG_ROW;
     IBOutlet NSPopUpButton *CONFIG_ENCODING;
-    IBOutlet NSColorWell *CONFIG_BACKGROUND;
-    IBOutlet NSColorWell *CONFIG_FOREGROUND;
+    IBOutlet id CONFIG_BACKGROUND;
+    IBOutlet id CONFIG_FOREGROUND;
     IBOutlet id CONFIG_EXAMPLE;
     IBOutlet id CONFIG_NAEXAMPLE;
     IBOutlet id CONFIG_TRANSPARENCY;
     IBOutlet id CONFIG_TRANS2;
-	IBOutlet id CONFIG_BLUR;
     IBOutlet id CONFIG_NAME;
     IBOutlet id CONFIG_ANTIALIAS;
-    IBOutlet NSColorWell *CONFIG_SELECTION;
-    IBOutlet NSColorWell *CONFIG_BOLD;
-	IBOutlet NSColorWell *CONFIG_CURSOR;
-	IBOutlet NSColorWell *CONFIG_CURSORTEXT;
-	IBOutlet NSColorWell *CONFIG_SELECTIONTEXT;
-	
+    IBOutlet id CONFIG_SELECTION;
+    IBOutlet id CONFIG_BOLD;
     
     // anti-idle
     IBOutlet id AI_CODE;
@@ -59,51 +54,8 @@
     
     NSFont *configFont, *configNAFont;
     BOOL changingNA;
-	IBOutlet NSSlider *charHorizontalSpacing;
-	IBOutlet NSSlider *charVerticalSpacing;
-
-    // background image
-    IBOutlet NSButton *useBackgroundImage;
-    IBOutlet NSImageView *backgroundImageView;
-    NSString *backgroundImagePath;
-	
-	IBOutlet NSButton *boldButton;
-	IBOutlet NSButton *transparencyButton;
-	IBOutlet NSButton *updateProfileButton;
-	IBOutlet NSButton *blurButton;
 }
 
-+ (id) singleInstance;
-
-+ (void)show;
-+ (void)close;
-+ (BOOL)onScreen;
-
-- (void)loadConfigWindow: (NSNotification *) aNotification;
-
-
-// actions
-- (IBAction) setWindowSize: (id) sender;
-- (IBAction) setCharacterSpacing: (id) sender;
-- (IBAction) toggleAntiAlias: (id) sender;
-- (IBAction) setTransparency: (id) sender;
-- (IBAction) setBlur: (id) sender;
-- (IBAction) setForegroundColor: (id) sender;
-- (IBAction) setBackgroundColor: (id) sender;
-- (IBAction) setBoldColor: (id) sender;
-- (IBAction) setSelectionColor: (id) sender;
-- (IBAction) setSelectedTextColor: (id) sender;
-- (IBAction) setCursorColor: (id) sender;
-- (IBAction) setCursorTextColor: (id) sender;
-- (IBAction) setSessionName: (id) sender;
-- (IBAction) setSessionEncoding: (id) sender;
-- (IBAction) setAntiIdle: (id) sender;
-- (IBAction) setAntiIdleCode: (id) sender;
-- (IBAction) chooseBackgroundImage: (id) sender;
-- (IBAction) windowConfigFont:(id)sender;
-- (IBAction) windowConfigNAFont:(id)sender;
-- (IBAction) useBackgroundImage: (id) sender;
-- (IBAction) setBold: (id) sender;
-- (IBAction) updateProfile: (id) sender;
++ (void)show:(PseudoTerminal*)pseudoTerminal parentWindow:(NSWindow*)parentWindow;
 
 @end

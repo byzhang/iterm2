@@ -1,11 +1,11 @@
 // -*- mode:objc -*-
-// $Id: PTYScrollView.h,v 1.6 2004-03-14 06:05:38 ujwal Exp $
+// $Id: PTYScrollView.h,v 1.3 2003-09-06 22:09:27 ujwal Exp $
 /*
  **  PTYScrollView.h
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -35,7 +35,6 @@
 }
 
 - (id)init;
-- (void) mouseDown: (NSEvent *)theEvent;
 - (void)trackScrollButtons:(NSEvent *)theEvent;
 - (void)trackKnob:(NSEvent *)theEvent;
 - (BOOL)userScroll;
@@ -45,20 +44,10 @@
 
 @interface PTYScrollView : NSScrollView
 {
-	NSImage *backgroundImage;
-	float transparency;
 }
 
 - (void) dealloc;
 - (id)initWithFrame:(NSRect)frame;
 - (void)scrollWheel:(NSEvent *)theEvent;
-- (void)detectUserScroll;
-
-// background image
-- (NSImage *) backgroundImage;
-- (void) setBackgroundImage: (NSImage *) anImage;
-- (void) drawBackgroundImageRect: (NSRect) rect;
-- (float) transparency;
-- (void) setTransparency: (float) theTransparency;
 
 @end

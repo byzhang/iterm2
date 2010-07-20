@@ -3,7 +3,7 @@
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Ujwal S. Setlur
+ **  Author: Ujwal S. Sathyam
  **
  **  Project: iTerm
  **
@@ -34,10 +34,16 @@
 - (void)tabView:(NSTabView *)tabView willAddTabViewItem:(NSTabViewItem *)tabViewItem;
 - (void)tabView:(NSTabView *)tabView willInsertTabViewItem:(NSTabViewItem *)tabViewItem atIndex:(int) index;
 - (void)tabViewDidChangeNumberOfTabViewItems:(NSTabView *)tabView;
-- (void)tabView:(NSTabView *)tabView doubleClickTabViewItem:(NSTabViewItem *)tabViewItem;
+- (void)tabViewWillPerformDragOperation:(NSTabView *)tabView;
+- (void)tabViewDidPerformDragOperation:(NSTabView *)tabView;
+- (void)tabViewContextualMenu: (NSEvent *)theEvent menu: (NSMenu *)theMenu;
 @end
 
 @interface PTYTabView : NSTabView {
+    NSEvent *mouseEvent;
+    float maxLabelSize;
+    int dragTargetTabViewItemIndex;
+    BOOL dragSessionInProgress;
 }
 
 // Class methods that Apple should have provided
@@ -47,14 +53,31 @@
 - (id)initWithFrame: (NSRect) aFrame;
 - (void) dealloc;
 - (BOOL)acceptsFirstResponder;
-- (void) drawRect: (NSRect) rect;
+
+// contextual menu
+- (NSMenu *) menuForEvent: (NSEvent *) theEvent;
+- (void) selectTab: (id) sender;
 
 // NSTabView methods overridden
 - (void) addTabViewItem: (NSTabViewItem *) aTabViewItem;
 - (void) removeTabViewItem: (NSTabViewItem *) aTabViewItem;
 - (void) insertTabViewItem: (NSTabViewItem *) tabViewItem atIndex: (int) index;
 
-// selects a tab from the contextual menu
-- (void) selectTab: (id) sender;
+// drag and drop
+// NSDraggingSource protocol
+- (unsigned int) draggingSourceOperationMaskForLocal: (BOOL)flag;
+- (void) mouseDown: (NSEvent *)theEvent;
+- (void) mouseUp: (NSEvent *)theEvent;
+- (void) mouseDragged: (NSEvent *)theEvent;
+- (BOOL) shouldDelayWindowOrderingForEvent: (NSEvent *) theEvent;
+// NSDraggingDestination protocol
+- (NSDragOperation) draggingEntered: (id <NSDraggingInfo>) sender;
+- (void) draggingExited: (id <NSDraggingInfo>) sender;
+- (NSDragOperation) draggingUpdated: (id <NSDraggingInfo>) sender;
+- (BOOL) prepareForDragOperation: (id <NSDraggingInfo>) sender;
+- (BOOL) performDragOperation: (id <NSDraggingInfo>) sender;
+- (void) concludeDragOperation: (id <NSDraggingInfo>) sender;
+- (float) maxLabelSize;
+
 
 @end
