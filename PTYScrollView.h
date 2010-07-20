@@ -1,7 +1,7 @@
 // -*- mode:objc -*-
-// $Id: main.m,v 1.1.1.1 2002-11-26 04:56:45 ujwal Exp $
+// $Id: PTYScrollView.h,v 1.1.1.1 2002-11-26 04:56:48 ujwal Exp $
 //
-//  main.m
+//  PTYScrollView.h
 //  JTerminal
 //
 //  Created by kuma on Thu Nov 22 2001.
@@ -10,7 +10,10 @@
 
 #import <Cocoa/Cocoa.h>
 
-int main(int argc, const char *argv[])
+@interface PTYScrollView : NSScrollView
 {
-    return NSApplicationMain(argc, argv);
 }
+
+- (id)initWithFrame:(NSRect)frame;
+
+@end
