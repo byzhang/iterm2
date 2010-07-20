@@ -4,6 +4,25 @@
 <dict>
 	<key>Classes</key>
 	<dict>
+		<key>NSApplication</key>
+		<dict>
+			<key>Description</key>
+			<string>Main application class</string>
+			<key>Name</key>
+			<string>application</string>
+			<key>PluralName</key>
+			<string>applications</string>
+			<key>ToOneRelationships</key>
+			<dict>
+				<key>currentTerminal</key>
+				<dict>
+					<key>Description</key>
+					<string>currently active terminal</string>
+					<key>Name</key>
+					<string>current terminal</string>
+				</dict>
+			</dict>
+		</dict>
 		<key>PTYSession</key>
 		<dict>
 			<key>Attributes</key>
@@ -29,20 +48,6 @@
 					<key>Name</key>
 					<string>bold color</string>
 				</dict>
-				<key>cursorColor</key>
-				<dict>
-					<key>Description</key>
-					<string>Cursor color</string>
-					<key>Name</key>
-					<string>cursor color</string>
-				</dict>
-				<key>cursorTextColor</key>
-				<dict>
-					<key>Description</key>
-					<string>Cursor text color</string>
-					<key>Name</key>
-					<string>cursor_text color</string>
-				</dict>
 				<key>foregroundColor</key>
 				<dict>
 					<key>Description</key>
@@ -63,13 +68,6 @@
 					<string>Selection color</string>
 					<key>Name</key>
 					<string>selection color</string>
-				</dict>
-				<key>selectedTextColor</key>
-				<dict>
-					<key>Description</key>
-					<string>Selected text color</string>
-					<key>Name</key>
-					<string>selected text color</string>
 				</dict>
 				<key>transparency</key>
 				<dict>
@@ -94,19 +92,19 @@
 			<string>sessions</string>
 			<key>ToOneRelationships</key>
 			<dict>
-				<key>contents</key>
-				<dict>
-					<key>Description</key>
-					<string>text of the session</string>
-					<key>Name</key>
-					<string>contents</string>
-				</dict>
 				<key>number</key>
 				<dict>
 					<key>Description</key>
 					<string>index of session</string>
 					<key>Name</key>
 					<string>number</string>
+				</dict>
+				<key>textStorage</key>
+				<dict>
+					<key>Description</key>
+					<string>text of the session</string>
+					<key>Name</key>
+					<string>contents</string>
 				</dict>
 				<key>tty</key>
 				<dict>
@@ -121,13 +119,6 @@
 		<dict>
 			<key>Attributes</key>
 			<dict>
-				<key>antiAlias</key>
-				<dict>
-					<key>Description</key>
-					<string>Anti alias for window</string>
-					<key>Name</key>
-					<string>anti alias</string>
-				</dict>
 				<key>columns</key>
 				<dict>
 					<key>Description</key>
@@ -160,25 +151,6 @@
 				</dict>
 			</dict>
 		</dict>
-		<key>iTermApplication</key>
-		<dict>
-			<key>Description</key>
-			<string>Main application class</string>
-			<key>Name</key>
-			<string>i term application</string>
-			<key>PluralName</key>
-			<string>i term applications</string>
-			<key>ToOneRelationships</key>
-			<dict>
-				<key>currentTerminal</key>
-				<dict>
-					<key>Description</key>
-					<string>currently active terminal</string>
-					<key>Name</key>
-					<string>current terminal</string>
-				</dict>
-			</dict>
-		</dict>
 	</dict>
 	<key>Commands</key>
 	<dict>
@@ -195,7 +167,7 @@
 				</dict>
 			</dict>
 			<key>Description</key>
-			<string>Executes a command in a session (attach a trailing space for commands without carriage return)</string>
+			<string>Executes a command in a session</string>
 			<key>Name</key>
 			<string>exec</string>
 		</dict>

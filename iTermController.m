@@ -1,11 +1,11 @@
 // -*- mode:objc -*-
-// $Id: iTermController.m,v 1.78 2008-10-17 04:02:45 yfabian Exp $
+// $Id: iTermController.m,v 1.26 2003-10-05 18:48:17 ujwal Exp $
 /*
  **  iTermController.m
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -37,56 +37,110 @@
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Screen.h>
 #import <iTerm/NSStringITerm.h>
+#import <iTerm/AddressBookWindowController.h>
 #import <iTerm/ITAddressBookMgr.h>
-#import <iTerm/Tree.h>
-#import <iTerm/ITConfigPanelController.h>
-#import <iTerm/iTermGrowlDelegate.h>
-#import <iTermProfileWindowController.h>
-#import <iTermBookmarkController.h>
-
-
-@interface NSApplication (Undocumented)
-- (void)_cycleWindowsReversed:(BOOL)back;
-@end
-
 
 static NSString* APPLICATION_SUPPORT_DIRECTORY = @"~/Library/Application Support";
+static NSString* AUTO_LAUNCH_SCRIPT = @"~/Library/Application Support/iTerm/AutoLaunch.scpt";
 static NSString *SUPPORT_DIRECTORY = @"~/Library/Application Support/iTerm";
 static NSString *SCRIPT_DIRECTORY = @"~/Library/Application Support/iTerm/Scripts";
+static NSStringEncoding const *encodingList=nil;
 
-// Comparator for sorting encodings
-static int _compareEncodingByLocalizedName(id a, id b, void *unused)
-{
-	NSString *sa = [NSString localizedNameOfStringEncoding: [a unsignedIntValue]];
-	NSString *sb = [NSString localizedNameOfStringEncoding: [b unsignedIntValue]];
-	return [sa caseInsensitiveCompare: sb];
-}
-
+static BOOL usingAutoLaunchScript = NO;
 
 @implementation iTermController
 
-static iTermController* shared = nil;
-static BOOL initDone = NO;
-
 + (iTermController*)sharedInstance;
 {
-	if(!shared && !initDone) {
-		shared = [[iTermController alloc] init];
-		initDone = YES;
-	}
-	if(!shared && initDone) {
-		NSLog(@"Bad call to [iTermController sharedInstance]");
-	}
-
-	return shared;
+    static iTermController* shared = nil;
+    
+    if (!shared)
+        shared = [[iTermController alloc] init];
+    
+    return shared;
 }
 
-+ (void)sharedInstanceRelease
+- (BOOL)applicationShouldTerminate: (NSNotification *) theNotification
 {
-	[shared release];
-	shared = nil;
+#if DEBUG_METHOD_TRACE
+    NSLog(@"%s(%d):-[iTermController applicationShouldTerminate]",
+          __FILE__, __LINE__);
+#endif
+
+    if(([terminalWindows count] > 0) && [[PreferencePanel sharedInstance] promptOnClose] && ![[terminalWindows objectAtIndex: 0] showCloseWindow])
+	return (NO);
+    
+    return (YES);
 }
 
+- (BOOL)applicationOpenUntitledFile:(NSApplication *)app
+{
+    // Check if we have an autolauch script to execute. Do it only once, i.e. at application launch.
+    if(usingAutoLaunchScript == NO &&
+       [[NSFileManager defaultManager] fileExistsAtPath: [AUTO_LAUNCH_SCRIPT stringByExpandingTildeInPath]] != nil)
+    {
+	usingAutoLaunchScript = YES;
+	
+	NSAppleScript *autoLaunchScript;
+	NSDictionary *errorInfo = [NSDictionary dictionary];
+	NSURL *aURL = [NSURL fileURLWithPath: [AUTO_LAUNCH_SCRIPT stringByExpandingTildeInPath]];
+
+	usingAutoLaunchScript = YES;
+
+	// Make sure our script suite registry is loaded
+	[NSScriptSuiteRegistry sharedScriptSuiteRegistry];
+
+	autoLaunchScript = [[NSAppleScript alloc] initWithContentsOfURL: aURL error: &errorInfo];
+	[autoLaunchScript executeAndReturnError: &errorInfo];
+	[autoLaunchScript release];
+		
+	return (YES);
+    }
+
+    // else do the usual default stuff.
+    if ([[PreferencePanel sharedInstance] openAddressBook])
+        [[ITAddressBookMgr sharedInstance] showABWindow];
+    else
+        [self newWindow:nil];
+    
+    return YES;
+}
+
+// sent when application is made visible after a hide operation. Should not really need to implement this,
+// but some users reported that keyboard input is blocked after a hide/unhide operation.
+- (void)applicationDidUnhide:(NSNotification *)aNotification
+{
+    // Make sure that the first responder stuff is set up OK.
+    [FRONT selectSessionAtIndex: [FRONT currentSessionIndex]];
+}
+
+// Creates the dock menu
+- (NSMenu *)applicationDockMenu:(NSApplication *)sender
+{
+    NSMenu *aMenu;
+    NSMenuItem *newTabMenuItem, *newWindowMenuItem;
+    
+    aMenu = [[NSMenu alloc] initWithTitle: @"Dock Menu"];
+    newTabMenuItem = [[NSMenuItem alloc] initWithTitle: NSLocalizedStringFromTableInBundle(@"New Tab",@"iTerm", [NSBundle bundleForClass: [self class]], @"Context menu") action:nil keyEquivalent:@"" ]; 
+    newWindowMenuItem = [[NSMenuItem alloc] initWithTitle: NSLocalizedStringFromTableInBundle(@"New Window",@"iTerm", [NSBundle bundleForClass: [self class]], @"Context menu") action:nil keyEquivalent:@"" ]; 
+    [aMenu addItem: newTabMenuItem];
+    [aMenu addItem: newWindowMenuItem];
+    [newTabMenuItem release];
+    [newWindowMenuItem release];
+    
+    // Create the addressbook submenus for new tabs and windows.
+    NSMenu *abMenu = [[NSMenu alloc] initWithTitle: @"Bookmarks Menu"];
+    [self buildAddressBookMenu: abMenu target: FRONT withShortcuts: NO]; // target the top terminal window.
+    [newTabMenuItem setSubmenu: abMenu];
+    [abMenu release];
+    
+    abMenu = [[NSMenu alloc] initWithTitle: @"Bookmarks Menu"];
+    [self buildAddressBookMenu: abMenu target: nil withShortcuts: NO]; // target the top terminal window.
+    [newWindowMenuItem setSubmenu: abMenu];
+    [abMenu release];
+            
+    return ([aMenu autorelease]);
+}
 
 // init
 - (id) init
@@ -96,7 +150,22 @@ static BOOL initDone = NO;
           __FILE__, __LINE__);
 #endif
     self = [super init];
-	
+
+    // activate our fonts
+    // Get the main bundle object
+    NSBundle *appBundle = [NSBundle bundleForClass: [self class]];
+    // Ask for the path to the resources
+    NSString *fontsPath = [appBundle pathForResource: @"Fonts" ofType: nil inDirectory: nil];
+
+    // Using the Carbon APIs:  get a file reference and spec for the path
+    FSRef fsRef;
+    FSSpec fsSpec;
+    int osstatus = FSPathMakeRef( [fontsPath UTF8String], &fsRef, NULL);
+    if ( osstatus == noErr)
+        osstatus = FSGetCatalogInfo( &fsRef, kFSCatInfoNone, NULL, NULL, &fsSpec, NULL);
+    
+    //activate the font file using the file spec
+    osstatus = FMActivateFonts( &fsSpec, NULL, NULL, kFMLocalActivationContext);
     
     // create the iTerm directory if it does not exist
     NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -108,119 +177,149 @@ static BOOL initDone = NO;
     if([fileManager fileExistsAtPath: [SUPPORT_DIRECTORY stringByExpandingTildeInPath]] == NO)
         [fileManager createDirectoryAtPath: [SUPPORT_DIRECTORY stringByExpandingTildeInPath] attributes: nil];
     
+    encodingList=[NSString availableStringEncodings];
     terminalWindows = [[NSMutableArray alloc] init];
-	
-    // Activate Growl
-	/*
-	 * Need to add routine in iTerm prefs for Growl support and
-	 * PLIST check here.
-	 */
-    gd = [iTermGrowlDelegate sharedInstance];
-	
+    
     return (self);
 }
 
 - (void) dealloc
 {
 #if DEBUG_ALLOC
-	NSLog(@"%s(%d):-[iTermController dealloc]",
-		__FILE__, __LINE__);
+    NSLog(@"%s(%d):-[iTermController dealloc]",
+          __FILE__, __LINE__);
 #endif
-	NSEnumerator* iterator;
-	PseudoTerminal* terminal;
-
-	// Close all terminal windows
-	iterator = [terminalWindows objectEnumerator];
-	while(terminal = [iterator nextObject]) {
-		[[terminal window] close];
-	}
-	NSAssert([terminalWindows count] == 0, @"Expected terminals to be gone");
-	[terminalWindows release];
-
-	// Release the GrowlDelegate
-	if(gd)
-		[gd release];
-
-	[super dealloc];
+    
+    [terminalWindows removeAllObjects];
+    [terminalWindows release];
+    
+    [super dealloc];
 }
 
 // Action methods
 - (IBAction)newWindow:(id)sender
 {
-    [self launchBookmark:nil inTerminal: nil];
+    [self executeABCommandAtIndex:0 inTerminal: nil];
 }
 
 - (void) newSessionInTabAtIndex: (id) sender
 {
-    [self launchBookmark:[sender representedObject] inTerminal:FRONT];
+    [self executeABCommandAtIndex:[sender tag] inTerminal:FRONT];
 }
 
 - (void)newSessionInWindowAtIndex: (id) sender
 {
-    [self launchBookmark:[sender representedObject] inTerminal:nil];
-}
-
-// Open all childs within a given window
-- (PseudoTerminal *) newSessionsInWindow:(PseudoTerminal *) terminal forNode:(TreeNode*)theNode
-{
-	NSEnumerator *entryEnumerator;
-	NSDictionary *dataDict;
-	TreeNode *childNode;
-	PseudoTerminal *term =terminal;
-	
-	entryEnumerator = [[theNode children] objectEnumerator];
-	
-	while ((childNode = [entryEnumerator nextObject]))
-	{
-		dataDict = [childNode nodeData];
-		if([childNode isGroup])
-		{
-			[self newSessionsInWindow:terminal forNode:childNode];
-		}
-		else
-		{
-			if (!term) {
-				term = [[PseudoTerminal alloc] init];
-				[term initWindowWithAddressbook: [childNode nodeData]];
-				[self addInTerminals: term];
-				[term release];
-			}
-			[self launchBookmark:[childNode nodeData] inTerminal:term];
-		}
-	}
-	
-	return term;
-}
-
-- (void) newSessionsInWindow: (id) sender
-{
-	[self newSessionsInWindow:FRONT forNode:[sender representedObject]];
-}
-
-- (void) newSessionsInNewWindow: (id) sender
-{
-	[self newSessionsInWindow:nil forNode:[sender representedObject]];
-}
-
-// meant for action for menu items that have a submenu
-- (void) noAction: (id) sender
-{
-	
+    [self executeABCommandAtIndex:[sender tag] inTerminal: nil];
 }
 
 - (IBAction)newSession:(id)sender
 {
-    [self launchBookmark:nil inTerminal: FRONT];
+    [self executeABCommandAtIndex:0 inTerminal: FRONT];
 }
 
 // navigation
-- (IBAction) previousTerminal:(id)sender
+- (IBAction) previousTerminal: (id) sender
 {
-	[NSApp _cycleWindowsReversed:YES];
+    unsigned int currentIndex;
+
+    currentIndex = [[self terminals] indexOfObject: FRONT];
+    if(FRONT == nil || currentIndex == NSNotFound)
+    {
+	NSBeep();
+	return;
+    }
+
+    // get the previous terminal
+    if(currentIndex == 0)
+	currentIndex = [[self terminals] count] - 1;
+    else
+	currentIndex--;
+
+    // make that terminal's window active
+    [[[[self terminals] objectAtIndex: currentIndex] window] makeKeyAndOrderFront: self];
+    
 }
-- (IBAction)nextTerminal:(id)sender
+- (IBAction)nextTerminal: (id) sender
 {
-	[NSApp _cycleWindowsReversed:NO];
+    unsigned int currentIndex;
+
+    currentIndex = [[self terminals] indexOfObject: FRONT];
+    if(FRONT == nil || currentIndex == NSNotFound)
+    {
+	NSBeep();
+	return;
+    }
+
+    // get the next terminal
+    if(currentIndex == [[self terminals] count] - 1)
+	currentIndex = 0;
+    else
+	currentIndex++;
+
+    // make that terminal's window active
+    [[[[self terminals] objectAtIndex: currentIndex] window] makeKeyAndOrderFront: self];
+}
+
+// Utility
++ (void) breakDown:(NSString *)cmdl cmdPath: (NSString **) cmd cmdArgs: (NSArray **) path
+{
+    int i,j,k,qf;
+    char tmp[100];
+    const char *s;
+    NSMutableArray *p;
+
+    p=[[NSMutableArray alloc] init];
+
+    s=[cmdl cString];
+
+    i=j=qf=0;
+    k=-1;
+    while (i<=strlen(s)) {
+        if (qf) {
+            if (s[i]=='\"') {
+                qf=0;
+            }
+            else {
+                tmp[j++]=s[i];
+            }
+        }
+        else {
+            if (s[i]=='\"') {
+                qf=1;
+            }
+            else if (s[i]==' ' || s[i]=='\t' || s[i]=='\n'||s[i]==0) {
+                tmp[j]=0;
+                if (k==-1) {
+                    *cmd=[NSString stringWithCString:tmp];
+                }
+                else
+                    [p addObject:[NSString stringWithCString:tmp]];
+                j=0;
+                k++;
+                while (s[i+1]==' '||s[i+1]=='\t'||s[i+1]=='\n'||s[i+1]==0) i++;
+            }
+            else {
+                tmp[j++]=s[i];
+            }
+        }
+        i++;
+    }
+
+    *path = [NSArray arrayWithArray:p];
+    [p release];
+}
+
+- (void) setCurrentTerminal: (PseudoTerminal *) thePseudoTerminal
+{
+    FRONT = thePseudoTerminal;
+
+    // make sure this window is the key window
+    if([[thePseudoTerminal window] isKeyWindow] == NO)
+	[[thePseudoTerminal window] makeKeyAndOrderFront: self];
+
+    // Post a notification
+    [[NSNotificationCenter defaultCenter] postNotificationName: @"iTermWindowBecameKey" object: nil userInfo: nil];    
+
 }
 
 - (PseudoTerminal *) currentTerminal
@@ -231,216 +330,124 @@ static BOOL initDone = NO;
 - (void) terminalWillClose: (PseudoTerminal *) theTerminalWindow
 {
     if(FRONT == theTerminalWindow)
-		[self setCurrentTerminal: nil];
-	
+	[self setCurrentTerminal: nil];
+
     if(theTerminalWindow)
         [self removeFromTerminalsAtIndex: [terminalWindows indexOfObject: theTerminalWindow]];
 }
 
-// Build sorted list of encodings
-- (NSArray *) sortedEncodingList
+- (NSStringEncoding const*) encodingList
 {
-	NSStringEncoding const *p;
-	NSMutableArray *tmp = [NSMutableArray array];
-	
-	for (p = [NSString availableStringEncodings]; *p; ++p)
-		[tmp addObject:[NSNumber numberWithUnsignedInt:*p]];
-	[tmp sortUsingFunction: _compareEncodingByLocalizedName context:NULL];
-	
-	return (tmp);
+    return encodingList;
 }
 
-- (void) alternativeMenu: (NSMenu *)aMenu forNode: (TreeNode *) theNode target: (id) aTarget withShortcuts: (BOOL) withShortcuts
+// Build the bookmarks menu
+- (void) buildAddressBookMenu:(NSMenu *)abMenu target:(id)target withShortcuts: (BOOL) withShortcuts
 {
-    NSMenu *subMenu;
-	NSMenuItem *aMenuItem;
-	NSEnumerator *entryEnumerator;
-	NSDictionary *dataDict;
-	TreeNode *childNode;
-	NSString *shortcut;
-	unsigned int modifierMask = NSCommandKeyMask | NSControlKeyMask;
-	int count = 0;
+    NSEnumerator *abEnumerator;
+    NSDictionary *abEntry;
+    NSString *shortcut;
+    unsigned int mask;
+    int i = 0;
+    SEL action;
     
-	entryEnumerator = [[theNode children] objectEnumerator];
-	
-	while ((childNode = [entryEnumerator nextObject]))
+    if (target == nil)
+        action = @selector(newSessionInWindowAtIndex:);
+    else
+        action = @selector(newSessionInTabAtIndex:);
+    
+    abEnumerator = [[[ITAddressBookMgr sharedInstance] addressBook] objectEnumerator];
+    while ((abEntry = [abEnumerator nextObject]) != nil)
+    {
+	shortcut=([[abEntry objectForKey:@"Shortcut"] intValue]? [NSString stringWithFormat:@"%c",[[abEntry objectForKey:@"Shortcut"] intValue]]:@"");
+	shortcut = [shortcut lowercaseString];
+	mask = NSCommandKeyMask | NSControlKeyMask;
+	if(target == nil)
+	    mask |= NSShiftKeyMask;	
+	if(isDefaultEntry(abEntry))
 	{
-		count ++;
-		dataDict = [childNode nodeData];
-		aMenuItem = [[[NSMenuItem alloc] initWithTitle: [dataDict objectForKey: KEY_NAME] action:@selector(newSessionInTabAtIndex:) keyEquivalent:@""] autorelease];
-		if([childNode isGroup])
-		{
-			subMenu = [[[NSMenu alloc] init] autorelease];
-            [self alternativeMenu: subMenu forNode: childNode target: aTarget withShortcuts: withShortcuts]; 
-			[aMenuItem setSubmenu: subMenu];
-			[aMenuItem setAction:@selector(noAction:)];
-			[aMenuItem setTarget: self];
-			[aMenu addItem: aMenuItem];
-			
-		}
-		else
-		{
-            if(withShortcuts)
-			{
-				if ([dataDict objectForKey: KEY_SHORTCUT] != nil)
-				{
-					shortcut=[dataDict objectForKey: KEY_SHORTCUT];
-					shortcut = [shortcut lowercaseString];
-                    
-					[aMenuItem setKeyEquivalent: shortcut];
-				}
-			}
-			
-            [aMenuItem setKeyEquivalentModifierMask: modifierMask];
-            [aMenuItem setRepresentedObject: dataDict];
-			[aMenuItem setTarget: aTarget];
-			[aMenu addItem: aMenuItem];
-			
-			aMenuItem = [[aMenuItem copy] autorelease];
-			[aMenuItem setKeyEquivalentModifierMask: modifierMask | NSAlternateKeyMask];
-			[aMenuItem setAlternate:YES];
-			[aMenuItem setAction: @selector(newSessionInWindowAtIndex:)];
-			[aMenuItem setTarget: self];
-			[aMenu addItem: aMenuItem];
-		}                
+	    shortcut = target?@"t":@"n";
+	    mask = NSCommandKeyMask;
 	}
-	
-	if (count>1) {
-		[aMenu addItem:[NSMenuItem separatorItem]];
-		aMenuItem = [[[NSMenuItem alloc] initWithTitle: NSLocalizedStringFromTableInBundle(@"Open All",@"iTerm", [NSBundle bundleForClass: [iTermController class]], @"Context Menu") action:@selector(newSessionsInWindow:) keyEquivalent:@""] autorelease];
-		[aMenuItem setKeyEquivalentModifierMask: modifierMask];
-		[aMenuItem setRepresentedObject: theNode];
-		[aMenuItem setTarget: self];
-		[aMenu addItem: aMenuItem];
-		aMenuItem = [[aMenuItem copy] autorelease];
-		[aMenuItem setKeyEquivalentModifierMask: modifierMask | NSAlternateKeyMask];
-		[aMenuItem setAlternate:YES];
-		[aMenuItem setAction: @selector(newSessionsInNewWindow:)];
-		[aMenuItem setTarget: self];
-		[aMenu addItem: aMenuItem];
-	}
-	
+	if(withShortcuts == NO)
+	    shortcut = @"";
+	NSMenuItem *abMenuItem = [[[NSMenuItem alloc] initWithTitle: entryVisibleName(abEntry, self) action:action keyEquivalent:shortcut] autorelease];
+	[abMenuItem setKeyEquivalentModifierMask: mask];
+	[abMenuItem setTag:i++];
+	[abMenuItem setTarget:target];
+
+        [abMenu addItem: abMenuItem];
+    }
 }
 
 // Executes an addressbook command in new window or tab
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm
+- (void) executeABCommandAtIndex: (int) theIndex inTerminal: (PseudoTerminal *) theTerm
 {
     PseudoTerminal *term;
-    NSDictionary *aDict;
-	
-	aDict = bookmarkData;
-	if(aDict == nil)
-		aDict = [[ITAddressBookMgr sharedInstance] defaultBookmarkData];
-	
-	// Where do we execute this command?
-    if(theTerm == nil)
-    {
-        term = [[PseudoTerminal alloc] init];
-		[term initWindowWithAddressbook: aDict];
-		[self addInTerminals: term];
-		[term release];
-		
-    }
-    else
-        term = theTerm;
-	
-	[term addNewSession: aDict];
-}
+    PTYSession *aSession;
+    NSString *cmd;
+    NSArray *arg;
+    NSDictionary *entry;
 
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withCommand: (NSString *)command
-{
-    PseudoTerminal *term;
-    NSDictionary *aDict;
-	
-	aDict = bookmarkData;
-	if(aDict == nil)
-		aDict = [[ITAddressBookMgr sharedInstance] defaultBookmarkData];
-	
-	// Where do we execute this command?
+    // Grab the addressbook command
+    entry = [[[ITAddressBookMgr sharedInstance] addressBook] objectAtIndex:theIndex];
+    [iTermController breakDown:[entry objectForKey:@"Command"] cmdPath:&cmd cmdArgs:&arg];
+    //        NSLog(@"%s(%d):-[PseudoTerminal ready to run:%@ arguments:%@]", __FILE__, __LINE__, cmd, arg );
+    
+    // Where do we execute this command?
     if(theTerm == nil)
     {
         term = [[PseudoTerminal alloc] init];
-		[term initWindowWithAddressbook: aDict];
-		[self addInTerminals: term];
-		[term release];
-		
-    }
-    else
-        term = theTerm;
-	
-	[term addNewSession: aDict withCommand: command];
-}
+	[term initWindow];
+	[self addInTerminals: term];
+	[term release];
 
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withURL: (NSString *)url
-{
-    PseudoTerminal *term;
-    NSDictionary *aDict;
-	
-	aDict = bookmarkData;
-	if(aDict == nil || [[aDict objectForKey:KEY_COMMAND] isEqualToString:@"$$"]) {
-		NSMutableDictionary *tempDict = [NSMutableDictionary dictionaryWithDictionary: aDict ? aDict : [[ITAddressBookMgr sharedInstance] defaultBookmarkData]];
-		NSURL *urlRep = [NSURL URLWithString: url];
-		NSString *urlType = [urlRep scheme];
-		
-		if ([urlType compare:@"ssh" options:NSCaseInsensitiveSearch] == NSOrderedSame) {
-			NSMutableString *tempString = [NSMutableString stringWithString:@"ssh "];
-			if ([urlRep user]) [tempString appendFormat:@"-l %@ ", [urlRep user]];
-			if ([urlRep port]) [tempString appendFormat:@"-p %@ ", [urlRep port]];
-			if ([urlRep host]) [tempString appendString:[urlRep host]];
-			[tempDict setObject:tempString forKey:KEY_COMMAND];
-			aDict = tempDict;
-		}
-		else if ([urlType compare:@"ftp" options:NSCaseInsensitiveSearch] == NSOrderedSame) {
-			NSMutableString *tempString = [NSMutableString stringWithFormat:@"ftp %@", url];
-			[tempDict setObject:tempString forKey:KEY_COMMAND];
-			aDict = tempDict;
-		}
-		else if ([urlType compare:@"telnet" options:NSCaseInsensitiveSearch] == NSOrderedSame) {
-			NSMutableString *tempString = [NSMutableString stringWithString:@"telnet "];
-			if ([urlRep user]) [tempString appendFormat:@"-l %@ ", [urlRep user]];
-			if ([urlRep host]) {
-				[tempString appendString:[urlRep host]];
-				if ([urlRep port]) [tempString appendFormat:@" %@", [urlRep port]];
-			}
-			[tempDict setObject:tempString forKey:KEY_COMMAND];
-			aDict = tempDict;
-		}
-	}
-	
-	// Where do we execute this command?
-    if(theTerm == nil)
-    {
-        term = [[PseudoTerminal alloc] init];
-		[term initWindowWithAddressbook: aDict];
-		[self addInTerminals: term];
-		[term release];
-		
+	[term setColumns: [[entry objectForKey:@"Col"]intValue]];
+	[term setRows: [[entry objectForKey:@"Row"]intValue]];
+	[term setAllFont: [entry objectForKey:@"Font"] nafont: [entry objectForKey:@"NAFont"]];
     }
     else
         term = theTerm;
-	
-	[term addNewSession: aDict withURL: url];
+    
+    // Initialize a new session
+    aSession = [[PTYSession alloc] init];
+    // set our preferences
+    [aSession setAddressBookEntry:entry];
+    // Add this session to our term and make it current
+    [term addInSessions: aSession];
+    [aSession release];
+
+    if ([entry objectForKey: @"Scrollback"])
+        [[aSession SCREEN] setScrollback:[[entry objectForKey: @"Scrollback"] intValue]];
+    else
+        [[aSession SCREEN] setScrollback:100000];
+    
+    NSDictionary *env=[NSDictionary dictionaryWithObject:([entry objectForKey:@"Directory"]?[entry objectForKey:@"Directory"]:@"~")  forKey:@"PWD"];
+    
+    // Start the command        
+    [term startProgram:cmd arguments:arg environment:env];
+    
+    // If we created a new window, set the size
+    if (theTerm == nil)
+        [term setWindowSize: NO];
+    
+    [term setCurrentSessionName:[entry objectForKey:@"Name"]];
 }
 
 - (void) launchScript: (id) sender
 {
     NSString *fullPath = [NSString stringWithFormat: @"%@/%@", [SCRIPT_DIRECTORY stringByExpandingTildeInPath], [sender title]];
-	
-	if ([[[sender title] pathExtension] isEqualToString: @"scpt"]) {
-		NSAppleScript *script;
-		NSDictionary *errorInfo = [NSDictionary dictionary];
-		NSURL *aURL = [NSURL fileURLWithPath: fullPath];
-		
-		// Make sure our script suite registry is loaded
-		[NSScriptSuiteRegistry sharedScriptSuiteRegistry];
-		
-		script = [[NSAppleScript alloc] initWithContentsOfURL: aURL error: &errorInfo];
-		[script executeAndReturnError: &errorInfo];
-		[script release];
-	}
-	else {
-		[[NSWorkspace sharedWorkspace] launchApplication:fullPath];
-	}
+
+    NSAppleScript *script;
+    NSDictionary *errorInfo = [NSDictionary dictionary];
+    NSURL *aURL = [NSURL fileURLWithPath: fullPath];
+
+    // Make sure our script suite registry is loaded
+    [NSScriptSuiteRegistry sharedScriptSuiteRegistry];
+
+    script = [[NSAppleScript alloc] initWithContentsOfURL: aURL error: &errorInfo];
+    [script executeAndReturnError: &errorInfo];
+    [script release];
     
 }
 
@@ -448,7 +455,6 @@ static BOOL initDone = NO;
 {
     return ([[FRONT currentSession] TEXTVIEW]);
 }
-
 
 @end
 
@@ -482,21 +488,8 @@ NSString *terminalsKey = @"terminals";
 // (See NSScriptKeyValueCoding.h)
 -(id)valueInTerminalsAtIndex:(unsigned)index
 {
-    //NSLog(@"iTerm: valueInTerminalsAtIndex %d: %@", index, [terminalWindows objectAtIndex: index]);
+    // NSLog(@"iTerm: valueInTerminalsAtIndex %d", index);
     return ([terminalWindows objectAtIndex: index]);
-}
-
-- (void) setCurrentTerminal: (PseudoTerminal *) thePseudoTerminal
-{
-    FRONT = thePseudoTerminal;
-	
-    // make sure this window is the key window
-    if([thePseudoTerminal windowInited] && [[thePseudoTerminal window] isKeyWindow] == NO)
-		[[thePseudoTerminal window] makeKeyAndOrderFront: self];
-	
-    // Post a notification
-    [[NSNotificationCenter defaultCenter] postNotificationName: @"iTermWindowBecameKey" object: thePseudoTerminal userInfo: nil];    
-	
 }
 
 -(void)replaceInTerminals:(PseudoTerminal *)object atIndex:(unsigned)index
@@ -520,19 +513,16 @@ NSString *terminalsKey = @"terminals";
 -(void)insertInTerminals:(PseudoTerminal *)object atIndex:(unsigned)index
 {
     if([terminalWindows containsObject: object] == YES)
-		return;
-    
-	[terminalWindows insertObject: object atIndex: index];
+	return;
+    [terminalWindows insertObject: object atIndex: index];
     // make sure we have a window
-    [object initWindowWithAddressbook:NULL];
+    [object initWindow];
 }
 
 -(void)removeFromTerminalsAtIndex:(unsigned)index
 {
     // NSLog(@"iTerm: removeFromTerminalsAtInde %d", index);
     [terminalWindows removeObjectAtIndex: index];
-    if([terminalWindows count] == 0)
-		[ITConfigPanelController close];
 }
 
 // a class method to provide the keys for KVC:
@@ -540,8 +530,8 @@ NSString *terminalsKey = @"terminals";
 {
     static NSArray *_kvcKeys = nil;
     if( nil == _kvcKeys ){
-		_kvcKeys = [[NSArray alloc] initWithObjects:
-			terminalsKey,  nil ];
+	_kvcKeys = [[NSArray alloc] initWithObjects:
+	    terminalsKey,  nil ];
     }
     return _kvcKeys;
 }

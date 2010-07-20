@@ -3,7 +3,7 @@
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **
  **  Project: iTerm
  **
@@ -61,6 +61,8 @@
     NSString* _searchString;
     BOOL _ignoresCase;
     
+    // last search location
+    unsigned int _lastSearchLocation;
 }
 
 + (id)sharedInstance;

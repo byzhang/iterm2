@@ -3,7 +3,7 @@
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **
  **  Project: iTerm
  **
@@ -90,13 +90,6 @@ static FindPanelWindowController *sharedInstance = nil;
     }
     
     [caseCheckBox setIntValue:[[FindCommandHandler sharedInstance] ignoresCase]];
-    
-}
-
-- (void)windowDidBecomeKey:(NSNotification *)aNotification
-{
-    // Post a notification
-    [[NSNotificationCenter defaultCenter] postNotificationName: @"nonTerminalWindowBecameKey" object: nil userInfo: nil];        
 }
 
 - (IBAction)ignoreCaseSwitchAction:(id)sender;
@@ -116,7 +109,6 @@ static FindPanelWindowController *sharedInstance = nil;
     
     [[FindCommandHandler sharedInstance] setSearchString:searchString];
     [[FindCommandHandler sharedInstance] findNext];
-	[[self window] close];
 }
 
 - (IBAction)findPrevious: (id) sender
@@ -130,7 +122,6 @@ static FindPanelWindowController *sharedInstance = nil;
     
     [[FindCommandHandler sharedInstance] setSearchString:searchString];
     [[FindCommandHandler sharedInstance] findPrevious];
-	[[self window] close];
 }
 
 // get/set methods
@@ -146,25 +137,15 @@ static FindPanelWindowController *sharedInstance = nil;
 
 - (void)setSearchString: (NSString *) aString
 {    
-    if (aString && [aString length]>0) {
-		[searchStringField setStringValue: aString];
-		
-	}		
+    if (aString)
+	[searchStringField setStringValue: aString];
     else
         [searchStringField setStringValue: @""];
 }
 
 - (NSString*)searchString;
 {
-	NSString *aString = [searchStringField stringValue];
-	
-	if ([aString length]>0) {
-		NSPasteboard *pboard = [NSPasteboard pasteboardWithName: NSFindPboard];
-		
-		[pboard declareTypes: [NSArray arrayWithObject: NSStringPboardType] owner: self];
-		[pboard setString: aString forType: NSStringPboardType];
-	}
-    return aString;
+    return [searchStringField stringValue];
 }
 
 @end
@@ -217,16 +198,19 @@ static FindPanelWindowController *sharedInstance = nil;
 
 - (IBAction) findWithSelection
 {
-    PTYTextView* textView = [self currentTextView];
+    NSTextView* textView = [self currentTextView];
     if (textView)
     {
         // get the selected text
-        NSString *contentString = [textView selectedText];
-		if (!contentString) {
+        NSRange aRange = [textView selectedRange];
+        if(aRange.length <= 0)
+        {
             NSBeep();
             return;
         }
-        [self setSearchString: contentString];
+        NSString *contentString = [[textView textStorage] string];
+        [self setSearchString: [contentString substringWithRange: aRange]];
+        _lastSearchLocation = 0;
         [self findNext];
     }
     else
@@ -235,10 +219,15 @@ static FindPanelWindowController *sharedInstance = nil;
 
 - (IBAction)jumpToSelection
 {
-    PTYTextView* textView = [self currentTextView];
+    NSTextView* textView = [self currentTextView];
     if (textView)
     {        
-		[textView scrollToSelection];
+        NSRange aRange = [textView selectedRange];
+        
+        if(aRange.length > 0)
+            [textView scrollRangeToVisible: aRange];
+        else
+            NSBeep();
     }
     else
         NSBeep();
@@ -246,7 +235,7 @@ static FindPanelWindowController *sharedInstance = nil;
 
 - (void) findSubString: (NSString *) subString forwardDirection: (BOOL) direction ignoringCase: (BOOL) caseCheck
 {
-    PTYTextView* textView = [self currentTextView];
+    NSTextView* textView = [self currentTextView];
     if (textView)
     {        
         if ([subString length] <= 0)
@@ -255,8 +244,51 @@ static FindPanelWindowController *sharedInstance = nil;
             return;
         }
         
-		[textView findString:subString forwardDirection: direction ignoringCase: caseCheck];
-	}
+        NSString *contentString = [[textView textStorage] string];
+        
+        if(_lastSearchLocation >= [contentString length] || _lastSearchLocation < 0)
+            _lastSearchLocation = 0;
+        
+        NSRange searchRange, foundRange;
+        unsigned int searchOptions = 0;
+        
+        if(direction == YES)
+            searchRange = NSMakeRange(_lastSearchLocation, [contentString length] - _lastSearchLocation);
+        else
+        {
+            searchRange = NSMakeRange(0, _lastSearchLocation);
+            searchOptions |= NSBackwardsSearch;
+        }
+        
+        if(searchRange.length <= 0)
+            searchRange.length = 1;
+        
+        if(caseCheck == YES)
+            searchOptions |= NSCaseInsensitiveSearch;
+        
+        foundRange = [contentString rangeOfString: subString options: searchOptions range: searchRange];
+        if(foundRange.length > 0)
+        {
+            if(direction == YES)
+                _lastSearchLocation = foundRange.location + 1;
+            else
+                _lastSearchLocation = foundRange.location + foundRange.length - 1;
+            [textView setSelectedRange: foundRange];
+            [self jumpToSelection];
+            [[textView window] makeKeyAndOrderFront: self];
+        }
+        else
+        {
+            NSBeep();
+            
+            if (direction)
+                _lastSearchLocation = 0;
+            else if ([contentString length])
+                _lastSearchLocation = [contentString length] - 1;
+        }
+    }
+    else
+        NSBeep();
 }
 
 - (NSString*)searchString;
@@ -266,7 +298,12 @@ static FindPanelWindowController *sharedInstance = nil;
 
 - (void) setSearchString: (NSString *) aString
 {
-	    
+    if (_searchString != nil)
+    {
+        if([aString isEqualToString: _searchString] == NO)
+            _lastSearchLocation = 0;
+    }
+    
     [_searchString release];
     _searchString = [aString retain];
 }

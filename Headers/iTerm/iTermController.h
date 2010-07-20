@@ -1,11 +1,11 @@
 // -*- mode:objc -*-
-// $Id: iTermController.h,v 1.29 2008-10-08 05:54:50 yfabian Exp $
+// $Id: iTermController.h,v 1.8 2003-10-02 23:14:57 ujwal Exp $
 /*
  **  iTermController.h
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -31,19 +31,22 @@
 
 @class PseudoTerminal;
 @class PTYTextView;
-@class TreeNode;
-@class ItermGrowlDelegate;
 
 @interface iTermController : NSObject
 {
+    
     // PseudoTerminal objects
     NSMutableArray *terminalWindows;
     id FRONT;
-	ItermGrowlDelegate *gd;
 }
 
 + (iTermController*)sharedInstance;
-+ (void)sharedInstanceRelease;
+
+// NSApplication Delegate methods
+- (BOOL) applicationShouldTerminate: (NSNotification *) theNotification;
+- (BOOL)applicationOpenUntitledFile:(NSApplication *)app;
+- (NSMenu *)applicationDockMenu:(NSApplication *)sender;
+- (void)applicationDidUnhide:(NSNotification *)aNotification;
 
 // actions are forwarded form application
 - (IBAction)newWindow:(id)sender;
@@ -53,13 +56,14 @@
 - (void)newSessionInTabAtIndex: (id) sender;
 - (void)newSessionInWindowAtIndex: (id) sender;
 
+// Utility methods
++ (void) breakDown:(NSString *)cmdl cmdPath: (NSString **) cmd cmdArgs: (NSArray **) path;
+- (void) setCurrentTerminal: (PseudoTerminal *) thePseudoTerminal;
 - (PseudoTerminal *) currentTerminal;
 - (void) terminalWillClose: (PseudoTerminal *) theTerminalWindow;
-- (NSArray *) sortedEncodingList;
-- (void) alternativeMenu: (NSMenu *)aMenu forNode: (TreeNode *) theNode target: (id) aTarget withShortcuts: (BOOL) withShortcuts;
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm;
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withCommand: (NSString *)command;
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withURL: (NSString *)url;
+- (NSStringEncoding const*) encodingList;
+- (void) buildAddressBookMenu:(NSMenu *)abMenu target:(id)target withShortcuts: (BOOL) withShortcuts;
+- (void) executeABCommandAtIndex: (int) theIndex inTerminal: (PseudoTerminal *) theTerm;
 - (PTYTextView *) frontTextView;
 
 @end
@@ -72,7 +76,6 @@
 // accessors for to-many relationships:
 -(NSArray*)terminals;
 -(void)setTerminals: (NSArray*)terminals;
-- (void) setCurrentTerminal: (PseudoTerminal *) aTerminal;
 
 -(id)valueInTerminalsAtIndex:(unsigned)index;
 -(void)replaceInTerminals:(PseudoTerminal *)object atIndex:(unsigned)index;
@@ -85,4 +88,3 @@
 - (NSArray*)kvcKeys;
 
 @end
-

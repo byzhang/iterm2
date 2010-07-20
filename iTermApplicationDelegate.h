@@ -1,11 +1,11 @@
 // -*- mode:objc -*-
-// $Id: iTermApplicationDelegate.h,v 1.21 2006-11-21 19:24:29 yfabian Exp $
+// $Id: iTermApplicationDelegate.h,v 1.4 2003-10-02 23:14:56 ujwal Exp $
 /*
  **  iTermApplicationDelegate.h
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **	     Initial code by Kiichi Kusama
  **
  **  Project: iTerm
@@ -34,54 +34,35 @@
 @interface iTermApplicationDelegate : NSObject
 {
     // about window
-	NSWindowController *aboutController;
     IBOutlet id ABOUT;
-	IBOutlet id scrollingInfo;
     IBOutlet NSTextView *AUTHORS;
-
-	//Scrolling
-    NSTimer	*scrollTimer;
-	NSTimer	*eventLoopScrollTimer;
-    float	scrollLocation;
-    int		maxScroll;
-    float   scrollRate;
-	
     
     // Menu items
-    IBOutlet NSMenu     *bookmarkMenu;
     IBOutlet NSMenuItem *selectTab;
     IBOutlet NSMenuItem *previousTerminal;
     IBOutlet NSMenuItem *nextTerminal;
+    IBOutlet NSMenuItem *newTab;
+    IBOutlet NSMenuItem *newWindow;
     IBOutlet NSMenuItem *logStart;
     IBOutlet NSMenuItem *logStop;
-    IBOutlet NSMenuItem *closeTab;
-    IBOutlet NSMenuItem *closeWindow;
-    IBOutlet NSMenuItem *sendInputToAllSessions;
-	IBOutlet NSMenuItem *fontSizeFollowWindowResize;
-	IBOutlet NSMenuItem *toggleBookmarksView;
-    IBOutlet NSMenuItem *toggleTransparency;
-
 }
 
 // NSApplication Delegate methods
 - (void)applicationWillFinishLaunching:(NSNotification *)aNotification;
 - (BOOL) applicationShouldTerminate: (NSNotification *) theNotification;
-- (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename;
 - (BOOL)applicationOpenUntitledFile:(NSApplication *)app;
 - (NSMenu *)applicationDockMenu:(NSApplication *)sender;
 - (void)applicationDidUnhide:(NSNotification *)aNotification;
-- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app;
 
 - (IBAction)newWindow:(id)sender;
 - (IBAction)newSession:(id)sender;
-- (IBAction)buildScriptMenu:(id)sender;
 
     // About window
 - (IBAction)showAbout:(id)sender;
 - (IBAction)aboutOK:(id)sender;
 
+- (IBAction)showABWindow:(id)sender;
 - (IBAction)showPrefWindow:(id)sender;
-- (IBAction)showBookmarkWindow:(id)sender;
 
     // navigation
 - (IBAction) previousTerminal: (id) sender;
@@ -91,18 +72,7 @@
 - (void) reloadMenus: (NSNotification *) aNotification;
 - (void) buildSessionSubmenu: (NSNotification *) aNotification;
 - (void) buildAddressBookMenu: (NSNotification *) aNotification;
-- (void) reloadSessionMenus: (NSNotification *) aNotification;
-- (void) nonTerminalWindowBecameKey: (NSNotification *) aNotification;
-
-// font control
-- (IBAction) biggerFont: (id) sender;
-- (IBAction) smallerFont: (id) sender;
-
-// transparency
-- (IBAction) useTransparency: (id) sender;
-
-// size
-- (IBAction) returnToDefaultSize: (id) sender;
+- (void) resetLogMenu: (NSNotification *) aNotification;
 
 @end
 
@@ -116,7 +86,6 @@
 // accessors for to-many relationships:
 -(NSArray*)terminals;
 -(void)setTerminals: (NSArray*)terminals;
-- (void) setCurrentTerminal: (PseudoTerminal *) aTerminal;
 
 -(id)valueInTerminalsAtIndex:(unsigned)index;
 -(void)replaceInTerminals:(PseudoTerminal *)object atIndex:(unsigned)index;
