@@ -66,7 +66,6 @@ static BOOL onScreen = NO;
     [singleInstance loadConfigWindow: nil];
 	
 	[[singleInstance window] setFrameAutosaveName: @"Config Panel"];
-	[[singleInstance window] setLevel:NSFloatingWindowLevel];
 	[[singleInstance window] makeKeyAndOrderFront: self];
     onScreen = YES;
 }
@@ -83,12 +82,6 @@ static BOOL onScreen = NO;
 {
     return onScreen;
 }
-
-+ (id) singleInstance
-{
-	return singleInstance;
-}
-
 
 - (id)init
 {
@@ -162,17 +155,25 @@ static BOOL onScreen = NO;
 
 - (IBAction) setTransparency: (id) sender
 {
-	int tr = [sender intValue];
-	[[_pseudoTerminal currentSession] setTransparency: (float)tr/100.0];
-	if(sender == CONFIG_TRANS2)
-		[CONFIG_TRANSPARENCY setIntValue:tr];
-	else if (sender == CONFIG_TRANSPARENCY)
-		[CONFIG_TRANS2 setIntValue:tr];
-}
-
-- (IBAction) setBlur: (id) sender
-{
-	[_pseudoTerminal setBlur: ([CONFIG_BLUR state] == NSOnState)];
+    float tr;
+    
+    if (sender == transparencyButton) {
+        [[_pseudoTerminal currentSession] setUseTransparency: [transparencyButton state] == NSOnState];
+        [CONFIG_TRANS2 setEnabled:[transparencyButton state]];
+        [CONFIG_TRANSPARENCY setEnabled:[transparencyButton state]];
+    }
+    else {
+        tr = [sender floatValue];
+    
+        [[_pseudoTerminal currentSession] setTransparency:  tr/100.0];
+        if(sender == CONFIG_TRANS2)
+            [CONFIG_TRANSPARENCY setFloatValue:tr];
+        else if (sender == CONFIG_TRANSPARENCY)
+            [CONFIG_TRANS2 setFloatValue:tr];
+        [transparencyButton setState: tr!=0];
+        [[_pseudoTerminal currentSession] setUseTransparency: [transparencyButton state] == NSOnState];
+        
+    }
 }
 
 - (IBAction) setBold: (id) sender
@@ -183,7 +184,7 @@ static BOOL onScreen = NO;
 
 - (IBAction) updateProfile: (id) sender
 {
-    [_pseudoTerminal updateCurrentSessionProfiles];
+    [_pseudoTerminal updateCurretSessionProfiles];
 }
 
 - (IBAction) setForegroundColor: (id) sender
@@ -263,7 +264,6 @@ static BOOL onScreen = NO;
 	[aFontPanel setAccessoryView: nil];
     [[NSFontManager sharedFontManager] setSelectedFont:configFont isMultiple:NO];
     [[NSFontManager sharedFontManager] orderFrontFontPanel:self];
-	[aFontPanel setLevel:CGShieldingWindowLevel()];
 }
 
 - (IBAction)windowConfigNAFont:(id)sender
@@ -277,7 +277,6 @@ static BOOL onScreen = NO;
 	[aFontPanel setAccessoryView: nil];
     [[NSFontManager sharedFontManager] setSelectedFont:configNAFont isMultiple:NO];
     [[NSFontManager sharedFontManager] orderFrontFontPanel:self];
-	[aFontPanel setLevel:CGShieldingWindowLevel()];
 }
 
 
@@ -310,11 +309,6 @@ static BOOL onScreen = NO;
 // background image stuff
 - (IBAction) useBackgroundImage: (id) sender
 {
-	if ([_pseudoTerminal fullScreen]) {
-		[useBackgroundImage setState: backgroundImagePath != nil];
-		return;
-	}
-	
     [CONFIG_BACKGROUND setEnabled: ([useBackgroundImage state] == NSOffState)?YES:NO];
     if([useBackgroundImage state]==NSOffState)
     {
@@ -323,7 +317,7 @@ static BOOL onScreen = NO;
 		[backgroundImageView setImage: nil];
 		[[_pseudoTerminal currentSession] setBackgroundImagePath: @""];
     }
-    else 
+    else
 		[self chooseBackgroundImage: sender];
 }
 
@@ -346,7 +340,7 @@ static BOOL onScreen = NO;
 	
     panel = [NSOpenPanel openPanel];
     [panel setAllowsMultipleSelection: NO];
-		
+	
     directory = NSHomeDirectory();
     filename = [NSString stringWithString: @""];
 	
@@ -436,14 +430,16 @@ static BOOL onScreen = NO;
 	}
 	[CONFIG_ENCODING selectItemAtIndex: [CONFIG_ENCODING indexOfItemWithTag: [[currentSession TERMINAL] encoding]]];
 	
-    [CONFIG_TRANSPARENCY setIntValue:((int)([currentSession transparency]*100))];
-    [CONFIG_TRANS2 setIntValue:((int)([currentSession transparency]*100))];
+    [CONFIG_TRANSPARENCY setFloatValue:([currentSession transparency]*100)];
+    [CONFIG_TRANS2 setFloatValue:([currentSession transparency]*100)];
+    [transparencyButton setState: [currentSession useTransparency]];
+    [CONFIG_TRANS2 setEnabled:[transparencyButton state]];
+    [CONFIG_TRANSPARENCY setEnabled:[transparencyButton state]];
     
     [AI_ON setState:[currentSession antiIdle]?NSOnState:NSOffState];
     [AI_CODE setIntValue:[currentSession antiCode]];
     
     [CONFIG_ANTIALIAS setState: [[currentSession TEXTVIEW] antiAlias]];
-	[blurButton setState: [_pseudoTerminal blur]];
 	
 	[boldButton setState: ![currentSession disableBold]];
     [CONFIG_BOLD setEnabled:[boldButton state]];

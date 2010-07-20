@@ -52,7 +52,6 @@
 @implementation PTYSession
 
 static NSString *TERM_ENVNAME = @"TERM";
-static NSString *COLORFGBG_ENVNAME = @"COLORFGBG";
 static NSString *PWD_ENVNAME = @"PWD";
 static NSString *PWD_ENVVALUE = @"~";
 
@@ -65,158 +64,144 @@ static NSColor *deadStateColor;
 
 static NSImage *warningImage;
 
-+ (void)initialize
++ (void) initialize
 {
 	NSBundle *thisBundle;
 	NSString *imagePath;
 
 	thisBundle = [NSBundle bundleForClass: [self class]];
 	imagePath = [thisBundle pathForResource:@"important" ofType:@"png"];
-	if (imagePath) {
-		warningImage = [[NSImage alloc] initByReferencingFile: imagePath];	
-		//NSLog(@"%@\n%@",imagePath,warningImage);
-	}
+	warningImage = [[NSImage alloc] initByReferencingFile: imagePath];	
 
-	normalStateColor = [NSColor blackColor];
-	chosenStateColor = [NSColor blackColor];
-	idleStateColor = [NSColor redColor];
-	newOutputStateColor = [NSColor purpleColor];
-	deadStateColor = [NSColor grayColor];
+    normalStateColor = [NSColor blackColor];
+    chosenStateColor = [NSColor blackColor];
+    idleStateColor = [NSColor redColor];
+    newOutputStateColor = [NSColor purpleColor];
+    deadStateColor = [NSColor grayColor];
+    
 }
 
 // init/dealloc
-- (id)init
+- (id) init
 {
-	if((self = [super init]) == nil)
-		return (nil);
-
-	gettimeofday(&lastInput, NULL);
-	lastOutput = lastBlink = lastInput;
-	EXIT=NO;
-
-	updateTimer = nil;
-	antiIdleTimer = nil;
-	addressBookEntry=nil;
-
+	
+    if((self = [super init]) == nil)
+        return (nil);
+	
+    gettimeofday(&lastInput, NULL);
+    lastOutput = lastBlink = lastUpdate = lastInput;
+    antiIdle=EXIT=NO;
+    
+    addressBookEntry=nil;
+	
 #if DEBUG_ALLOC
-	NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
-#endif
+    NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
+#endif    
+	
+	// allocate a semaphore to coordinate data processing
+	MPCreateBinarySemaphore(&dataSemaphore);
 
-	// Allocate screen, shell, and terminal objects
-	SHELL = [[PTYTask alloc] init];
-	TERMINAL = [[VT100Terminal alloc] init];
-	SCREEN = [[VT100Screen alloc] init];
-	NSParameterAssert(SHELL != nil && TERMINAL != nil && SCREEN != nil);	
+	// allocate a semaphore to coordinate with thread
+	MPCreateBinarySemaphore(&threadEndSemaphore);
+	
+    // Allocate screen, shell, and terminal objects
+    SHELL = [[PTYTask alloc] init];
+    TERMINAL = [[VT100Terminal alloc] init];
+    SCREEN = [[VT100Screen alloc] init];
+    NSParameterAssert(SHELL != nil && TERMINAL != nil && SCREEN != nil);	
 
 	// Need Growl plist stuff
 	gd = [iTermGrowlDelegate sharedInstance];
-	growlIdle = growlNewOutput = NO;
-
-	return (self);
+    growlIdle = growlNewOutput = NO;
+	
+    return (self);
 }
 
-- (void)dealloc
+- (void) dealloc
 {
 #if DEBUG_ALLOC
-	NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
+    NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
 #endif
-
+	
 	[icon release];
-	[TERM_VALUE release];
-	[COLORFGBG_VALUE release];
-	[view release];
-	[name release];
-	[windowTitle release];
-	[addressBookEntry release];
-	[backgroundImagePath release];
-	[antiIdleTimer invalidate];
-	[antiIdleTimer release];
-	[updateTimer invalidate];
-	[updateTimer release];
-
-	[SHELL release];
-	SHELL = nil;
+    [TERM_VALUE release];
+    [view release];
+    [name release];
+    [windowTitle release];
+    [addressBookEntry release];
+    [backgroundImagePath release];
+	
+	
+    [SHELL release];
+    SHELL = nil;
 	[SCREEN release];
-	SCREEN = nil;
-	[TERMINAL release];
-	TERMINAL = nil;
-
+    SCREEN = nil;
+    [TERMINAL release];
+    TERMINAL = nil;    
+    
 	[[NSNotificationCenter defaultCenter] removeObserver: self];
-
-	[super dealloc];	
+	
+    [super dealloc];    
 #if DEBUG_ALLOC
-	NSLog(@"%s: 0x%x, done", __PRETTY_FUNCTION__, self);
+    NSLog(@"%s: 0x%x, done", __PRETTY_FUNCTION__, self);
 #endif
 }
 
 // Session specific methods
-- (BOOL)initScreen: (NSRect) aRect width:(int)width height:(int) height
+- (void)initScreen: (NSRect) aRect width:(int)width height:(int) height
 {
-	NSSize aSize;
-
+    NSSize aSize;
+	
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYSession initScreen]", __FILE__, __LINE__);
+    NSLog(@"%s(%d):-[PTYSession initScreen]",
+          __FILE__, __LINE__);
 #endif
-
-	[SCREEN setSession:self];
-
-	// Allocate a scrollview
-	SCROLLVIEW = [[PTYScrollView alloc] initWithFrame: NSMakeRect(0, 0, aRect.size.width, aRect.size.height)];
-	[SCROLLVIEW setHasVerticalScroller:![parent fullScreen] && ![[PreferencePanel sharedInstance] hideScrollbar]];
-	NSParameterAssert(SCROLLVIEW != nil);
-	[SCROLLVIEW setAutoresizingMask: NSViewWidthSizable|NSViewHeightSizable];
-
-	// assign the main view
-	view = SCROLLVIEW;
-
-	// Allocate a text view
-	aSize = [SCROLLVIEW contentSize];
-	TEXTVIEW = [[PTYTextView alloc] initWithFrame: NSMakeRect(0, 0, aSize.width, aSize.height)];
-	[TEXTVIEW setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
-	[TEXTVIEW setUseTransparency: [parent useTransparency]];
-
-	// assign terminal and task objects
-	[SCREEN setShellTask:SHELL];
-	[SCREEN setTerminal:TERMINAL];
-	[TERMINAL setScreen: SCREEN];
-	[SHELL setDelegate:self];
-
-	// initialize the screen
-	if ([SCREEN initScreenWithWidth:width Height:height]) {
-		[self setName:@"Shell"];
-		[self setDefaultName:@"Shell"];
-
-		[TEXTVIEW setDataSource: SCREEN];
-		[TEXTVIEW setDelegate: self];
-		[SCROLLVIEW setDocumentView:TEXTVIEW];
-		[TEXTVIEW release];
-		[SCROLLVIEW setDocumentCursor: [PTYTextView textViewCursor]];
-
-		ai_code=0;
-		[antiIdleTimer release];
-		antiIdleTimer = nil;
-		newOutput = NO;
-
-		// register for some notifications	
-		[[NSNotificationCenter defaultCenter] addObserver:self
-				selector:@selector(tabViewWillRedraw:)
-				name:@"iTermTabViewWillRedraw" object:nil];
+	
+	
+    [SCREEN setSession:self];
 		
-		return YES;
-	}
-	else {
-		[SCREEN release];
-		SCREEN = nil;
-		[TEXTVIEW release];
-		NSRunCriticalAlertPanel(NSLocalizedStringFromTableInBundle(@"Out of memory",@"iTerm", [NSBundle bundleForClass: [self class]], @"Error"),
-						 NSLocalizedStringFromTableInBundle(@"New sesssion cannot be created. Try smaller buffer sizes.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Error"),
-						 NSLocalizedStringFromTableInBundle(@"OK",@"iTerm", [NSBundle bundleForClass: [self class]], @"OK"),
-						 nil, nil);
+    // Allocate a scrollview
+    SCROLLVIEW = [[PTYScrollView alloc] initWithFrame: NSMakeRect(0, 0, aRect.size.width, aRect.size.height)];
+    [SCROLLVIEW setHasVerticalScroller:YES];
+    NSParameterAssert(SCROLLVIEW != nil);
+    [SCROLLVIEW setAutoresizingMask: NSViewWidthSizable|NSViewHeightSizable];
+	
+		
+    // assign the main view
+    view = SCROLLVIEW;
+    
+    // Allocate a text view
+    aSize = [PTYScrollView contentSizeForFrameSize: [SCROLLVIEW frame].size hasHorizontalScroller: NO hasVerticalScroller: YES borderType: [SCROLLVIEW borderType]];
+    TEXTVIEW = [[PTYTextView alloc] initWithFrame: NSMakeRect(0, 0, aSize.width, aSize.height)];
+	[TEXTVIEW setAutoresizingMask: NSViewWidthSizable | NSViewHeightSizable];
+	
+    // assign terminal and task objects
+    [SCREEN setShellTask:SHELL];
+    [SCREEN setTerminal:TERMINAL];
+    [TERMINAL setScreen: SCREEN];
+    [SHELL setDelegate:self];
+	
+    // initialize the screen
+    [SCREEN initScreenWithWidth:width Height:height];
+	[self setName:@"Shell"];
 
-		return NO;
-	}
 	
+    [TEXTVIEW setDataSource: SCREEN];
+    [TEXTVIEW setDelegate: self];
+    [SCROLLVIEW setDocumentView:TEXTVIEW];
+    [TEXTVIEW release];
+    [SCROLLVIEW setDocumentCursor: [PTYTextView textViewCursor]];
+
+    ai_code=0;
+    antiIdle = NO;
+    newOutput = NO;
 	
+	// register for some notifications	
+	[[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(tabViewWillRedraw:)
+                                                 name:@"iTermTabViewWillRedraw"
+                                               object:nil];
+		
 }
 
 - (BOOL) isActiveSession
@@ -239,22 +224,7 @@ static NSImage *warningImage;
 #endif
     if ([env objectForKey:TERM_ENVNAME] == nil)
         [env setObject:TERM_VALUE forKey:TERM_ENVNAME];
-
-    if ([env objectForKey:COLORFGBG_ENVNAME] == nil && COLORFGBG_VALUE != nil)
-        [env setObject:COLORFGBG_VALUE forKey:COLORFGBG_ENVNAME];
-
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
-    NSString* locale = [self _getLocale];
-    if(locale != nil) {
-        [env setObject:locale forKey:@"LANG"];
-        [env setObject:locale forKey:@"LC_COLLATE"];
-        [env setObject:locale forKey:@"LC_CTYPE"];
-        [env setObject:locale forKey:@"LC_MESSAGES"];
-        [env setObject:locale forKey:@"LC_MONETARY"];
-        [env setObject:locale forKey:@"LC_NUMERIC"];
-        [env setObject:locale forKey:@"LC_TIME"];
-    }
-#endif
+	
     if ([env objectForKey:PWD_ENVNAME] == nil)
         [env setObject:[PWD_ENVVALUE stringByExpandingTildeInPath] forKey:PWD_ENVNAME];
 	
@@ -264,116 +234,104 @@ static NSImage *warningImage;
 					width:[SCREEN width]
 				   height:[SCREEN height]];
 	
+	// launch a thread to process the data read from the SHELL process
+	[NSThread detachNewThreadSelector: @selector(_processReadDataThread:) toTarget: self withObject: nil];
+	
 }
 
 
 - (void) terminate
 {
+			
 	// deregister from the notification center
-	[[NSNotificationCenter defaultCenter] removeObserver:self];
-
-	EXIT = YES;
-	[SHELL stop];	
-
-	// final update of display
-	[self updateDisplay];
-
-	[addressBookEntry release];
-	addressBookEntry = nil;
+	[[NSNotificationCenter defaultCenter] removeObserver:self];    
+    
+    EXIT = YES;
+	[SHELL stop];
 	
-	[TEXTVIEW setDataSource: nil];
+	// wait till all the remaining data is processed
+	MPWaitOnSemaphore(threadEndSemaphore, kDurationForever);
+    MPDeleteSemaphore(threadEndSemaphore);
+
+	// release the data processing semaphore
+	MPDeleteSemaphore(dataSemaphore);
+		
+    [addressBookEntry release];
+    addressBookEntry = nil;
+	
+    [TEXTVIEW setDataSource: nil];
 	[TEXTVIEW setDelegate: nil];
-	[TEXTVIEW removeFromSuperview];
+    [TEXTVIEW removeFromSuperview];
 
-	[SHELL setDelegate:nil];
-	[SCREEN setShellTask:nil];
-	[SCREEN setSession: nil];
-	[SCREEN setTerminal: nil];
-	[TERMINAL setScreen: nil];
+    [SHELL setDelegate:nil];
+    [SCREEN setShellTask:nil];
+    [SCREEN setSession: nil];
+    [SCREEN setTerminal: nil];
+    [TERMINAL setScreen: nil];
 
-	[updateTimer invalidate];
-	[updateTimer release];
-	updateTimer = nil;	
-
-	parent = nil;
+    
+    parent = nil;
+	
 }
 
-- (void)writeTask:(NSData*)data
+- (void)writeTask:(NSData *)data
 {
-	// check if we want to send this input to all the sessions
-	if([parent sendInputToAllSessions] == NO) {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	PTYScroller *ptys=(PTYScroller *)[SCROLLVIEW verticalScroller];
+
+    // check if we want to send this input to all the sessions
+    if([parent sendInputToAllSessions] == NO)
+    {
 		if (!EXIT) {
-			[self setBell: NO];
-			PTYScroller* ptys=(PTYScroller*)[SCROLLVIEW verticalScroller];
 			[SHELL writeTask: data];
-			[ptys setUserScroll:NO];
+			// Make sure we scroll down to the end
+			[TEXTVIEW scrollEnd];
+			[ptys setUserScroll: NO];		
 		}
-	}
-	else {
+    }
+    else
+    {
 		// send to all sessions
 		[parent sendInputToAllSessions: data];
-	}
+    }
+		
+	[pool release];
 }
 
-- (void)readTask:(NSData*)data
+- (void)readTask:(char *)buf length:(int)length
 {
-	if([data length] == 0 || EXIT)
-		return;
-
+	
+	if (buf == NULL)
+        return;
+	
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYSession readTask:%@]", __FILE__, __LINE__,
-		[[NSString alloc] initWithBytes:[data bytes] length:[data length] encoding:nil]);
+    NSLog(@"%s(%d):-[PTYSession readTask:%@]", __FILE__, __LINE__, [[[NSString alloc] initWithBytes: buf length:length encoding: nil] autorelease] );
 #endif
-
-	[TERMINAL putStreamData:data];
-
-	VT100TCC token;
-
-	// while loop to process all the tokens we can get
-	while(!EXIT && TERMINAL && ((token = [TERMINAL getNextToken]),
-			token.type != VT100_WAIT && token.type != VT100CC_NULL))
-	{
-		// process token
-		if (token.type != VT100_SKIP)
-		{
-			if (token.type == VT100_NOTSUPPORT) {
-				//NSLog(@"%s(%d):not support token", __FILE__ , __LINE__);
-			}
-			else {
-				[SCREEN putToken:token];
-			}
-		}
-	} // end token processing loop
-
-	gettimeofday(&lastOutput, NULL);
-	newOutput=YES;
-
-	// Make sure the screen gets redrawn soonish
-	[self scheduleUpdateSoon:YES];
+	
+    [TERMINAL putStreamData:buf length:length];	
+	
+	// signal the data processing thread
+	MPSignalSemaphore(dataSemaphore);
+	
 }
 
 - (void)brokenPipe
 {
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYSession brokenPipe]", __FILE__, __LINE__);
+    NSLog(@"%s(%d):-[PTYSession brokenPipe]", __FILE__, __LINE__);
 #endif
-	[gd growlNotify:NSLocalizedStringFromTableInBundle(@"Broken Pipe",@"iTerm", [NSBundle bundleForClass: [self class]], @"Growl Alerts")
-	withDescription:[NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"Session %@ #%d just terminated.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Growl Alerts"),[self name],[self realObjectCount]] 
-	andNotification:@"Broken Pipes"];
+    if (EXIT) return;
+    
+    EXIT = YES;
 
-	EXIT=YES;
-	[self setLabelAttribute];
-
-	if ([self autoClose]) {
-		[parent closeSession: self];
-	}
-	else
-	{
-		[self updateDisplay];
-	}
+    [gd growlNotify:NSLocalizedStringFromTableInBundle(@"Broken Pipe",@"iTerm", [NSBundle bundleForClass: [self class]], @"Growl Alerts")
+    withDescription:[NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"Session %@ #%d just terminated.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Growl Alerts"),[self name],[self realObjectCount]] 
+    andNotification:@"Broken Pipes"];
+    
+    [self setName:[NSString stringWithFormat:@"[%@]",[self name]]];
 }
 
-- (BOOL) hasKeyMappingForEvent: (NSEvent *) event highPriority: (BOOL) priority
+- (BOOL) hasKeyMappingForEvent: (NSEvent *) event
 {
     unsigned int modflag;
     unsigned short keycode;
@@ -382,7 +340,6 @@ static NSImage *warningImage;
     unichar unicode, unmodunicode;
 	int keyBindingAction;
 	NSString *keyBindingText;
-	BOOL keyBindingPriority;
         
     modflag = [event modifierFlags];
     keycode = [event keyCode];
@@ -396,11 +353,10 @@ static NSImage *warningImage;
 	// Check if we have a custom key mapping for this event
 	keyBindingAction = [[iTermKeyBindingMgr singleInstance] actionForKeyCode: unmodunicode 
 																   modifiers: modflag 
-																highPriority: &keyBindingPriority
 																		text: &keyBindingText 
 																	 profile: [[self addressBookEntry] objectForKey: KEY_KEYBOARD_PROFILE]];
 	
-	return (keyBindingAction >= 0 && keyBindingPriority >= priority);
+	return (keyBindingAction >= 0);
 }
 
 // Screen for special keys
@@ -413,7 +369,6 @@ static NSImage *warningImage;
     int send_pchr = -1;
 	int keyBindingAction;
 	NSString *keyBindingText;
-	BOOL priority;
     
     unsigned int modflag;
     unsigned short keycode;
@@ -439,11 +394,13 @@ static NSImage *warningImage;
     
     //NSLog(@"event:%@ (%x+%x)[%@][%@]:%x(%c) <%d>", event,modflag,keycode,keystr,unmodkeystr,unicode,unicode,(modflag & NSNumericPadKeyMask));
     
+    // Clear the bell
+    [self setBell: NO];
+	
 	// Check if we have a custom key mapping for this event
 	keyBindingAction = [[iTermKeyBindingMgr singleInstance] actionForKeyCode: unmodunicode 
 																   modifiers: modflag 
-																highPriority: &priority
-																		text: &keyBindingText 
+																		 text: &keyBindingText 
 																	 profile: [[self addressBookEntry] objectForKey: KEY_KEYBOARD_PROFILE]];
 	if(keyBindingAction >= 0)
 	{
@@ -467,11 +424,9 @@ static NSImage *warningImage;
 				break;	
 			case KEY_ACTION_SCROLL_END:
 				[TEXTVIEW scrollEnd];
-				[(PTYScrollView *)[TEXTVIEW enclosingScrollView] detectUserScroll]; 
 				break;
 			case KEY_ACTION_SCROLL_HOME:
 				[TEXTVIEW scrollHome];
-				[(PTYScrollView *)[TEXTVIEW enclosingScrollView] detectUserScroll]; 
 				break;
 			case KEY_ACTION_SCROLL_LINE_DOWN:
 				[TEXTVIEW scrollLineDown: self];
@@ -503,17 +458,6 @@ static NSImage *warningImage;
 					[self writeTask:[NSData dataWithBytes:&hexCode length: sizeof(hexCode)]];
 				}
 				break;
-			case KEY_ACTION_TEXT:
-				if([keyBindingText length] > 0)
-				{
-					NSMutableString *aString = [NSMutableString stringWithString: keyBindingText];
-					[aString replaceOccurrencesOfString:@"\\n" withString:@"\n" options:NSLiteralSearch range:NSMakeRange(0,[aString length])];
-					[aString replaceOccurrencesOfString:@"\\e" withString:@"\e" options:NSLiteralSearch range:NSMakeRange(0,[aString length])];
-					[aString replaceOccurrencesOfString:@"\\a" withString:@"\a" options:NSLiteralSearch range:NSMakeRange(0,[aString length])];
-					[aString replaceOccurrencesOfString:@"\\t" withString:@"\t" options:NSLiteralSearch range:NSMakeRange(0,[aString length])];
-					[self writeTask: [aString dataUsingEncoding: NSUTF8StringEncoding]];
-				}
-				break;
 			case KEY_ACTION_IGNORE:
 				break;
 			default:
@@ -540,8 +484,8 @@ static NSImage *warningImage;
 					data = [TERMINAL keyInsert]; break;
 				case NSDeleteFunctionKey:
 					data = [TERMINAL keyDelete]; break;
-				case NSHomeFunctionKey: data = [TERMINAL keyHome:modflag]; break;
-				case NSEndFunctionKey: data = [TERMINAL keyEnd:modflag]; break;
+				case NSHomeFunctionKey: data = [TERMINAL keyHome]; break;
+				case NSEndFunctionKey: data = [TERMINAL keyEnd]; break;
 				case NSPageUpFunctionKey: data = [TERMINAL keyPageUp]; break;
 				case NSPageDownFunctionKey: data = [TERMINAL keyPageDown]; break;
 					
@@ -551,7 +495,8 @@ static NSImage *warningImage;
 				case NSPauseFunctionKey:
 					break;
 				case NSClearLineFunctionKey:
-					data = [@"\e" dataUsingEncoding: NSUTF8StringEncoding];
+					if([TERMINAL keypadMode])
+						data = [TERMINAL keyPFn: 1];
 					break;
 			}
 			
@@ -562,20 +507,13 @@ static NSImage *warningImage;
 				send_str = (unsigned char *)[data bytes];
 				send_strlen = [data length];
 			}
-            else if (keystr != nil) {
-                NSData *keydat = ((modflag & NSControlKeyMask) && unicode>0)?
-                    [keystr dataUsingEncoding:NSUTF8StringEncoding]:
-                    [unmodkeystr dataUsingEncoding:NSUTF8StringEncoding];
-                send_str = (unsigned char *)[keydat bytes];
-				send_strlen = [keydat length];
-            }
 		}
 		else if ((modflag & NSAlternateKeyMask) && 
 				 ([self optionKey] != OPT_NORMAL))
 		{
 			NSData *keydat = ((modflag & NSControlKeyMask) && unicode>0)?
-                [keystr dataUsingEncoding:NSUTF8StringEncoding]:
-                [unmodkeystr dataUsingEncoding:NSUTF8StringEncoding];
+			[keystr dataUsingEncoding:NSUTF8StringEncoding]:
+			[unmodkeystr dataUsingEncoding:NSUTF8StringEncoding];
 			// META combination
 			if (keydat != nil) {
 				send_str = (unsigned char *)[keydat bytes];
@@ -591,6 +529,11 @@ static NSImage *warningImage;
 					send_str[i] |= 0x80;
 			}
 		}
+		else if (unicode == NSEnterCharacter && unmodunicode == NSEnterCharacter)
+		{
+			send_str = (unsigned char*)"\015";  // Enter key -> 0x0d
+			send_strlen = 1;
+		}
 		else
 		{
 			int max = [keystr length];
@@ -601,15 +544,25 @@ static NSImage *warningImage;
 			else
 				data = [keystr dataUsingEncoding:NSUTF8StringEncoding];
 			
-			// Enter key is on numeric keypad, but not marked as such
-			if (unicode == NSEnterCharacter && unmodunicode == NSEnterCharacter) {
-				modflag |= NSNumericPadKeyMask;
-				keystr = @"\015";  // Enter key -> 0x0d
-			}
 			// Check if we are in keypad mode
-			if (modflag & NSNumericPadKeyMask) {
-				data = [TERMINAL keypadData: unicode keystr: keystr];
-			}		
+			if((modflag & NSNumericPadKeyMask) && [TERMINAL keypadMode])
+			{
+				switch (unicode)
+				{
+					case '=':
+						data = [TERMINAL keyPFn: 2];;
+						break;
+					case '/':
+						data = [TERMINAL keyPFn: 3];
+						break;
+					case '*':
+						data = [TERMINAL keyPFn: 4];
+						break;
+					default:
+						data = [TERMINAL keypadData: unicode keystr: keystr];
+						break;
+				}
+			}
 			
 			
 			if (data != nil ) {
@@ -641,13 +594,6 @@ static NSImage *warningImage;
 				send_str = (unsigned char*)"\037"; // control-/
 				send_strlen = 1;
 			}
-			else if (modflag & NSShiftKeyMask &&
-					 send_strlen == 1 &&
-					 send_str[0] == '\031')
-			{
-				send_str = (unsigned char*)"\033[Z"; // backtab
-				send_strlen = 3;
-			}
 			
 		}
 				
@@ -669,22 +615,25 @@ static NSImage *warningImage;
 		}
     }
 	
+	// let the update thred update display if a key is being held down
+	if([TEXTVIEW keyIsARepeat] == NO)
+		[self updateDisplay];
 }
+
 
 - (BOOL)willHandleEvent: (NSEvent *) theEvent
 {
     // Handle the option-click event
-    return 0;
-/*	return (([theEvent type] == NSLeftMouseDown) &&
-			([theEvent modifierFlags] & NSAlternateKeyMask));   */
+    return (([theEvent type] == NSLeftMouseDown) &&
+			([theEvent modifierFlags] & NSAlternateKeyMask));       
 }
 
 - (void)handleEvent: (NSEvent *) theEvent
 {
     // We handle option-click to position the cursor...
-    /*if(([theEvent type] == NSLeftMouseDown) &&
+    if(([theEvent type] == NSLeftMouseDown) &&
        ([theEvent modifierFlags] & NSAlternateKeyMask))
-		[self handleOptionClick: theEvent]; */
+		[self handleOptionClick: theEvent];
 }
 
 - (void) handleOptionClick: (NSEvent *) theEvent
@@ -734,7 +683,12 @@ static NSImage *warningImage;
     }
     
     // trigger an update of the display.
-	[TEXTVIEW setNeedsDisplay:YES];
+    [SCREEN updateScreen];
+}
+
+// do any idle tasks here
+- (void) doIdleTasks
+{
 }
 
 - (void)insertText:(NSString *)string
@@ -743,8 +697,6 @@ static NSImage *warningImage;
     NSMutableString *mstring;
     int i, max;
 	
-	if (EXIT) return;
-
 	//    NSLog(@"insertText: %@",string);
     mstring = [NSMutableString stringWithString:string];
     max = [string length];
@@ -758,6 +710,14 @@ static NSImage *warningImage;
     NSLog(@"%s(%d):-[PTYSession insertText:%@]",
 		  __FILE__, __LINE__, mstring);
 #endif
+	
+    //if([TERMINAL encoding] != NSUTF8StringEncoding) {
+    //    data = [mstring dataUsingEncoding:[TERMINAL encoding]
+    //                allowLossyConversion:YES];
+    //} else {
+    //    char *fs_str = (char *)[mstring fileSystemRepresentation];
+    //    data = [NSData dataWithBytes:fs_str length:strlen(fs_str)];
+    //}
     
     data = [mstring dataUsingEncoding:[TERMINAL encoding]
 				 allowLossyConversion:YES];
@@ -766,8 +726,8 @@ static NSImage *warningImage;
 		[self writeTask:data];
 
 	// let the update thred update display if a key is being held down
-	/*if([TEXTVIEW keyIsARepeat] == NO)
-		[self updateDisplay];*/
+	if([TEXTVIEW keyIsARepeat] == NO)
+		[self updateDisplay];
 }
 
 - (void)insertNewline:(id)sender
@@ -845,7 +805,7 @@ static NSImage *warningImage;
 - (void)paste:(id)sender
 {
     NSPasteboard *board;
-    NSMutableString *str;
+    NSString *str;
 	
 #if DEBUG_METHOD_TRACE
     NSLog(@"%s(%d):-[PTYSession paste:...]", __FILE__, __LINE__);
@@ -853,14 +813,7 @@ static NSImage *warningImage;
 	
     board = [NSPasteboard generalPasteboard];
     NSParameterAssert(board != nil );
-    str = [[[NSMutableString alloc] initWithString:[board stringForType:NSStringPboardType]] autorelease];
-	if ([sender tag]) // paste with escape;
-	{
-		[str replaceOccurrencesOfString:@"\\" withString:@"\\\\" options:NSLiteralSearch range:NSMakeRange(0, [str length])];
-		[str replaceOccurrencesOfString:@"'" withString:@"\\'" options:NSLiteralSearch range:NSMakeRange(0, [str length])];
-		[str replaceOccurrencesOfString:@"\"" withString:@"\\\"" options:NSLiteralSearch range:NSMakeRange(0, [str length])];
-		[str replaceOccurrencesOfString:@" " withString:@"\\ " options:NSLiteralSearch range:NSMakeRange(0, [str length])];
-	}
+    str = [board stringForType:NSStringPboardType];
     [self pasteString: str];
 }
 
@@ -869,10 +822,13 @@ static NSImage *warningImage;
 	
     if ([aString length] > 0)
     {
-		NSString *tempString = [aString stringReplaceSubstringFrom:@"\r\n" to:@"\r"];
-		[self writeTask: [[tempString stringReplaceSubstringFrom:@"\n" to:@"\r"]
-						  dataUsingEncoding:[TERMINAL encoding]
-						  allowLossyConversion:YES]];
+        NSData *strdata = [[aString stringReplaceSubstringFrom:@"\n" to:@"\r"]
+                                    dataUsingEncoding:[TERMINAL encoding]
+								 allowLossyConversion:YES];
+		
+		// Do this in a new thread since we do not want to block the read code.
+		[NSThread detachNewThreadSelector:@selector(writeTask:) toTarget:self withObject:strdata];
+		
     }
     else
 		NSBeep();
@@ -944,14 +900,14 @@ static NSImage *warningImage;
 	}
     else if([[tabViewItem tabView] selectedTabViewItem] != tabViewItem) 
     {
-        if (now.tv_sec > lastOutput.tv_sec+2) {
+        if (now.tv_sec - lastOutput.tv_sec > 2) {
             if(isProcessing)
                 [self setIsProcessing: NO];
 
             if (newOutput)
 			{
 				// Idle after new output
-                if (!growlIdle && now.tv_sec > lastOutput.tv_sec+1) {
+                if (!growlIdle && now.tv_sec - lastOutput.tv_sec > 60) {
                     [gd growlNotify:NSLocalizedStringFromTableInBundle(@"Idle",@"iTerm", [NSBundle bundleForClass: [self class]], @"Growl Alerts")
                     withDescription:[NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"Session %@ #%d becomes idle.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Growl Alerts"),[self name],[self realObjectCount]]  
                     andNotification:@"Idle"];
@@ -991,7 +947,7 @@ static NSImage *warningImage;
         newOutput = NO;
         [parent setLabelColor: chosenStateColor forTabViewItem: tabViewItem];
     }
-    //[self setBell:NO];
+    [self setBell:NO];
 }
 
 - (BOOL) bell
@@ -1004,16 +960,10 @@ static NSImage *warningImage;
 	if(flag!=bell) {
         bell = flag;
         if (bell)
-		{
             [self setIcon: warningImage];
-			if([TEXTVIEW keyIsARepeat] == NO && ![[TEXTVIEW window] isKeyWindow])
-				[gd growlNotify:NSLocalizedStringFromTableInBundle(@"Bell",@"iTerm", [NSBundle bundleForClass: [self class]], @"Growl Alerts")
-				withDescription:[NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"Session %@ #%d just rang a bell!",@"iTerm", [NSBundle bundleForClass: [self class]], @"Growl Alerts"),[self name],[self realObjectCount]] 
-				andNotification:@"Bells"];			
-		}
         else
             [self setIcon: nil];
-    }	
+    }
 }
 
 - (BOOL) isProcessing
@@ -1074,26 +1024,14 @@ static NSImage *warningImage;
 		colorTable[1][i] = [displayProfileMgr color: (i + TYPE_ANSI_8_COLOR)  forProfile: displayProfile];
 	}	
     for(i=0;i<8;i++) {
-        [self setColorTable:i color:colorTable[0][i]];
-        [self setColorTable:i+8 color:colorTable[1][i]];
+        [self setColorTable:i highLight:NO color:colorTable[0][i]];
+        [self setColorTable:i highLight:YES color:colorTable[1][i]];
     }
-	for (i=0;i<216;++i) {
-		[self setColorTable:i+16 color:[NSColor colorWithCalibratedRed:(i/36) ? ((i/36)*40+55)/256.0:0 
-												  green:(i%36)/6 ? (((i%36)/6)*40+55)/256.0:0 
-													blue:(i%6) ?((i%6)*40+55)/256.0:0
-												  alpha:1]];
-	}
-	for (i=0;i<24;++i) {
-		[self setColorTable:i+232 color:[NSColor colorWithCalibratedWhite:(i*10+8)/256.0 alpha:1]];
-	}
-	
+		
     // background image
     imageFilePath = [displayProfileMgr backgroundImageForProfile: displayProfile];
     if([imageFilePath length] > 0)
 		[self setBackgroundImagePath: imageFilePath];
-
-	// colour scheme
-    [self setCOLORFGBG_VALUE: [displayProfileMgr COLORFGBGForProfile: displayProfile]];
 	
     // transparency
     [self setTransparency: [displayProfileMgr transparencyForProfile: displayProfile]];  
@@ -1157,96 +1095,76 @@ static NSImage *warningImage;
     tabViewItem = theTabViewItem;
 }
 
+- (void) tabViewWillRedraw: (NSNotification *) aNotification
+{
+	if([aNotification object] == [[self tabViewItem] tabView])
+		[TEXTVIEW setForceUpdate: YES];
+}
+
 - (NSString *) uniqueID
 {
     return ([self tty]);
 }
 
-- (void) setUniqueID:(NSString*)uniqueID
+- (void) setUniqueID: (NSString *)uniqueID
 {
     NSLog(@"Not allowed to set unique ID");
 }
 
-- (NSString*)defaultName
+- (NSString *) name
 {
-	return defaultName;
+    return (name);
 }
 
-- (void)setDefaultName:(NSString*)theName
+- (void) setName: (NSString *) theName
 {
-	if([defaultName isEqualToString:theName])
+    if([name isEqualToString: theName])
 		return;
-
-	if(defaultName) {
+    
+    if(name)
+    {
 		// clear the window title if it is not different
-		if(windowTitle == nil || [name isEqualToString:windowTitle])
-			windowTitle = nil;
-		[defaultName release];
-		defaultName = nil;
-	}
-	if(!theName) {
-		theName = NSLocalizedStringFromTableInBundle(@"Untitled",@"iTerm",
-			[NSBundle bundleForClass:[self class]], @"Profiles");
-	}
-
-	defaultName = [theName retain];
+		if([self windowTitle] == nil || [name isEqualToString: [self windowTitle]])
+			[self setWindowTitle: nil];
+        [name release];
+        name = nil;
+    }
+    if(theName)
+    {
+        name = [theName retain];
+		// sync the window title if it is not set to something else
+		if([self windowTitle] == nil)
+			[self setWindowTitle: theName];
+    }
+    
+	[tabViewItem setLabel: theName];
+	[self setBell: NO];
+    
+	
+    // get the session submenu to be rebuilt
+    if([[iTermController sharedInstance] currentTerminal] == [self parent])
+    {
+		[[NSNotificationCenter defaultCenter] postNotificationName: @"iTermNameOfSessionDidChange" object: [self parent] userInfo: nil];
+    }
 }
 
-- (NSString*)name
+- (NSString *) windowTitle
 {
-	return name;
+    return (windowTitle);
 }
 
-- (void)setName:(NSString*)theName
+- (void) setWindowTitle: (NSString *) theTitle
 {
-	if([name isEqualToString:theName])
-		return;
-
-	if(name) {
-		// clear the window title if it is not different
-		if([name isEqualToString:windowTitle])
-			windowTitle = nil;
-		[name release];
-		name = nil;
-	}
-	if(!theName) {
-		theName = NSLocalizedStringFromTableInBundle(@"Untitled",@"iTerm",
-			[NSBundle bundleForClass:[self class]], @"Profiles");
-	}
-
-	name = [theName retain];
-	// sync the window title if it is not set to something else
-	if(windowTitle == nil)
-		[self setWindowTitle:theName];
-
-	[tabViewItem setLabel:name];
-	[self setBell:NO];
-
-	// get the session submenu to be rebuilt
-	if([[iTermController sharedInstance] currentTerminal] == [self parent]) {
-		[[NSNotificationCenter defaultCenter]
-			postNotificationName:@"iTermNameOfSessionDidChange"
-			object:[self parent] userInfo:nil];
-	}
-}
-
-- (NSString*)windowTitle
-{
-    return windowTitle;
-}
-
-- (void)setWindowTitle:(NSString*)theTitle
-{
-	if([theTitle isEqualToString:windowTitle]) return;
-
-	[windowTitle autorelease];
-	windowTitle = nil;
-
-	if(theTitle != nil && [theTitle length] > 0)
+    [windowTitle autorelease];
+    windowTitle = nil;
+    
+    if(theTitle != nil)
+    {
 		windowTitle = [theTitle retain];
-
-	if([[self parent] currentSession] == self)
-		[[self parent] setWindowTitle];
+		if([[self parent] currentSession] == self)
+			//[[[self parent] window] setTitle: windowTitle];
+            [[self parent] setWindowTitle: theTitle];
+    }
 }
 
 - (PTYTask *) SHELL
@@ -1281,17 +1199,6 @@ static NSImage *warningImage;
     [TERM_VALUE autorelease];
     TERM_VALUE = [theTERM_VALUE retain];
     [TERMINAL setTermType: theTERM_VALUE];
-}
-
-- (NSString *) COLORFGBG_VALUE
-{
-    return (COLORFGBG_VALUE);
-}
-
-- (void) setCOLORFGBG_VALUE: (NSString *) theCOLORFGBG_VALUE
-{
-    [COLORFGBG_VALUE autorelease];
-    COLORFGBG_VALUE = [theCOLORFGBG_VALUE retain];
 }
 
 - (VT100Screen *) SCREEN
@@ -1403,45 +1310,41 @@ static NSImage *warningImage;
 
 - (void) setBackgroundImagePath: (NSString *) imageFilePath
 {
-    if([imageFilePath length]) {
-        [imageFilePath retain];
-        [backgroundImagePath release];
-        backgroundImagePath = nil;
-
-        if ([imageFilePath isAbsolutePath] == NO)
-        {
-            NSBundle *myBundle = [NSBundle bundleForClass: [self class]];
-            backgroundImagePath = [myBundle pathForResource: imageFilePath ofType: @""];
-            [imageFilePath release];
-            [backgroundImagePath retain];
-        }
-        else
-        {
-            backgroundImagePath = imageFilePath;
-        }
-        NSImage *anImage = [[NSImage alloc] initWithContentsOfFile: backgroundImagePath];
-        if(anImage != nil)
-        {
-            [SCROLLVIEW setDrawsBackground: NO];
-            [SCROLLVIEW setBackgroundImage: anImage];
-            [anImage release];
-        }
-        else
-        {
-            [SCROLLVIEW setDrawsBackground: YES];
-            [backgroundImagePath release];
-            backgroundImagePath = nil;
-        }
+    [backgroundImagePath release];
+    if([imageFilePath length] > 0 && [imageFilePath isAbsolutePath] == NO)
+    {
+		NSBundle *myBundle = [NSBundle bundleForClass: [self class]];
+		backgroundImagePath = [myBundle pathForResource: imageFilePath ofType: @""];
+		[backgroundImagePath retain];
     }
     else
     {
-        [SCROLLVIEW setDrawsBackground: YES];
-        [SCROLLVIEW setBackgroundImage: nil];
-        [backgroundImagePath release];
-        backgroundImagePath = nil;
+		[imageFilePath retain];
+		backgroundImagePath = imageFilePath;
     }
-
-    [TEXTVIEW setNeedsDisplay:YES];
+    if([backgroundImagePath length] > 0)
+    {
+		NSImage *anImage = [[NSImage alloc] initWithContentsOfFile: backgroundImagePath];
+		if(anImage != nil)
+		{
+			[SCROLLVIEW setBackgroundImage: anImage];
+			[anImage release];
+		}
+		else
+		{
+			[backgroundImagePath release];
+			backgroundImagePath = nil;
+		}
+    }
+    else
+    {
+		[SCROLLVIEW setBackgroundImage: nil];
+		[backgroundImagePath release];
+		backgroundImagePath = nil;
+    }
+	
+	[TEXTVIEW setForceUpdate: YES];
+	[TEXTVIEW setNeedsDisplay: YES];
 }
 
 
@@ -1549,14 +1452,24 @@ static NSImage *warningImage;
 	
 }
 
-- (void) setColorTable:(int) index color:(NSColor *) c
+- (BOOL) useTransparency
 {
-    [TEXTVIEW setColorTable:index color:c];
+  return [TEXTVIEW useTransparency];
+}
+
+- (void) setUseTransparency: (BOOL) flag
+{
+  [TEXTVIEW setUseTransparency: flag];
+}
+
+- (void) setColorTable:(int) index highLight:(BOOL)hili color:(NSColor *) c
+{
+    [TEXTVIEW setColorTable:index highLight:hili color:c];
 }
 
 - (BOOL) antiIdle
 {
-	return antiIdleTimer ? YES : NO;
+    return antiIdle;
 }
 
 - (int) antiCode
@@ -1566,17 +1479,7 @@ static NSImage *warningImage;
 
 - (void) setAntiIdle:(BOOL)set
 {
-	if(set == [self antiIdle]) return;
-
-	if(set) {
-		antiIdleTimer = [[NSTimer scheduledTimerWithTimeInterval:30
-				target:self selector:@selector(doAntiIdle) userInfo:nil
-				repeats:YES] retain];
-	} else {
-		[antiIdleTimer invalidate];
-		[antiIdleTimer release];
-		antiIdleTimer = nil;
-	}
+    antiIdle=set;
 }
 
 - (void) setAntiCode:(int)code
@@ -1707,95 +1610,32 @@ static NSImage *warningImage;
     return addressBookEntry;
 }
 
-- (iTermGrowlDelegate*) growlDelegate
-{
-	return gd;
-}
 
--(void)sendCommand: (NSString *)command
+- (void) updateDisplay
 {
-    NSData *data = nil;
-    NSString *aString = nil;
-	
-    if(command != nil)
-    {
-		aString = [NSString stringWithFormat:@"%@\n", command];
-		data = [aString dataUsingEncoding: [TERMINAL encoding]];
+    struct timeval now;
+    	
+    gettimeofday(&now, NULL);
+
+    if (antiIdle && now.tv_sec >= lastInput.tv_sec + 60) {
+        [self writeTask:[NSData dataWithBytes:&ai_code length:1]];
+        lastInput = now;
     }
 	
-    if(data != nil)
-    {
-		[self writeTask:data];
-    }
-}
-
-- (void)updateDisplay
-{
-	if([[tabViewItem tabView] selectedTabViewItem] != tabViewItem) {
+	if([[tabViewItem tabView] selectedTabViewItem] != tabViewItem) 
 		[self setLabelAttribute];
+	
+	if ([[TEXTVIEW window] isKeyWindow] && now.tv_sec*10+now.tv_usec/100000 >= lastBlink.tv_sec*10+lastBlink.tv_usec/100000+5) {
+        [TEXTVIEW refresh];
+        lastUpdate = lastBlink = now;
 	}
-
-	if([parent currentSession] == self) {
-		struct timeval now;
-		gettimeofday(&now, NULL);
-
-		if(now.tv_sec*10+now.tv_usec/100000 >= lastBlink.tv_sec*10+lastBlink.tv_usec/100000+7) {
-			if([parent tempTitle]) {
-				[parent setWindowTitle];
-				[parent resetTempTitle];
-			}
-			lastBlink = now;
-		}
-	}
-
-	[TEXTVIEW refresh];
-	if(![(PTYScroller*)([SCROLLVIEW verticalScroller]) userScroll]) {
-		[TEXTVIEW scrollEnd];
-	}
-	[self scheduleUpdateSoon:NO];
+	else if (lastOutput.tv_sec > lastUpdate.tv_sec || (lastOutput.tv_sec == lastUpdate.tv_sec &&lastOutput.tv_usec > lastUpdate.tv_usec) ) {
+        [TEXTVIEW refresh];
+        lastUpdate = now;
+    }
+	
 }
 
-- (void)scheduleUpdateSoon:(BOOL)soon
-{
-	// This method ensures regular updates for text blinking, but allows
-	// for quicker (soon=YES) updates to draw newly read text from PTYTask
-
-	if(soon && [updateTimer isValid] && [[updateTimer userInfo] intValue]) {
-		return;
-	}
-
-	[updateTimer invalidate];
-	[updateTimer release];
-
-	NSTimeInterval timeout = 0.5;
-	if(soon) {
-		timeout = (0.001 + 0.001*[[PreferencePanel sharedInstance] refreshRate]);
-	}
-
-	updateTimer = [[NSTimer scheduledTimerWithTimeInterval:timeout
-			target:self selector:@selector(updateDisplay)
-			userInfo:[NSNumber numberWithInt:soon?1:0]
-			repeats:NO] retain];
-}
-
-- (void)doAntiIdle
-{
-	struct timeval now;
-	gettimeofday(&now, NULL);
-
-	if(now.tv_sec >= lastInput.tv_sec+60) {
-		[SHELL writeTask:[NSData dataWithBytes:&ai_code length:1]];
-		lastInput = now;
-	}
-}
-
-
-// Notification
-- (void) tabViewWillRedraw: (NSNotification *) aNotification
-{
-	if([aNotification object] == [[self tabViewItem] tabView])
-		[TEXTVIEW setNeedsDisplay:YES];
-}
 
 @end
 
@@ -1870,13 +1710,8 @@ static NSImage *warningImage;
 	
     if(text != nil)
     {
-        if ([text characterAtIndex:[text length]-1]==' ') {
-            data = [text dataUsingEncoding: [TERMINAL encoding]];
-        }
-        else {
-            aString = [NSString stringWithFormat:@"%@\n", text];
-            data = [aString dataUsingEncoding: [TERMINAL encoding]];
-        }
+		aString = [NSString stringWithFormat:@"%@\n", text];
+		data = [aString dataUsingEncoding: [TERMINAL encoding]];
     }
 	
     if(contentsOfFile != nil)
@@ -1889,59 +1724,102 @@ static NSImage *warningImage;
     {
 		int i = 0;
 		// wait here until we have had some output
-		while([SHELL hasOutput] == NO && i < 1000000)
+		while([SHELL firstOutput] == NO && i < 1000000)
 		{
 			usleep(50000);
 			i += 50000;
 		}
 		
-		[self writeTask: data];
+		// do this in a new thread so that we don't get stuck.
+		[NSThread detachNewThreadSelector:@selector(writeTask:) toTarget:SHELL withObject:data];
     }
 }
 
-
 -(void)handleTerminateScriptCommand: (NSScriptCommand *)command
 {
+    id p = parent;
+    int n = [[p tabView] numberOfTabViewItems];
+    [parent acquireLock];
     [parent closeSession: self];
+    if (n>1) [p releaseLock];
 }
 
 @end
 
 @implementation PTYSession (Private)
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
-- (NSString*)_getLocale
+// thread to process data read from the task being run
+-(void)_processReadDataThread: (void *) arg
 {
-	// Keep a copy of the current locale setting for this process
-	char* backupLocale = setlocale(LC_CTYPE, NULL);
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	NSAutoreleasePool *arPool = [[NSAutoreleasePool alloc] init];
+	int iterationCount = 0;
+	VT100TCC token;
+	
+	while(EXIT == NO)
+	{
 
-	// Start with the locale
-	NSString* locale = [[NSLocale currentLocale] localeIdentifier];
-
-	// Append the encoding
-	CFStringEncoding cfEncoding = CFStringConvertNSStringEncodingToEncoding([self encoding]);
-	NSString* ianaEncoding = (NSString*)CFStringConvertEncodingToIANACharSetName(cfEncoding);
-	if(ianaEncoding != nil) {
-		// Mangle the names slightly
-		NSMutableString* encoding = [[NSMutableString alloc] initWithString:ianaEncoding];
-		[encoding replaceOccurrencesOfString:@"ISO-" withString:@"ISO" options:0 range:NSMakeRange(0, [encoding length])];
-		[encoding replaceOccurrencesOfString:@"EUC-" withString:@"euc" options:0 range:NSMakeRange(0, [encoding length])];
-
-		NSString* test = [locale stringByAppendingFormat:@".%@", encoding];
-		if(NULL != setlocale(LC_CTYPE, [test UTF8String]))
-			locale = test;
-
-		[encoding release];
+		// wait for data
+		MPWaitOnSemaphore(dataSemaphore, kDurationForever);
+		
+		// inner while loop to process all the tokens we can get
+		while(1)
+		{
+			// grab next token
+			token = [TERMINAL getNextToken];
+			
+			// if we reached end of stream, get out
+			if(token.type == VT100CC_NULL)
+				break;
+			
+			// ok, we have a token to be processed
+			if (TERMINAL && token.type != VT100_WAIT)
+			{	
+				
+				
+				// process token
+				if (token.type != VT100_SKIP)
+				{
+					[SCREEN putToken:token];
+					newOutput=YES;
+					gettimeofday(&lastOutput, NULL);
+				}
+				
+				if (token.type == VT100_NOTSUPPORT) {
+					//NSLog(@"%s(%d):not support token", __FILE__ , __LINE__);
+				}
+				
+				// periodically refresh autoreleasepool
+				iterationCount++;
+				if(iterationCount % 100 == 0)
+				{
+					// refresh our autrelease pool
+					[arPool release];
+					arPool = [[NSAutoreleasePool alloc] init];
+					iterationCount = 0;
+				}
+			} // end token processing
+			
+		} // end inner while loop
+		
+		
+	} // end outer while loop
+				
+	if(arPool != nil)
+	{
+		[arPool release];
+		arPool = nil;
 	}
 
-	// Check the locale is valid
-	if(NULL == setlocale(LC_CTYPE, [locale UTF8String]))
-		locale = nil;
+	[self updateDisplay];
+	
+	[pool release];
 
-	// Restore locale and return
-	setlocale(LC_CTYPE, backupLocale);
-	return locale;
+    MPSignalSemaphore(threadEndSemaphore);
+	
+	[NSThread exit];
+	
 }
-#endif
+
 
 @end
