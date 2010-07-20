@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermController.h,v 1.29 2008-10-08 05:54:50 yfabian Exp $
+// $Id: iTermController.h,v 1.23 2006-11-01 05:21:54 yfabian Exp $
 /*
  **  iTermController.h
  **
@@ -39,11 +39,11 @@
     // PseudoTerminal objects
     NSMutableArray *terminalWindows;
     id FRONT;
+    NSLock *terminalLock;
 	ItermGrowlDelegate *gd;
 }
 
 + (iTermController*)sharedInstance;
-+ (void)sharedInstanceRelease;
 
 // actions are forwarded form application
 - (IBAction)newWindow:(id)sender;
@@ -58,7 +58,6 @@
 - (NSArray *) sortedEncodingList;
 - (void) alternativeMenu: (NSMenu *)aMenu forNode: (TreeNode *) theNode target: (id) aTarget withShortcuts: (BOOL) withShortcuts;
 - (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm;
-- (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withCommand: (NSString *)command;
 - (void) launchBookmark: (NSDictionary *) bookmarkData inTerminal: (PseudoTerminal *) theTerm withURL: (NSString *)url;
 - (PTYTextView *) frontTextView;
 
@@ -86,3 +85,7 @@
 
 @end
 
+
+@interface iTermController (Private)
+
+@end

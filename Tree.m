@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: Tree.m,v 1.8 2008-10-01 03:57:40 yfabian Exp $
+// $Id: Tree.m,v 1.5 2006-11-09 05:45:07 yfabian Exp $
 //
 /*
  **  Tree.m
@@ -213,13 +213,11 @@
 {
     [nodeChildren insertObject:child atIndex:index];
     [child setNodeParent: self];
-    //[nodeChildren sortUsingSelector:@selector(compare:)];
 }
 
 - (void)insertChildren:(NSArray*)children atIndex:(int)index {
     [nodeChildren insertObjectsFromArray: children atIndex: index];
     [children makeObjectsPerformSelector:@selector(setNodeParent:) withObject:self];
-    //[nodeChildren sortUsingSelector:@selector(compare:)];
 }
 
 - (void)_removeChildrenIdenticalTo:(NSArray*)children {
@@ -294,10 +292,8 @@
 }
 
 - (void)recursiveSortChildren {
-    if ([self isGroup]) {
-        [nodeChildren sortUsingSelector:@selector(compare:)];
-        [nodeChildren makeObjectsPerformSelector: @selector(recursiveSortChildren)];
-    }
+    [nodeChildren sortUsingSelector:@selector(compare:)];
+    [nodeChildren makeObjectsPerformSelector: @selector(recursiveSortChildren)];
 }
 
 - (int) indexForNode: (id) node {
@@ -336,22 +332,14 @@
 }
 
 - (id)initWithCoder:(NSCoder *)coder { 
-	self = 	[[TreeNode alloc] initFromDictionary:[coder decodeObject]]; 
+	self = 	[coder decodeObject]; 
 	return self; 
 }
 
 - (void)encodeWithCoder:(NSCoder *)coder { 
 	if (self) { 
-		[coder encodeObject: [self dictionary]]; 
+		[coder encodeByrefObject: self]; 
 	} 
-}
-
-- (NSComparisonResult) compare: (id) comparator
-{
-    if ([(NSString *)[[self nodeData] objectForKey:KEY_NAME] isEqualToString:@"Bonjour"]) return NSOrderedDescending;
-    if ([(NSString *)[[comparator nodeData] objectForKey:KEY_NAME] isEqualToString:@"Bonjour"]) return NSOrderedAscending;
-    
-    return [(NSString *)[[self nodeData] objectForKey:KEY_NAME] localizedCaseInsensitiveCompare:[[comparator nodeData] objectForKey:KEY_NAME]];
 }
 
 @end

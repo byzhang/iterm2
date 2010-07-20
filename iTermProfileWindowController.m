@@ -56,7 +56,7 @@ static BOOL addingKBEntry;
     if ((self = [super init]) == nil)
         return nil;
 
-	_prefs = [NSUserDefaults standardUserDefaults];
+    _prefs = [NSUserDefaults standardUserDefaults];
     
     // load saved profiles or default if we don't have any
 	keybindingProfiles = [_prefs objectForKey: @"KeyBindings"];
@@ -108,7 +108,6 @@ static BOOL addingKBEntry;
 	[profileOutline deselectAll:nil];
 	[deleteButton setEnabled:NO];
     [duplicateButton setEnabled:NO];
-    [kbEntryTableView setDoubleAction:@selector(kbEntryEdit:)];
 
 	[self showWindow: self];
 }
@@ -356,7 +355,7 @@ static BOOL addingKBEntry;
 	//NSLog(@"%s: %@", __PRETTY_FUNCTION__, profile);
 	
 	keyMappings = [[[[iTermKeyBindingMgr singleInstance] profiles] objectForKey: selectedProfile] objectForKey: @"Key Mappings"];
-	allKeys = [[keyMappings allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+	allKeys = [keyMappings allKeys];
 	
 	if(selectedRow >= 0 && selectedRow < [allKeys count])
 	{
@@ -438,12 +437,7 @@ static BOOL addingKBEntry;
 		case '7':
 		case '8':
 		case '9':
-			if (keyModifiers & NSNumericPadKeyMask)
-				index = KEY_NUMERIC_0 + keyCode - '0';
-			else {
-				index = KEY_HEX_CODE;
-				[kbEntryKeyCode setStringValue: [NSString stringWithFormat:@"0x%x", keyCode]];
-			}
+			index = KEY_NUMERIC_0 + keyCode - '0';
 			break;
 		case '=':
 			index = KEY_NUMERIC_EQUAL;
@@ -496,7 +490,7 @@ static BOOL addingKBEntry;
 	[kbEntryKeyModifierShift setEnabled: YES];
 	[kbEntryKeyModifierCommand setEnabled: YES];
 	
-	if (action == KEY_ACTION_HEX_CODE || action == KEY_ACTION_ESCAPE_SEQUENCE || action == KEY_ACTION_TEXT)
+	if (action == KEY_ACTION_HEX_CODE || action == KEY_ACTION_ESCAPE_SEQUENCE)
 	{
 		[kbEntryText setStringValue: auxText];
 	}
@@ -527,6 +521,7 @@ static BOOL addingKBEntry;
 			[[kbEntryAction itemAtIndex: i] setEnabled: NO];
 			[[kbEntryAction itemAtIndex: i] setAction: nil];
 		}
+		[kbEntryAction selectItemAtIndex: KEY_ACTION_ESCAPE_SEQUENCE];
 		
 	}
 	
@@ -583,22 +578,13 @@ static BOOL addingKBEntry;
 	else if(sender == kbEntryAction)
 	{
 		if([kbEntryAction indexOfSelectedItem] == KEY_ACTION_HEX_CODE ||
-		   [kbEntryAction indexOfSelectedItem] == KEY_ACTION_ESCAPE_SEQUENCE ||
-		   [kbEntryAction indexOfSelectedItem] == KEY_ACTION_TEXT)
+		   [kbEntryAction indexOfSelectedItem] == KEY_ACTION_ESCAPE_SEQUENCE)
 		{		
 			[kbEntryText setHidden: NO];
 			[kbEntryHint setHidden: NO];
-			switch ([kbEntryAction indexOfSelectedItem]) {
-				case KEY_ACTION_HEX_CODE:
-					[kbEntryHint setStringValue: NSLocalizedStringFromTableInBundle(@"eg. 7F for backward delete.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles")];
-					break;
-				case KEY_ACTION_ESCAPE_SEQUENCE:
-					[kbEntryHint setStringValue: NSLocalizedStringFromTableInBundle(@"eg. [OC for ESC [OC.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles")];
-					break;
-				case KEY_ACTION_TEXT:
-					[kbEntryHint setStringValue: NSLocalizedStringFromTableInBundle(@"use \\n for new-line, etc",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles")];
-					break;
-			}				
+			[kbEntryHint setStringValue: ([kbEntryAction indexOfSelectedItem] == KEY_ACTION_HEX_CODE) ?
+				NSLocalizedStringFromTableInBundle(@"eg. 7F for forward delete.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles") :
+				NSLocalizedStringFromTableInBundle(@"eg. [OC for ESC [OC.",@"iTerm", [NSBundle bundleForClass: [self class]], @"Profiles")];
 		}
 		else
 		{
@@ -734,9 +720,6 @@ static BOOL addingKBEntry;
 	
 	// anti-alias
 	[displayAntiAlias setState: [[iTermDisplayProfileMgr singleInstance] windowAntiAliasForProfile: theProfile]];
-
-	// blur
-	[displayBlur setState: [[iTermDisplayProfileMgr singleInstance] windowBlurForProfile: theProfile]];
 	
 	// window size
 	[displayColTextField setStringValue: [NSString stringWithFormat: @"%d",
@@ -764,15 +747,6 @@ static BOOL addingKBEntry;
 	{
 		[[iTermDisplayProfileMgr singleInstance] setWindowAntiAlias: [sender state] 
 												   forProfile: selectedProfile];
-	}
-}
-
-- (IBAction) displaySetBlur: (id) sender
-{
-	if(sender == displayBlur)
-	{
-		[[iTermDisplayProfileMgr singleInstance] setWindowBlur: [sender state]
-													forProfile: selectedProfile];
 	}
 }
 
@@ -922,8 +896,6 @@ static BOOL addingKBEntry;
 	[terminalIdleChar setStringValue: [NSString stringWithFormat: @"%d",  
 		[[iTermTerminalProfileMgr singleInstance] idleCharForProfile: theProfile]]];
 	[xtermMouseReporting setState: [[iTermTerminalProfileMgr singleInstance] xtermMouseReportingForProfile: theProfile]];
-	[terminalAppendTitle setState: [[iTermTerminalProfileMgr singleInstance] appendTitleForProfile: theProfile]];
-	[terminalNoResizing setState: [[iTermTerminalProfileMgr singleInstance] noResizingForProfile: theProfile]];
 	
 	[deleteButton setEnabled: ![[iTermTerminalProfileMgr singleInstance] isDefaultProfile: theProfile]];
     [duplicateButton setEnabled: YES];
@@ -990,17 +962,6 @@ static BOOL addingKBEntry;
 												  forProfile: selectedProfile];
 }	
 
-- (IBAction) terminalSetAppendTitle: (id) sender
-{
-	[[iTermTerminalProfileMgr singleInstance] setAppendTitle: [sender state] 
-												  forProfile: selectedProfile];
-}	
-
-- (IBAction) terminalSetNoResizing: (id) sender
-{
-	[[iTermTerminalProfileMgr singleInstance] setNoResizing: [sender state] 
-												  forProfile: selectedProfile];
-}	
 
 //outline view
 // NSOutlineView delegate methods
@@ -1046,20 +1007,21 @@ static BOOL addingKBEntry;
     
     if (item) {
         id value;
-        NSArray *allKeys;
+        NSEnumerator *enumerator;
 
         switch ([item intValue]) {
             case KEYBOARD_PROFILE_TAB:
-                allKeys = [[[[iTermKeyBindingMgr singleInstance] profiles] allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+                enumerator = [[[iTermKeyBindingMgr singleInstance] profiles] keyEnumerator];
                 break;
             case TERMINAL_PROFILE_TAB:
-                allKeys = [[[[iTermTerminalProfileMgr singleInstance] profiles] allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+                enumerator = [[[iTermTerminalProfileMgr singleInstance] profiles] keyEnumerator];
                 break;
             default:
-                allKeys = [[[[iTermDisplayProfileMgr singleInstance] profiles] allKeys] sortedArrayUsingSelector:@selector(caseInsensitiveCompare:)];
+                enumerator = [[[iTermDisplayProfileMgr singleInstance] profiles] keyEnumerator];
         }
             
-        value = [allKeys objectAtIndex: index];
+        while ((value = [enumerator nextObject]) && index>0) 
+            index--;
         
         return value;
     }
@@ -1159,7 +1121,6 @@ static BOOL addingKBEntry;
     }
     else {
         id temp = [[[profileMgr profiles] objectForKey: item] retain];
-		[profileMgr updateBookmarkProfile: item with:object];
         [profileMgr deleteProfileWithName: item];
         [(NSMutableDictionary *)[profileMgr profiles] setObject: temp forKey: object];
         [temp release];
@@ -1181,7 +1142,6 @@ static BOOL addingKBEntry;
             break;
         }
 }
-
 
 @end
 

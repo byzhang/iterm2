@@ -80,9 +80,10 @@ static BOOL editingBookmark = NO;
 	if([self window] == nil)
         [self initWithWindowNibName: @"Bookmarks"];
 
+    [bookmarksView setDoubleAction: @selector(editBookmark:)];	
+    
     [[self window] setDelegate: self]; // also forces window to load
 	[self outlineViewSelectionDidChange:nil];
-    [bookmarksView setDoubleAction:@selector(launchSession:)];
     [self showWindow: self];
 }
 
@@ -124,7 +125,14 @@ static BOOL editingBookmark = NO;
 			[bookmarkEditButton setEnabled: YES];
             [launchButton setEnabled: YES];
 		}
-		else 
+		// check for folder
+		else if([[ITAddressBookMgr sharedInstance] isExpandable: selectedItem])
+		{
+			[bookmarkEditButton setEnabled: NO];
+			[defaultSessionButton setEnabled: NO];
+            [launchButton setEnabled: NO];
+        }		
+		else
 		{
 			[defaultSessionButton setState: NSOffState];
 			[defaultSessionButton setEnabled: YES];
@@ -162,7 +170,6 @@ static BOOL editingBookmark = NO;
 	// item should be a tree node witha dictionary data object
     return [[ITAddressBookMgr sharedInstance] objectForKey:[tableColumn identifier] inItem: item];
 }
-
 
 // Optional method: needed to allow editing.
 - (void)outlineView:(NSOutlineView *)olv setObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn byItem:(id)item  
@@ -228,18 +235,10 @@ static BOOL editingBookmark = NO;
     return YES;
 }
 
-- (BOOL)outlineView:(NSOutlineView *)outlineView shouldEditTableColumn:(NSTableColumn *)tableColumn item:(id)item
-{
-    // Only folder names can be changed directly
-    return !([item isLeaf]); 
-}
 
 // Bookmark actions
 - (IBAction) addBookmarkFolder: (id) sender
 {
-	editingBookmark = NO;
-	[addFolderPanelTitle setStringValue:@"Enter the new folder's name:"];
-	[bookmarkFolderName setStringValue:@""];
 	[NSApp beginSheet: addBookmarkFolderPanel
 	   modalForWindow: [self window]
 		modalDelegate: self
@@ -267,32 +266,6 @@ static BOOL editingBookmark = NO;
 	// load our profiles
 	[self _loadProfiles];
 	
-	[bookmarkName setStringValue: @""];
-	[bookmarkCommand setStringValue: @""];
-	[bookmarkWorkingDirectory setStringValue: @""];
-	[bookmarkShortcut selectItemWithTitle: @""];
-
-	if ([bookmarksView selectedRow]!=-1) {
-		id selectedItem = [bookmarksView itemAtRow: [bookmarksView selectedRow]];
-		if ([selectedItem isLeaf]) {
-			NSString *terminalProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_TERMINAL_PROFILE inItem: selectedItem];
-			NSString *keyboardProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_KEYBOARD_PROFILE inItem: selectedItem];
-			NSString *displayProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_DISPLAY_PROFILE inItem: selectedItem];
-			
-			if([bookmarkTerminalProfile indexOfItemWithTitle: terminalProfile] < 0)
-				terminalProfile = NSLocalizedStringFromTableInBundle(@"Default",@"iTerm", [NSBundle bundleForClass: [self class]], @"Terminal Profiles");
-			[bookmarkTerminalProfile selectItemWithTitle: terminalProfile];
-			
-			if([bookmarkKeyboardProfile indexOfItemWithTitle: keyboardProfile] < 0)
-				keyboardProfile = NSLocalizedStringFromTableInBundle(@"Global",@"iTerm", [NSBundle bundleForClass: [self class]], @"Key Binding Profiles");
-			[bookmarkKeyboardProfile selectItemWithTitle: keyboardProfile];
-			
-			if([bookmarkDisplayProfile indexOfItemWithTitle: displayProfile] < 0)
-				displayProfile = NSLocalizedStringFromTableInBundle(@"Default",@"iTerm", [NSBundle bundleForClass: [self class]], @"Display Profiles");
-			[bookmarkDisplayProfile selectItemWithTitle: displayProfile];
-		}
-	}
-
 	[NSApp beginSheet: editBookmarkPanel
 	   modalForWindow: [self window]
 		modalDelegate: self
@@ -338,50 +311,38 @@ static BOOL editingBookmark = NO;
 	[self _loadProfiles];
 	
 	selectedItem = [bookmarksView itemAtRow: [bookmarksView selectedRow]];
-	if ([selectedItem isLeaf]) {
-		[bookmarkName setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_NAME inItem: selectedItem]];
-		[bookmarkCommand setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_COMMAND inItem: selectedItem]];
-		[bookmarkWorkingDirectory setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_WORKING_DIRECTORY inItem: selectedItem]];
-		
-		terminalProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_TERMINAL_PROFILE inItem: selectedItem];
-		keyboardProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_KEYBOARD_PROFILE inItem: selectedItem];
-		displayProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_DISPLAY_PROFILE inItem: selectedItem];
-		
-		if([bookmarkTerminalProfile indexOfItemWithTitle: terminalProfile] < 0)
-			terminalProfile = NSLocalizedStringFromTableInBundle(@"Default",@"iTerm", [NSBundle bundleForClass: [self class]], @"Terminal Profiles");
-		[bookmarkTerminalProfile selectItemWithTitle: terminalProfile];
-		
-		if([bookmarkKeyboardProfile indexOfItemWithTitle: keyboardProfile] < 0)
-			keyboardProfile = NSLocalizedStringFromTableInBundle(@"Global",@"iTerm", [NSBundle bundleForClass: [self class]], @"Key Binding Profiles");
-		[bookmarkKeyboardProfile selectItemWithTitle: keyboardProfile];
-		
-		if([bookmarkDisplayProfile indexOfItemWithTitle: displayProfile] < 0)
-			displayProfile = NSLocalizedStringFromTableInBundle(@"Default",@"iTerm", [NSBundle bundleForClass: [self class]], @"Display Profiles");
-		[bookmarkDisplayProfile selectItemWithTitle: displayProfile];
-		
-		shortcut = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_SHORTCUT inItem: selectedItem];
-		shortcut = [shortcut uppercaseString];
-		if([shortcut length] <= 0)
-			shortcut = @"";
-		[bookmarkShortcut selectItemWithTitle: shortcut];
+	[bookmarkName setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_NAME inItem: selectedItem]];
+	[bookmarkCommand setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_COMMAND inItem: selectedItem]];
+	[bookmarkWorkingDirectory setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_WORKING_DIRECTORY inItem: selectedItem]];
+	
+	terminalProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_TERMINAL_PROFILE inItem: selectedItem];
+	keyboardProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_KEYBOARD_PROFILE inItem: selectedItem];
+	displayProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_DISPLAY_PROFILE inItem: selectedItem];
+	
+	if([bookmarkTerminalProfile indexOfItemWithTitle: terminalProfile] < 0)
+		terminalProfile = NSLocalizedStringFromTableInBundle(@"Default",@"iTerm", [NSBundle bundleForClass: [self class]], @"Terminal Profiles");
+	[bookmarkTerminalProfile selectItemWithTitle: terminalProfile];
+	
+	if([bookmarkKeyboardProfile indexOfItemWithTitle: keyboardProfile] < 0)
+		keyboardProfile = NSLocalizedStringFromTableInBundle(@"Global",@"iTerm", [NSBundle bundleForClass: [self class]], @"Key Binding Profiles");
+	[bookmarkKeyboardProfile selectItemWithTitle: keyboardProfile];
+	
+	if([bookmarkDisplayProfile indexOfItemWithTitle: displayProfile] < 0)
+		displayProfile = NSLocalizedStringFromTableInBundle(@"Default",@"iTerm", [NSBundle bundleForClass: [self class]], @"Display Profiles");
+	[bookmarkDisplayProfile selectItemWithTitle: displayProfile];
+	
+	shortcut = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_SHORTCUT inItem: selectedItem];
+	shortcut = [shortcut uppercaseString];
+	if([shortcut length] <= 0)
+		shortcut = @"";
+	[bookmarkShortcut selectItemWithTitle: shortcut];
 
-		
-		[NSApp beginSheet: editBookmarkPanel
-		   modalForWindow: [self window]
-			modalDelegate: self
-		   didEndSelector: @selector(_editBookmarkSheetDidEnd:returnCode:contextInfo:)
-			  contextInfo: nil];      
-	}
-	else {
-		[addFolderPanelTitle setStringValue:@"Rename the folder to:"];
-		[bookmarkFolderName setStringValue:[[selectedItem nodeData] objectForKey:@"Name"]];
-		editingBookmark = YES;
-		[NSApp beginSheet: addBookmarkFolderPanel
-		   modalForWindow: [self window]
-			modalDelegate: self
-		   didEndSelector: @selector(_addBookmarkFolderSheetDidEnd:returnCode:contextInfo:)
-			  contextInfo: nil];    
-	}
+	
+	[NSApp beginSheet: editBookmarkPanel
+	   modalForWindow: [self window]
+		modalDelegate: self
+	   didEndSelector: @selector(_editBookmarkSheetDidEnd:returnCode:contextInfo:)
+		  contextInfo: nil];        
 }
 
 - (IBAction) setDefaultSession: (id) sender
@@ -395,11 +356,6 @@ static BOOL editingBookmark = NO;
 	
 }
 
-- (IBAction) sortBookmark: (id) sender
-{
-	[[[ITAddressBookMgr sharedInstance] rootNode] recursiveSortChildren];
-	[bookmarksView reloadData];
-}
 
 // NSWindow delegate
 - (void)windowWillLoad
@@ -443,34 +399,10 @@ static BOOL editingBookmark = NO;
 	
 
 	selectedItem = [bookmarksView itemAtRow: selectedRow];
-	if(selectedItem != nil) {
-        if ([selectedItem isLeaf])
-        {
-            [[iTermController sharedInstance] launchBookmark: [selectedItem nodeData] 
-                                                  inTerminal: sender!=bookmarksView?([sender selectedSegment] ? nil :[[iTermController sharedInstance] currentTerminal]):[[iTermController sharedInstance] currentTerminal]];
-        }
-        else if (sender!=bookmarksView) {
-            NSEnumerator *nodeEnum = [[selectedItem children] objectEnumerator];
-            TreeNode *node = nil;
-            BOOL first=YES;
-            while((node=[nodeEnum nextObject])) {
-                if ([node isLeaf])
-                {
-                    [[iTermController sharedInstance] launchBookmark: [node nodeData] 
-                                                          inTerminal: [sender selectedSegment] && first ? nil :[[iTermController sharedInstance] currentTerminal]];
-                    first=NO;
-                }
-            }
-            
-        }
-		else {
-			// it's a folder, we double click to expand it.
-			if ([bookmarksView isItemExpanded: selectedItem])
-				[bookmarksView collapseItem: selectedItem];
-			else
-				[bookmarksView expandItem: selectedItem];
-		}
-    }
+	if(selectedItem != nil && [selectedItem isLeaf])
+	{
+		[[iTermController sharedInstance] launchBookmark: [selectedItem nodeData] inTerminal: [sender selectedSegment] ? nil :[[iTermController sharedInstance] currentTerminal]];
+	}
 }
 
 @end
@@ -496,10 +428,7 @@ static BOOL editingBookmark = NO;
 	
 	if(returnCode == NSOKButton && [[bookmarkFolderName stringValue] length] > 0)
 	{		
-		if (editingBookmark)
-			[[ITAddressBookMgr sharedInstance] setObjectValue: [bookmarkFolderName stringValue] forKey:@"Name" inItem: parentNode];	
-		else
-			[[ITAddressBookMgr sharedInstance] addFolder: [bookmarkFolderName stringValue] toNode: parentNode];
+		[[ITAddressBookMgr sharedInstance] addFolder: [bookmarkFolderName stringValue] toNode: parentNode];
 	}
     
     id prefs = [NSUserDefaults standardUserDefaults];

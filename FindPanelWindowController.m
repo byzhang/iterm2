@@ -146,25 +146,15 @@ static FindPanelWindowController *sharedInstance = nil;
 
 - (void)setSearchString: (NSString *) aString
 {    
-    if (aString && [aString length]>0) {
-		[searchStringField setStringValue: aString];
-		
-	}		
+    if (aString)
+	[searchStringField setStringValue: aString];
     else
         [searchStringField setStringValue: @""];
 }
 
 - (NSString*)searchString;
 {
-	NSString *aString = [searchStringField stringValue];
-	
-	if ([aString length]>0) {
-		NSPasteboard *pboard = [NSPasteboard pasteboardWithName: NSFindPboard];
-		
-		[pboard declareTypes: [NSArray arrayWithObject: NSStringPboardType] owner: self];
-		[pboard setString: aString forType: NSStringPboardType];
-	}
-    return aString;
+    return [searchStringField stringValue];
 }
 
 @end

@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PseudoTerminal.h,v 1.62 2009-02-06 15:07:24 delx Exp $
+// $Id: PseudoTerminal.h,v 1.48 2006-11-09 05:45:08 yfabian Exp $
 /*
  **  PseudoTerminal.h
  **
@@ -52,34 +52,19 @@
 
     
     /////////////////////////////////////////////////////////////////////////
-    int WIDTH, HEIGHT;
+    int WIDTH,HEIGHT;
 	int charWidth;
 	int charHeight;
 	float charHorizontalSpacingMultiplier, charVerticalSpacingMultiplier;
     NSFont *FONT, *NAFONT;
 	BOOL antiAlias;
-	BOOL useTransparency;
-	BOOL blur;
-	
-	BOOL _fullScreen;
     
     BOOL windowInited;
 	BOOL sendInputToAllSessions;
 	BOOL fontSizeFollowWindowResize;
 	BOOL suppressContextualMenu;
-	BOOL tempTitle;
-	
-	// For send input to all sessions highlighting
-	NSColor *normalBackgroundColor;
-	
-	// flags
-	BOOL _resizeInProgressFlag;
-	
-	// for full screen windows
-	NSRect oldFrame;
-	int oldWidth, oldHeight;
-	float oldCharHorizontalSpacingMultiplier, oldCharVerticalSpacingMultiplier;
-	NSFont *oldFont, *oldNAFont;
+    
+	BOOL EXIT;
 }
 
 
@@ -89,7 +74,6 @@
 - (void)dealloc;
 
 - (void)initWindowWithAddressbook:(NSDictionary *)entry;
-- (void)initWindowWithSettingsFrom:(PseudoTerminal *)aPseudoTerminal;
 - (void)setupSession: (PTYSession *) aSession title: (NSString *)title;
 - (void) insertSession: (PTYSession *) aSession atIndex: (int) index;
 - (void) closeSession: (PTYSession*) aSession;
@@ -101,7 +85,7 @@
 - (NSString *) currentSessionName;
 - (void) setCurrentSessionName: (NSString *) theSessionName;
 
-- (void) updateCurrentSessionProfiles;
+- (void) updateCurretSessionProfiles;
 
 - (void)startProgram:(NSString *)program;
 - (void)startProgram:(NSString *)program
@@ -119,31 +103,16 @@
 - (float) smallerSizeForSize: (float) aSize;
 - (NSFont *) font;
 - (NSFont *) nafont;
-- (NSFont *) oldFont;
-- (NSFont *) oldNAFont;
 - (BOOL) antiAlias;
 - (void) setAntiAlias: (BOOL) bAntiAlias;
 - (int)width;
 - (int)height;
-- (NSRect)oldFrame;
-- (int)oldWidth;
-- (int)oldHeight;
 - (void)setWidth:(int)width height:(int)height;
 - (void)setCharSizeUsingFont: (NSFont *)font;
 - (int)charWidth;
 - (int)charHeight;
 - (float) charSpacingVertical;
 - (float) charSpacingHorizontal;
-- (float) oldCharSpacingVertical;
-- (float) oldCharSpacingHorizontal;
-- (BOOL) useTransparency;
-- (void) setUseTransparency: (BOOL) flag;
-- (BOOL) blur;
-- (void) setBlur: (BOOL) flag;
-- (void) enableBlur;
-- (void) disableBlur;
-- (BOOL) tempTitle;
-- (void) resetTempTitle;
 
 // controls which sessions see key events
 - (BOOL) sendInputToAllSessions;
@@ -156,10 +125,6 @@
 - (void) setFontSizeFollowWindowResize: (BOOL) flag;
 - (IBAction) toggleFontSizeFollowWindowResize: (id) sender;
 
-// full screen support
-- (IBAction) toggleFullScreen:(id)sender;
-- (BOOL) fullScreen;
-
 // iTermController
 - (void)clearBuffer:(id)sender;
 - (void)clearScrollbackBuffer:(id)sender;
@@ -171,7 +136,6 @@
 - (void)windowDidDeminiaturize:(NSNotification *)aNotification;
 - (BOOL)windowShouldClose:(NSNotification *)aNotification;
 - (void)windowWillClose:(NSNotification *)aNotification;
-- (void)windowWillMiniaturize:(NSNotification *)aNotification;
 - (void)windowDidBecomeKey:(NSNotification *)aNotification;
 - (void)windowDidResignMain:(NSNotification *)aNotification;
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)proposedFrameSize;
@@ -179,7 +143,6 @@
 - (void) resizeWindow:(int)w height:(int)h;
 - (void) resizeWindowToPixelsWidth:(int)w height:(int)h;
 - (NSRect)windowWillUseStandardFrame:(NSWindow *)sender defaultFrame:(NSRect)defaultFrame;
-- (void)windowWillShowInitial;
 
 // Contextual menu
 - (void) menuForEvent:(NSEvent *)theEvent menu: (NSMenu *) theMenu;
@@ -222,7 +185,6 @@
 -(id)valueWithID: (NSString *)uniqueID inPropertyWithKey: (NSString*)propertyKey;
 -(void)addNewSession:(NSDictionary *)addressbookEntry;
 -(void)addNewSession:(NSDictionary *)addressbookEntry withURL: (NSString *)url;
--(void)addNewSession:(NSDictionary *) addressbookEntry withCommand: (NSString *)command;
 -(void)appendSession:(PTYSession *)object;
 -(void)removeFromSessionsAtIndex:(unsigned)index;
 -(NSArray*)sessions;
@@ -246,7 +208,6 @@
 - (NSFont *) _getMaxFont:(NSFont* ) font 
 				  height:(float) height
 				   lines:(float) lines;
-- (void) hideMenuBar;
 
 @end
 

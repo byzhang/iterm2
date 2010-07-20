@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PTYTextView.h,v 1.70 2008-10-21 05:43:52 yfabian Exp $
+// $Id: PTYTextView.h,v 1.58 2006-10-17 03:04:59 yfabian Exp $
 //
 /*
  **  PTYTextView.h
@@ -34,10 +34,19 @@
 #include <sys/time.h>
 
 #define MARGIN  5
-#define VMARGIN 5
+#define VMARGIN 50
 
 @class VT100Screen;
 
+typedef struct 
+{
+	int code;
+	unsigned int color;
+	NSImage *image;
+	int count;
+} CharCache;
+	
+#define CACHESIZE 2048
 enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 
 @interface PTYTextView : NSView <NSTextInput>
@@ -68,18 +77,19 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
     NSDictionary *markedTextAttributes;
     NSAttributedString *markedText;
 	
-	BOOL CURSOR;
-	BOOL drawAllowed;
+    BOOL CURSOR;
+	BOOL forceUpdate;
 	
     // geometry
 	float lineHeight;
     float lineWidth;
 	float charWidth;
 	float charWidthWithoutSpacing, charHeightWithoutSpacing;
+	int numberOfLines;
     
     NSFont *font;
     NSFont *nafont;
-    NSColor* colorTable[256];
+    NSColor* colorTable[16];
     NSColor* defaultFGColor;
     NSColor* defaultBGColor;
     NSColor* defaultBoldColor;
@@ -96,12 +106,11 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
     VT100Screen *dataSource;
     id _delegate;
 	
-	//selection
-	int startX, startY, endX, endY;
-	int oldStartX, oldStartY, oldEndX, oldEndY;
+    //selection
+    int startX, startY, endX, endY;
 	BOOL mouseDown;
 	BOOL mouseDragged;
-	char selectMode;
+    char selectMode;
 	BOOL mouseDownOnSelection;
 	NSEvent *mouseDownEvent;
 		
@@ -109,6 +118,9 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 	int lastFindX, lastFindY;
 	
 	BOOL reportingMouseDown;
+	
+	//cache
+	CharCache	charImages[CACHESIZE];
 	
 	// blinking cursor
 	BOOL blinkingCursor;
@@ -147,9 +159,9 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void)rightMouseUp:(NSEvent *)event;
 - (void)rightMouseDragged:(NSEvent *)event;
 - (void)scrollWheel:(NSEvent *)event;
-- (NSString *) contentFromX:(int)startx Y:(int)starty ToX:(int)endx Y:(int)endy pad: (BOOL) pad;
+- (NSString *) contentFromX:(int)startx Y:(int)starty ToX:(int)endx Y:(int)endy breakLines: (BOOL) breakLines pad: (BOOL) pad;
 - (NSString *) selectedText;
-- (NSString *) selectedTextWithPad: (BOOL) pad;
+- (NSString *) selectedTextBreakingLines: (BOOL) breakLines pad: (BOOL) pad;
 - (NSString *) content;
 - (void)copy: (id) sender;
 - (void)paste:(id)sender;
@@ -158,7 +170,6 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void)changeFont:(id)sender;
 - (NSMenu *)menuForEvent:(NSEvent *)theEvent;
 - (void) browse:(id)sender;
-- (void) searchInBrowser:(id)sender;
 - (void) mail:(id)sender;
 
 //get/set methods
@@ -176,7 +187,7 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (NSColor *) defaultFGColor;
 - (NSColor *) defaultBGColor;
 - (NSColor *) defaultBoldColor;
-- (NSColor *) colorForCode:(int) index;
+- (NSColor *) colorForCode:(unsigned int) index;
 - (NSColor *) selectionColor;
 - (NSColor *) defaultCursorColor;
 - (NSColor *) selectedTextColor;
@@ -184,7 +195,7 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void) setFGColor:(NSColor*)color;
 - (void) setBGColor:(NSColor*)color;
 - (void) setBoldColor:(NSColor*)color;
-- (void) setColorTable:(int) index color:(NSColor *) c;
+- (void) setColorTable:(int) index highLight:(BOOL)hili color:(NSColor *) c;
 - (void) setSelectionColor: (NSColor *) aColor;
 - (void)setCursorColor:(NSColor*) color;
 - (void) setSelectedTextColor: (NSColor *) aColor;
@@ -207,13 +218,12 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 
 - (void) refresh;
 - (void) setFrameSize: (NSSize) aSize;
-- (void) updateDirtyRects;
+- (void) setForceUpdate: (BOOL) flag;
 - (void) showCursor;
 - (void) hideCursor;
 
 // selection
 - (IBAction) selectAll: (id) sender;
-- (void) deselect;
 
 // transparency
 - (float) transparency;
@@ -236,6 +246,7 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 
 // Scrolling control
 - (NSRect)adjustScroll:(NSRect)proposedVisibleRect;
+- (void) scrollLineUpWithoutMoving;
 - (void) scrollLineUp: (id) sender;
 - (void) scrollLineDown: (id) sender;
 - (void) scrollPageUp: (id) sender;
@@ -243,7 +254,6 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void) scrollHome;
 - (void) scrollEnd;
 - (void) scrollToSelection;
-
 
     // Save method
 - (void) saveDocumentAs: (id) sender;
@@ -272,6 +282,8 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (BOOL)writeSelectionToPasteboard:(NSPasteboard *)pboard types:(NSArray *)types;
 - (BOOL)readSelectionFromPasteboard:(NSPasteboard *)pboard;	
 
+- (void)resetCharCache;
+
 @end
 
 //
@@ -283,6 +295,7 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void) _savePanelDidEnd: (NSSavePanel *) theSavePanel returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo;
 
 - (void) _scrollToLine:(int)line;
+- (void) _selectFromX:(int)startx Y:(int)starty toX:(int)endx Y:(int)endy;
 - (NSString *) _getWordForX: (int) x 
 					y: (int) y 
 			   startX: (int *) startx 
@@ -290,15 +303,15 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 				 endX: (int *) endx 
 				 endY: (int *) endy;
 - (NSString *) _getURLForX: (int) x y: (int) y;
-- (void) _drawLine:(int)line AtY:(float)curY;
-- (void) _drawCursor;
+- (void) _renderChar:(NSImage *)image withChar:(unichar) carac withColor:(NSColor*)color withFont:(NSFont*)aFont bold:(int)bold;
+- (NSImage *) _getCharImage:(unichar) code color:(int)fg doubleWidth:(BOOL) dw;
 - (void) _drawCharacter:(unichar)c fgColor:(int)fg AtX:(float)X Y:(float)Y doubleWidth:(BOOL) dw;
 - (BOOL) _isBlankLine: (int) y;
 - (void) _openURL: (NSString *) aURLString;
-- (BOOL) _findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase wrapping: (BOOL) wrapping;
-- (BOOL) _findMatchingParenthesis: (NSString *) parenthesis withX:(int)X Y:(int)Y;
+- (void) _clearCacheForColor:(int)colorIndex;
+- (BOOL) _findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase;
+- (BOOL) _mouseDownOnSelection: (NSEvent *) theEvent;
 - (void) _dragText: (NSString *) aString forEvent: (NSEvent *) theEvent;
-- (BOOL) _isCharSelectedInRow:(int)row col:(int)col checkOld:(BOOL)old;
 
 @end
 

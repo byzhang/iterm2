@@ -1365,11 +1365,6 @@
         }
         [self setNeedsDisplay];
     }
-    else {
-        if ([theEvent clickCount] == 2) {
-            [self performSelector:@selector(tabBarDoubleClick)];
-        }
-    }
 }
 
 - (void)mouseDragged:(NSEvent *)theEvent
@@ -1624,13 +1619,6 @@
 {
     if(([self delegate]) && ([[self delegate] respondsToSelector:@selector(tabView:doubleClickTabViewItem:)])){
         [[self delegate] tabView:[self tabView] doubleClickTabViewItem:[sender representedObject]];
-    } 
-}
-
-- (void)tabBarDoubleClick
-{
-    if(([self delegate]) && ([[self delegate] respondsToSelector:@selector(tabViewDoubleClickTabBar:)])){
-        [[self delegate] tabViewDoubleClickTabBar:[self tabView]];
     } 
 }
 

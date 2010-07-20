@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: VT100Screen.h,v 1.38 2008-09-30 06:21:12 yfabian Exp $
+// $Id: VT100Screen.h,v 1.24 2006-11-09 05:45:08 yfabian Exp $
 /*
  **  VT100Screen.h
  **
@@ -30,6 +30,10 @@
 #import <Cocoa/Cocoa.h>
 #import <iTerm/VT100Terminal.h>
 
+#define ISDOUBLEWIDTHCHARACTER(c) ((c)>=0x1000)
+
+enum { NO_CHANGE, CHANGE, CHANGE_PIXEL };
+	
 @class PTYTask;
 @class PTYSession;
 @class PTYTextView;
@@ -38,8 +42,8 @@
 typedef struct screen_char_t
 {
 	unichar ch;    // the actual character
-	unsigned int bg_color; // background color
-	unsigned int fg_color; // foreground color
+	char bg_color; // background color
+	char fg_color; // foreground color
 } screen_char_t;
 
 #define TABWINDOW	300
@@ -52,8 +56,6 @@ typedef struct screen_char_t
     int CURSOR_Y;
     int SAVE_CURSOR_X;
     int SAVE_CURSOR_Y;
-    int ALT_SAVE_CURSOR_X;
-    int ALT_SAVE_CURSOR_Y;
     int SCROLL_TOP;
     int SCROLL_BOTTOM;
     BOOL tabStop[TABWINDOW];
@@ -72,7 +74,7 @@ typedef struct screen_char_t
     PTYTextView *display;
 	
 	// single buffer that holds both scrollback and screen contents
-	screen_char_t *buffer_lines;
+	screen_char_t *buffer_chars;
 	// buffer holding flags for each char on whether it needs to be redrawn
 	char *dirty;
 	// a single default line
@@ -80,6 +82,8 @@ typedef struct screen_char_t
 	// temporary buffer to store main buffer in SAVE_BUFFER/RESET_BUFFER mode
 	screen_char_t *temp_buffer;
 	
+	// pointer to first buffer line;
+	screen_char_t *first_buffer_line;
 	// pointer to last line in buffer
 	screen_char_t *last_buffer_line;
 	// pointer to first screen line
@@ -87,26 +91,37 @@ typedef struct screen_char_t
 	//pointer to first scrollback line
 	screen_char_t *scrollback_top;
 	
+	// saved stuff
+	screen_char_t *saved_screen_top;
+	screen_char_t *saved_scrollback_top;
+	int saved_scrollback_lines;
+	
 	// default line stuff
-	int default_bg_code;
-	int default_fg_code;
+	char default_bg_code;
+	char default_fg_code;
 	int default_line_width;
 
-	//scroll back stuff
-	BOOL dynamic_scrollback_size;
 	// max size of scrollback buffer
     unsigned int  max_scrollback_lines;
 	// current number of lines in scrollback buffer
 	unsigned int current_scrollback_lines;
-	// how many scrollback lines have been lost due to overflow
-	int scrollback_overflow;
+		
 	
 	// print to ansi...
 	BOOL printToAnsi;		// YES=ON, NO=OFF, default=NO;
 	NSMutableString *printToAnsiString;
 	
+	NSLock *screenLock;
+
 	// Growl stuff
 	iTermGrowlDelegate* gd;
+	
+	// UI related
+	int changeSize;
+	int newWidth,  newHeight;
+	int changeTitle;
+	NSString *newTitle;
+	BOOL bell;
 }
 
 
@@ -115,9 +130,8 @@ typedef struct screen_char_t
 
 - (NSString *)description;
 
-- (screen_char_t*)initScreenWithWidth:(int)width Height:(int)height;
+- (void)initScreenWithWidth:(int)width Height:(int)height;
 - (void)resizeWidth:(int)width height:(int)height;
-- (void)reset;
 - (void)setWidth:(int)width height:(int)height;
 - (int)width;
 - (int)height;
@@ -146,6 +160,11 @@ typedef struct screen_char_t
 - (char *) dirty;
 - (NSString *) getLineString: (screen_char_t *) theLine;
 
+// lock
+- (void) acquireLock;
+- (void) releaseLock;
+- (BOOL) tryLock;
+
 // edit screen buffer
 - (void)putToken:(VT100TCC)token;
 - (void)clearBuffer;
@@ -154,15 +173,13 @@ typedef struct screen_char_t
 - (void)restoreBuffer;
 
 // internal
-- (void)setString:(NSString *)s ascii:(BOOL)ascii;
+- (void)setString:(NSString *)s;
 - (void)setStringToX:(int)x
 				   Y:(int)y
-			  string:(NSString *)string
-			   ascii:(BOOL)ascii;
+			  string:(NSString *)string;
 - (void)setNewLine;
 - (void)deleteCharacters:(int)n;
 - (void)backSpace;
-- (void)backTab;
 - (void)setTab;
 - (void)clearTabStop;
 - (void)clearScreen;
@@ -187,13 +204,11 @@ typedef struct screen_char_t
 - (void)insertLines: (int)n;
 - (void)deleteLines: (int)n;
 - (void)blink;
-- (int)cursorX;
-- (int)cursorY;
+- (int) cursorX;
+- (int) cursorY;
 
-- (int)numberOfLines;
-
-- (int)scrollbackOverflow;
-- (void)resetScrollbackOverflow;
+- (void)updateScreen;
+- (int) numberOfLines;
 
 - (void)resetDirty;
 - (void)setDirty;
@@ -204,9 +219,14 @@ typedef struct screen_char_t
 - (void) printStringToAnsi: (NSString *) aString;
 
 // UI stuff
-- (void) doPrint;
+- (int)changeSize;
+- (int)newWidth;
+- (int)newHeight;
+- (void) resetChangeSize;
+- (int) changeTitle;
+- (NSString *) newTitle;
+- (void) resetChangeTitle;
+- (void) updateBell;
 
-// double width
-- (BOOL) isDoubleWidthCharacter:(unichar) c;
 
 @end
