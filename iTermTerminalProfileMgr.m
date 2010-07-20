@@ -25,8 +25,7 @@
  */
 
 
-#import "ITAddressBookMgr.h"
-#import <iTerm/iTermTerminalProfileMgr.h>
+#import "iTerm/iTermTerminalProfileMgr.h"
 
 static iTermTerminalProfileMgr *singleInstance = nil;
 
@@ -69,24 +68,12 @@ static iTermTerminalProfileMgr *singleInstance = nil;
 
 - (void) setProfiles: (NSMutableDictionary *) aDict
 {
-	NSEnumerator *keyEnumerator;
-	NSMutableDictionary *mappingDict;
-	NSString *profileName;
-	NSDictionary *sourceDict;
 	
 	// recursively copy the dictionary to ensure mutability
-	if(aDict != nil)
-	{
-		keyEnumerator = [aDict keyEnumerator];
-		while((profileName = [keyEnumerator nextObject]) != nil)
-		{
-			sourceDict = [aDict objectForKey: profileName];
-			mappingDict = [[NSMutableDictionary alloc] initWithDictionary: sourceDict];
-			[profiles setObject: mappingDict forKey: profileName];
-			[mappingDict release];
-		}		
-	}
-    else  // if we don't have any profile, create a default profile
+	[profiles setDictionary: aDict];
+	
+	// if we don't have any profile, create a default profile
+	if([profiles count] == 0)
 	{
 		NSMutableDictionary *aProfile;
 		NSString *defaultName;
@@ -101,11 +88,11 @@ static iTermTerminalProfileMgr *singleInstance = nil;
 		
 		[aProfile setObject: @"Yes" forKey: @"Default Profile"];
 		
-		[self setType: @"xterm" forProfile: defaultName];
-		[self setEncoding: NSUTF8StringEncoding forProfile: defaultName];
+		[self setType: @"vt100" forProfile: defaultName];
+		[self setEncoding: NSASCIIStringEncoding  forProfile: defaultName];
 		[self setScrollbackLines: 1000 forProfile: defaultName];
 		[self setSilenceBell: NO forProfile: defaultName];
-		[self setBlinkCursor: NO forProfile: defaultName];
+		[self setBlinkCursor: YES forProfile: defaultName];
 		[self setCloseOnSessionEnd: YES forProfile: defaultName];
 		[self setDoubleWidth: YES forProfile: defaultName];
 		[self setSendIdleChar: NO forProfile: defaultName];
@@ -155,7 +142,6 @@ static iTermTerminalProfileMgr *singleInstance = nil;
 	if([profileName length] <= 0)
 		return;
 	
-	[self updateBookmarkProfile: profileName with:@"Default"];
 	[profiles removeObjectForKey: profileName];
 }
 
@@ -207,15 +193,15 @@ static iTermTerminalProfileMgr *singleInstance = nil;
 	NSNumber *encoding;
 	
 	if([profileName length] <= 0)
-		return (NSUTF8StringEncoding);
+		return (NSASCIIStringEncoding);
 	
 	aProfile = [profiles objectForKey: profileName];
 	if(aProfile == nil)
-		return (NSUTF8StringEncoding);
+		return (NSASCIIStringEncoding);
 	
 	encoding = [aProfile objectForKey: @"Encoding"];
 	if(encoding == nil)
-		return (NSUTF8StringEncoding);
+		return (NSASCIIStringEncoding);
 	
 	return ([encoding unsignedIntValue]);	
 	
@@ -268,7 +254,7 @@ static iTermTerminalProfileMgr *singleInstance = nil;
 	if(aProfile == nil)
 		return;
 	
-	[aProfile setObject: [NSNumber numberWithInt: (lines < 0 ? -1 : lines)] forKey: @"Scrollback"];	
+	[aProfile setObject: [NSNumber numberWithInt: (lines < 0 ? 0 : lines)] forKey: @"Scrollback"];	
 }
 
 
@@ -304,74 +290,6 @@ static iTermTerminalProfileMgr *singleInstance = nil;
 		return;
 	
 	[aProfile setObject: [NSNumber numberWithBool: silent] forKey: @"Silence Bell"];	
-}
-
-- (BOOL) showBellForProfile: (NSString *) profileName
-{
-	NSDictionary *aProfile;
-	NSNumber *showBell;
-	
-	if([profileName length] <= 0)
-		return (NO);
-	
-	aProfile = [profiles objectForKey: profileName];
-	if(aProfile == nil)
-		return (NO);
-	
-	showBell = [aProfile objectForKey: @"Show Bell"];
-	if(showBell == nil)
-		return (YES);
-	
-	return ([showBell boolValue]);	
-}
-
-- (void) setShowBell: (BOOL) showBell forProfile: (NSString *) profileName
-{
-	NSMutableDictionary *aProfile;
-	
-	if([profileName length] <= 0)
-		return;
-	
-	aProfile = [profiles objectForKey: profileName];
-	
-	if(aProfile == nil)
-		return;
-	
-	[aProfile setObject: [NSNumber numberWithBool: showBell] forKey: @"Show Bell"];	
-}
-
-- (BOOL) growlForProfile: (NSString *) profileName
-{
-	NSDictionary *aProfile;
-	NSNumber *growl;
-	
-	if([profileName length] <= 0)
-		return (NO);
-	
-	aProfile = [profiles objectForKey: profileName];
-	if(aProfile == nil)
-		return (NO);
-	
-	growl = [aProfile objectForKey: @"Growl"];
-	if(growl == nil)
-		return (YES);
-	
-	return ([growl boolValue]);	
-}
-
-- (void) setGrowl: (BOOL) growl forProfile: (NSString *) profileName
-{
-	NSMutableDictionary *aProfile;
-	
-	if([profileName length] <= 0)
-		return;
-	
-	aProfile = [profiles objectForKey: profileName];
-	
-	if(aProfile == nil)
-		return;
-	
-	[aProfile setObject: [NSNumber numberWithBool: growl] forKey: @"Growl"];	
 }
 
 
@@ -547,140 +465,6 @@ static iTermTerminalProfileMgr *singleInstance = nil;
 		return;
 	
 	[aProfile setObject: [NSNumber numberWithChar: idle] forKey: @"Idle Char"];	
-}
-
-- (BOOL) xtermMouseReportingForProfile: (NSString *) profileName
-{
-	NSDictionary *aProfile;
-	NSNumber *xtermMouseReporting;
-	
-	if([profileName length] <= 0)
-		return (YES);
-	
-	aProfile = [profiles objectForKey: profileName];
-	if(aProfile == nil)
-		return (YES);
-	
-	xtermMouseReporting = [aProfile objectForKey: @"Xterm Mouse Reporting"];
-	if(xtermMouseReporting == nil)
-		return (YES);
-	
-	return ([xtermMouseReporting boolValue]);	
-}
-
-- (void) setXtermMouseReporting: (BOOL) xtermMouseReporting forProfile: (NSString *) profileName
-{
-	NSMutableDictionary *aProfile;
-	
-	if([profileName length] <= 0)
-		return;
-	
-	aProfile = [profiles objectForKey: profileName];
-	
-	if(aProfile == nil)
-		return;
-	
-	[aProfile setObject: [NSNumber numberWithBool: xtermMouseReporting] forKey: @"Xterm Mouse Reporting"];	
-}
-
-- (BOOL) appendTitleForProfile: (NSString *) profileName
-{
-	NSDictionary *aProfile;
-	NSNumber *appendTitle;
-	
-	if([profileName length] <= 0)
-		return (YES);
-	
-	aProfile = [profiles objectForKey: profileName];
-	if(aProfile == nil)
-		return (NO);
-	
-	appendTitle = [aProfile objectForKey: @"Append Title"];
-	if(appendTitle == nil)
-		return (NO);
-	
-	return ([appendTitle boolValue]);	
-}
-
-- (void) setAppendTitle: (BOOL) appendTitle forProfile: (NSString *) profileName
-{
-	NSMutableDictionary *aProfile;
-	
-	if([profileName length] <= 0)
-		return;
-	
-	aProfile = [profiles objectForKey: profileName];
-	
-	if(aProfile == nil)
-		return;
-	
-	[aProfile setObject: [NSNumber numberWithBool: appendTitle] forKey: @"Append Title"];	
-}
-
-- (BOOL) noResizingForProfile: (NSString *) profileName
-{
-	NSDictionary *aProfile;
-	NSNumber *noResizing;
-	
-	if([profileName length] <= 0)
-		return (NO);
-	
-	aProfile = [profiles objectForKey: profileName];
-	if(aProfile == nil)
-		return (NO);
-	
-	noResizing = [aProfile objectForKey: @"No Resizing"];
-	if(noResizing == nil)
-		return (NO);
-	
-	return ([noResizing boolValue]);	
-}
-
-- (void) setNoResizing: (BOOL) noResizing forProfile: (NSString *) profileName
-{
-	NSMutableDictionary *aProfile;
-	
-	if([profileName length] <= 0)
-		return;
-	
-	aProfile = [profiles objectForKey: profileName];
-	
-	if(aProfile == nil)
-		return;
-	
-	[aProfile setObject: [NSNumber numberWithBool: noResizing] forKey: @"No Resizing"];	
-}
-
-- (void) updateBookmarkNode: (TreeNode *)node forProfile: (NSString*) oldProfile with:(NSString*)newProfile
-{
-	int i;
-	TreeNode *child;
-	NSDictionary *aDict;
-	int n = [node numberOfChildren];
-	
-	for (i=0;i<n;i++) {
-		child = [node childAtIndex:i];
-		if ([child isLeaf]) {
-			aDict = [child nodeData];
-			if ([[aDict objectForKey:KEY_TERMINAL_PROFILE] isEqualToString: oldProfile]) {
-				NSMutableDictionary *newBookmark= [[NSMutableDictionary alloc] initWithDictionary: aDict];
-				[newBookmark setObject: newProfile forKey: KEY_TERMINAL_PROFILE];
-				[child setNodeData: newBookmark];
-				[newBookmark release];
-			}
-		}
-		else {
-			[self updateBookmarkNode: child forProfile: oldProfile with:newProfile];
-		}
-	}
-}
-
-- (void) updateBookmarkProfile: (NSString*) oldProfile with:(NSString*)newProfile
-{
-	[self updateBookmarkNode: [[ITAddressBookMgr sharedInstance] rootNode] forProfile: oldProfile with:newProfile];
-	
-	// Post a notification for all listeners that bookmarks have changed
-	[[NSNotificationCenter defaultCenter] postNotificationName: @"iTermReloadAddressBook" object: nil userInfo: nil];    		
 }
 
 

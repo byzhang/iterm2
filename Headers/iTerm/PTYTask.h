@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PTYTask.h,v 1.14 2008-10-24 05:25:58 yfabian Exp $
+// $Id: PTYTask.h,v 1.4 2004-03-14 06:05:38 ujwal Exp $
 /*
  **  PTYTask.h
  **
@@ -28,66 +28,67 @@
  */
 
 /*
-	Delegate
-		readTask:
-		brokenPipe
-		closeSession:
+  Delegate
+      readTask:
+      brokenPipe
 */
 
 #import <Foundation/Foundation.h>
 
 @interface PTYTask : NSObject
 {
-	pid_t pid;
-	int fd;
-	int status;
-	id delegate;
-	NSString* tty;
-	NSString* path;
-	BOOL hasOutput;
+    pid_t PID;
+    int FILDES;
+    int STATUS;
+    id DELEGATEOBJECT;
+    NSMutableData *RECVDATA;
+    NSString *TTY;
+    NSString *PATH;
+    NSPort *SENDPORT;
+    NSPort *RECVPORT;
+    NSConnection *CONNECTION;
 
-	NSLock* writeLock;
-	NSMutableData* writeBuffer;
-
-	NSString* logPath;
-	NSFileHandle* logHandle;
+    NSString *LOG_PATH;
+    NSFileHandle *LOG_HANDLE;
+    BOOL hasOutput;
+    BOOL firstOutput;
 }
 
 - (id)init;
 - (void)dealloc;
 
-- (void)launchWithPath:(NSString*)progpath
-		arguments:(NSArray*)args environment:(NSDictionary*)env
-		width:(int)width height:(int)height;
+- (void)launchWithPath:(NSString *)progpath
+	     arguments:(NSArray *)args
+	   environment:(NSDictionary *)env
+		 width:(int)width
+		height:(int)height;
 
 - (void)setDelegate:(id)object;
 - (id)delegate;
-- (void)readTask:(NSData*)data;
-- (void)writeTask:(NSData*)data;
 
+- (void) doIdleTasks;
+- (NSData *)readData;
+- (void)readTask:(NSData *)data;
+- (void)writeTask:(NSData *)data;
+- (void)brokenPipe;
 - (void)sendSignal:(int)signo;
 - (void)setWidth:(int)width height:(int)height;
-- (int)wait;
-- (void)stop;
-
-- (int)fd;
 - (pid_t)pid;
+- (int)wait;
+- (BOOL)exist;
+- (void)stop;
+- (void)stopNoWait;
 - (int)status;
-- (NSString*)tty;
-- (NSString*)path;
-- (NSString*)getWorkingDirectory;
-- (NSString*)description;
-
-- (BOOL)loggingStartWithPath:(NSString*)path;
+- (NSString *)tty;
+- (NSString *)path;
+- (BOOL)loggingStartWithPath:(NSString *)path;
 - (void)loggingStop;
 - (BOOL)logging;
-- (BOOL)hasOutput;
+- (BOOL) hasOutput;
+- (void) setHasOutput: (BOOL) flag;
+- (BOOL) firstOutput;
+- (void) setFirstOutput: (BOOL) flag;
 
-- (BOOL)wantsRead;
-- (BOOL)wantsWrite;
-- (void)brokenPipe;
-- (void)processRead;
-- (void)processWrite;
+- (NSString *)description;
 
 @end
-

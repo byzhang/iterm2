@@ -1,23 +1,19 @@
-PATH := /usr/bin:/bin:/usr/sbin:/sbin
+##
+## $Id: Makefile,v 1.2 2003-11-13 23:45:29 ujwal Exp $
+## iTerm Makefile
+## 2003 Copyright(C) Ujwal S. Sathyam
+##
 
-Development:
-	xcodebuild -alltargets -configuration Development && \
-	chmod -R go+rX build/Development
+PBXBUILD=pbxbuild
+XCODEBUILD="xcodebuild -project iTerm.xcode"  
+BUILDSTYLE=Development
+PROJECTNAME=iTerm
 
-Deployment:
-	xcodebuild -alltargets -configuration Deployment && \
-	chmod -R go+rX build/Deployment
-
-run: Development
-	build/Development/iTerm.app/Contents/MacOS/iTerm
-
-zip: Deployment
-	cd build/Deployment && \
-	zip -r iTerm_$$(cat ../../version.txt).$$(date '+%Y%m%d').zip iTerm.app
+all:
+	./iTermBuild.sh -alltargets -buildstyle $(BUILDSTYLE)
 
 clean:
-	xcodebuild -alltargets clean
+	./iTermBuild.sh -alltargets clean
 	rm -rf build
 	rm -f *~
-
 

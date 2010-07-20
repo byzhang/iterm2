@@ -42,7 +42,6 @@
     IBOutlet id CONFIG_NAEXAMPLE;
     IBOutlet id CONFIG_TRANSPARENCY;
     IBOutlet id CONFIG_TRANS2;
-	IBOutlet id CONFIG_BLUR;
     IBOutlet id CONFIG_NAME;
     IBOutlet id CONFIG_ANTIALIAS;
     IBOutlet NSColorWell *CONFIG_SELECTION;
@@ -66,18 +65,10 @@
     IBOutlet NSButton *useBackgroundImage;
     IBOutlet NSImageView *backgroundImageView;
     NSString *backgroundImagePath;
-	
-	IBOutlet NSButton *boldButton;
-	IBOutlet NSButton *transparencyButton;
-	IBOutlet NSButton *updateProfileButton;
-	IBOutlet NSButton *blurButton;
 }
-
-+ (id) singleInstance;
 
 + (void)show;
 + (void)close;
-+ (BOOL)onScreen;
 
 - (void)loadConfigWindow: (NSNotification *) aNotification;
 
@@ -87,7 +78,6 @@
 - (IBAction) setCharacterSpacing: (id) sender;
 - (IBAction) toggleAntiAlias: (id) sender;
 - (IBAction) setTransparency: (id) sender;
-- (IBAction) setBlur: (id) sender;
 - (IBAction) setForegroundColor: (id) sender;
 - (IBAction) setBackgroundColor: (id) sender;
 - (IBAction) setBoldColor: (id) sender;
@@ -103,7 +93,5 @@
 - (IBAction) windowConfigFont:(id)sender;
 - (IBAction) windowConfigNAFont:(id)sender;
 - (IBAction) useBackgroundImage: (id) sender;
-- (IBAction) setBold: (id) sender;
-- (IBAction) updateProfile: (id) sender;
 
 @end

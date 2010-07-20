@@ -16,7 +16,6 @@
                 deleteBookmarkFolder = id; 
                 editBookmark = id; 
                 ok = id; 
-                setDefaultSession = id; 
             }; 
             CLASS = PreferencePanel; 
             LANGUAGE = ObjC; 
@@ -33,20 +32,14 @@
                 bookmarkTerminalProfile = NSPopUpButton; 
                 bookmarkWorkingDirectory = NSTextField; 
                 bookmarksView = NSOutlineView; 
-                cmdSelection = NSButton; 
-                defaultSessionButton = NSButton; 
                 deleteBookmarkPanel = NSPanel; 
                 editBookmarkPanel = NSPanel; 
-                enableBonjour = NSButton; 
                 focusFollowsMouse = NSButton; 
                 hideTab = id; 
-                maxVertically = NSButton; 
-                middleButtonPastesFromClipboard = NSButton; 
                 profilesWindow = NSWindow; 
                 promptOnClose = id; 
                 selectionCopiesText = NSButton; 
                 tabPosition = NSPopUpButton; 
-                windowStyle = NSPopUpButton; 
                 wordChars = NSTextField; 
             }; 
             SUPERCLASS = NSWindowController; 
@@ -59,7 +52,6 @@
                 displaySelectFont = id; 
                 displaySelectNAFont = id; 
                 displaySetAntiAlias = id; 
-                displaySetDisableBold = id; 
                 displaySetFontSpacing = id; 
                 kbEntryAdd = id; 
                 kbEntryAddCancel = id; 
@@ -81,10 +73,8 @@
                 terminalSetDoubleWidth = id; 
                 terminalSetEncoding = id; 
                 terminalSetSendIdleChar = id; 
-                terminalSetShowBell = id; 
                 terminalSetSilenceBell = id; 
                 terminalSetType = id; 
-                terminalSetXtermMouseReporting = id; 
             }; 
             CLASS = iTermProfileWindowController; 
             LANGUAGE = ObjC; 
@@ -115,7 +105,6 @@
                 displayColTextField = NSTextField; 
                 displayCursorColor = NSColorWell; 
                 displayCursorTextColor = NSColorWell; 
-                displayDisableBold = NSButton; 
                 displayFGColor = NSColorWell; 
                 displayFontAccessoryView = NSView; 
                 displayFontSpacingHeight = NSSlider; 
@@ -153,10 +142,8 @@
                 terminalProfileSelector = NSPopUpButton; 
                 terminalScrollback = NSTextField; 
                 terminalSendIdleChar = NSButton; 
-                terminalShowBell = NSButton; 
                 terminalSilenceBell = NSButton; 
                 terminalType = NSPopUpButton; 
-                xtermMouseReporting = NSButton; 
             }; 
             SUPERCLASS = NSWindowController; 
         }

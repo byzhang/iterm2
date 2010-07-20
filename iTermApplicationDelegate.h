@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: iTermApplicationDelegate.h,v 1.21 2006-11-21 19:24:29 yfabian Exp $
+// $Id: iTermApplicationDelegate.h,v 1.12 2004-03-19 08:11:55 ujwal Exp $
 /*
  **  iTermApplicationDelegate.h
  **
@@ -34,54 +34,37 @@
 @interface iTermApplicationDelegate : NSObject
 {
     // about window
-	NSWindowController *aboutController;
     IBOutlet id ABOUT;
-	IBOutlet id scrollingInfo;
     IBOutlet NSTextView *AUTHORS;
-
-	//Scrolling
-    NSTimer	*scrollTimer;
-	NSTimer	*eventLoopScrollTimer;
-    float	scrollLocation;
-    int		maxScroll;
-    float   scrollRate;
-	
     
     // Menu items
-    IBOutlet NSMenu     *bookmarkMenu;
     IBOutlet NSMenuItem *selectTab;
     IBOutlet NSMenuItem *previousTerminal;
     IBOutlet NSMenuItem *nextTerminal;
+    IBOutlet NSMenuItem *newTab;
+    IBOutlet NSMenuItem *newWindow;
     IBOutlet NSMenuItem *logStart;
     IBOutlet NSMenuItem *logStop;
     IBOutlet NSMenuItem *closeTab;
     IBOutlet NSMenuItem *closeWindow;
     IBOutlet NSMenuItem *sendInputToAllSessions;
-	IBOutlet NSMenuItem *fontSizeFollowWindowResize;
-	IBOutlet NSMenuItem *toggleBookmarksView;
-    IBOutlet NSMenuItem *toggleTransparency;
-
 }
 
 // NSApplication Delegate methods
 - (void)applicationWillFinishLaunching:(NSNotification *)aNotification;
 - (BOOL) applicationShouldTerminate: (NSNotification *) theNotification;
-- (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename;
 - (BOOL)applicationOpenUntitledFile:(NSApplication *)app;
 - (NSMenu *)applicationDockMenu:(NSApplication *)sender;
 - (void)applicationDidUnhide:(NSNotification *)aNotification;
-- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app;
 
 - (IBAction)newWindow:(id)sender;
 - (IBAction)newSession:(id)sender;
-- (IBAction)buildScriptMenu:(id)sender;
 
     // About window
 - (IBAction)showAbout:(id)sender;
 - (IBAction)aboutOK:(id)sender;
 
 - (IBAction)showPrefWindow:(id)sender;
-- (IBAction)showBookmarkWindow:(id)sender;
 
     // navigation
 - (IBAction) previousTerminal: (id) sender;
@@ -97,12 +80,6 @@
 // font control
 - (IBAction) biggerFont: (id) sender;
 - (IBAction) smallerFont: (id) sender;
-
-// transparency
-- (IBAction) useTransparency: (id) sender;
-
-// size
-- (IBAction) returnToDefaultSize: (id) sender;
 
 @end
 

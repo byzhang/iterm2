@@ -26,7 +26,6 @@
 
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
-#import <Tree.h>
 
 #define TYPE_ANSI_0_COLOR				0
 #define TYPE_ANSI_1_COLOR				1
@@ -64,7 +63,7 @@
 - (id) init;
 - (void) dealloc;
 
-- (NSMutableDictionary *) profiles;
+- (NSDictionary *) profiles;
 - (void) setProfiles: (NSMutableDictionary *) aDict;
 - (void) addProfileWithName: (NSString *) newProfile copyProfile: (NSString *) sourceProfile;
 - (void) deleteProfileWithName: (NSString *) profileName;
@@ -78,13 +77,8 @@
 - (float) transparencyForProfile: (NSString *) profileName;
 - (void) setTransparency: (float) transparency forProfile: (NSString *) profileName;
 
-- (NSString *) COLORFGBGForProfile: (NSString *) profileName;
-
 - (NSString *) backgroundImageForProfile: (NSString *) profileName;
 - (void) setBackgroundImage: (NSString *) imagePath forProfile: (NSString *) profileName;
-
-- (BOOL) disableBoldForProfile: (NSString *) profileName;
-- (void) setDisableBold: (BOOL) bFlag forProfile: (NSString *) profileName;
 
 - (int) windowColumnsForProfile: (NSString *) profileName;
 - (void) setWindowColumns: (int) columns forProfile: (NSString *) profileName;
@@ -100,11 +94,6 @@
 - (void) setWindowVerticalCharSpacing: (float) spacing forProfile: (NSString *) profileName;
 - (BOOL) windowAntiAliasForProfile: (NSString *) profileName;
 - (void) setWindowAntiAlias: (BOOL) antiAlias forProfile: (NSString *) profileName;
-- (BOOL) windowBlurForProfile: (NSString *) profileName;
-- (void) setWindowBlur: (BOOL) blur forProfile: (NSString *) profileName;
-
-- (void) updateBookmarkNode: (TreeNode *)node forProfile: (NSString*) oldProfile with:(NSString*)newProfile;
-- (void) updateBookmarkProfile: (NSString*) oldProfile with:(NSString*)newProfile;
 
 @end
 

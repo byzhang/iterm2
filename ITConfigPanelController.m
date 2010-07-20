@@ -34,11 +34,9 @@
 #import "VT100Screen.h"
 #import "PTYTextView.h"
 #import "PTYScrollView.h"
-#import "iTermDisplayProfileMgr.h"
-#import "iTermTerminalProfileMgr.h"
+#import "ITSessionMgr.h"
 
 static ITConfigPanelController *singleInstance = nil;
-static BOOL onScreen = NO;
 
 @implementation ITConfigPanelController
 
@@ -66,9 +64,7 @@ static BOOL onScreen = NO;
     [singleInstance loadConfigWindow: nil];
 	
 	[[singleInstance window] setFrameAutosaveName: @"Config Panel"];
-	[[singleInstance window] setLevel:NSFloatingWindowLevel];
 	[[singleInstance window] makeKeyAndOrderFront: self];
-    onScreen = YES;
 }
 
 + (void) close
@@ -78,17 +74,6 @@ static BOOL onScreen = NO;
 		[[singleInstance window] performClose: self];
 	}
 }
-
-+ (BOOL) onScreen
-{
-    return onScreen;
-}
-
-+ (id) singleInstance
-{
-	return singleInstance;
-}
-
 
 - (id)init
 {
@@ -116,7 +101,6 @@ static BOOL onScreen = NO;
 {
 	[[NSColorPanel sharedColorPanel] close];
 	[[NSFontPanel sharedFontPanel] close];
-    onScreen = NO;
 	
     // since this NSWindowController doesn't have a document, the releasing is not automatic when the window closes
     [self autorelease];
@@ -162,28 +146,11 @@ static BOOL onScreen = NO;
 
 - (IBAction) setTransparency: (id) sender
 {
-	int tr = [sender intValue];
-	[[_pseudoTerminal currentSession] setTransparency: (float)tr/100.0];
+	[[_pseudoTerminal currentSession] setTransparency:  [sender floatValue]/100.0];
 	if(sender == CONFIG_TRANS2)
-		[CONFIG_TRANSPARENCY setIntValue:tr];
+		[CONFIG_TRANSPARENCY setFloatValue:([[_pseudoTerminal currentSession] transparency]*100)];
 	else if (sender == CONFIG_TRANSPARENCY)
-		[CONFIG_TRANS2 setIntValue:tr];
-}
-
-- (IBAction) setBlur: (id) sender
-{
-	[_pseudoTerminal setBlur: ([CONFIG_BLUR state] == NSOnState)];
-}
-
-- (IBAction) setBold: (id) sender
-{
-	[[_pseudoTerminal currentSession] setDisableBold: ([boldButton state] == NSOffState)];
-    [CONFIG_BOLD setEnabled:[boldButton state]];
-}
-
-- (IBAction) updateProfile: (id) sender
-{
-    [_pseudoTerminal updateCurrentSessionProfiles];
+		[CONFIG_TRANS2 setFloatValue:([[_pseudoTerminal currentSession] transparency]*100)];
 }
 
 - (IBAction) setForegroundColor: (id) sender
@@ -239,7 +206,7 @@ static BOOL onScreen = NO;
 
 - (IBAction) setSessionEncoding: (id) sender
 {
-	[[_pseudoTerminal currentSession] setEncoding:[[CONFIG_ENCODING selectedItem] tag]];
+	[[_pseudoTerminal currentSession] setEncoding:[[iTermController sharedInstance] encodingList][[CONFIG_ENCODING indexOfSelectedItem]]];
 }
 
 - (IBAction) setAntiIdle: (id) sender
@@ -263,7 +230,6 @@ static BOOL onScreen = NO;
 	[aFontPanel setAccessoryView: nil];
     [[NSFontManager sharedFontManager] setSelectedFont:configFont isMultiple:NO];
     [[NSFontManager sharedFontManager] orderFrontFontPanel:self];
-	[aFontPanel setLevel:CGShieldingWindowLevel()];
 }
 
 - (IBAction)windowConfigNAFont:(id)sender
@@ -277,7 +243,6 @@ static BOOL onScreen = NO;
 	[aFontPanel setAccessoryView: nil];
     [[NSFontManager sharedFontManager] setSelectedFont:configNAFont isMultiple:NO];
     [[NSFontManager sharedFontManager] orderFrontFontPanel:self];
-	[aFontPanel setLevel:CGShieldingWindowLevel()];
 }
 
 
@@ -310,11 +275,6 @@ static BOOL onScreen = NO;
 // background image stuff
 - (IBAction) useBackgroundImage: (id) sender
 {
-	if ([_pseudoTerminal fullScreen]) {
-		[useBackgroundImage setState: backgroundImagePath != nil];
-		return;
-	}
-	
     [CONFIG_BACKGROUND setEnabled: ([useBackgroundImage state] == NSOffState)?YES:NO];
     if([useBackgroundImage state]==NSOffState)
     {
@@ -323,7 +283,7 @@ static BOOL onScreen = NO;
 		[backgroundImageView setImage: nil];
 		[[_pseudoTerminal currentSession] setBackgroundImagePath: @""];
     }
-    else 
+    else
 		[self chooseBackgroundImage: sender];
 }
 
@@ -346,7 +306,7 @@ static BOOL onScreen = NO;
 	
     panel = [NSOpenPanel openPanel];
     [panel setAllowsMultipleSelection: NO];
-		
+	
     directory = NSHomeDirectory();
     filename = [NSString stringWithString: @""];
 	
@@ -391,8 +351,8 @@ static BOOL onScreen = NO;
 // config panel sheet
 - (void)loadConfigWindow: (NSNotification *) aNotification
 {
-	NSEnumerator *anEnumerator;
-	NSNumber *anEncoding;
+    int r;
+    NSStringEncoding const *p=[[iTermController sharedInstance] encodingList];
 	
 	[self window]; // force window to load
 	
@@ -426,27 +386,22 @@ static BOOL onScreen = NO;
 	[charHorizontalSpacing setFloatValue: [_pseudoTerminal charSpacingHorizontal]];
 	[charVerticalSpacing setFloatValue: [_pseudoTerminal charSpacingVertical]];
     [CONFIG_NAME setStringValue:[_pseudoTerminal currentSessionName]];
-	
     [CONFIG_ENCODING removeAllItems];
-	anEnumerator = [[[iTermController sharedInstance] sortedEncodingList] objectEnumerator];
-	while((anEncoding = [anEnumerator nextObject]) != NULL)
-	{
-        [CONFIG_ENCODING addItemWithTitle: [NSString localizedNameOfStringEncoding: [anEncoding unsignedIntValue]]];
-		[[CONFIG_ENCODING lastItem] setTag: [anEncoding unsignedIntValue]];
-	}
-	[CONFIG_ENCODING selectItemAtIndex: [CONFIG_ENCODING indexOfItemWithTag: [[currentSession TERMINAL] encoding]]];
-	
-    [CONFIG_TRANSPARENCY setIntValue:((int)([currentSession transparency]*100))];
-    [CONFIG_TRANS2 setIntValue:((int)([currentSession transparency]*100))];
-    
+    r=0;
+    while (*p) 
+    {
+        [CONFIG_ENCODING addItemWithTitle:[NSString localizedNameOfStringEncoding:*p]];
+        if (*p==[[currentSession TERMINAL] encoding]) 
+            r = p-[[iTermController sharedInstance] encodingList];
+        p++;
+    }
+    [CONFIG_ENCODING selectItemAtIndex:r];
+    [CONFIG_TRANSPARENCY setFloatValue:([currentSession transparency]*100)];
+    [CONFIG_TRANS2 setFloatValue:([currentSession transparency]*100)];
     [AI_ON setState:[currentSession antiIdle]?NSOnState:NSOffState];
     [AI_CODE setIntValue:[currentSession antiCode]];
     
     [CONFIG_ANTIALIAS setState: [[currentSession TEXTVIEW] antiAlias]];
-	[blurButton setState: [_pseudoTerminal blur]];
-	
-	[boldButton setState: ![currentSession disableBold]];
-    [CONFIG_BOLD setEnabled:[boldButton state]];
 	
     // background image
     backgroundImagePath = [[currentSession backgroundImagePath] copy];
@@ -474,13 +429,7 @@ static BOOL onScreen = NO;
 		[backgroundImagePath release];
 		backgroundImagePath = nil;
     }    
-
-   	
-    
-    [updateProfileButton setTitle:[NSString stringWithFormat:
-        NSLocalizedStringFromTableInBundle(@"Update %@", @"iTerm", [NSBundle bundleForClass: [self class]], @"Info"), 
-        [[currentSession addressBookEntry] objectForKey: @"Name"]]];
-
+	
 	[[self window] setLevel: NSFloatingWindowLevel];
 	[[self window] setDelegate: self];
     

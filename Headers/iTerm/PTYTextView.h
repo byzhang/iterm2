@@ -1,5 +1,5 @@
 // -*- mode:objc -*-
-// $Id: PTYTextView.h,v 1.70 2008-10-21 05:43:52 yfabian Exp $
+// $Id: PTYTextView.h,v 1.40 2004-03-31 06:02:42 ujwal Exp $
 //
 /*
  **  PTYTextView.h
@@ -31,14 +31,19 @@
 #import <Cocoa/Cocoa.h>
 #import <iTerm/iTerm.h>
 
-#include <sys/time.h>
-
 #define MARGIN  5
-#define VMARGIN 5
 
 @class VT100Screen;
 
-enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
+typedef struct 
+{
+	int code;
+	unsigned int color;
+	NSImage *image;
+	int count;
+} CharCache;
+	
+#define CACHESIZE 2048
 
 @interface PTYTextView : NSView <NSTextInput>
 {
@@ -57,10 +62,10 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 
     // anti-alias flag
     BOOL antiAlias;
-	
-	// option to not render in bold
-	BOOL disableBold;
 
+    // dead key support
+    BOOL deadkey;
+	
 	// NSTextInput support
     BOOL IM_INPUT_INSERT;
     NSRange IM_INPUT_SELRANGE;
@@ -68,18 +73,19 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
     NSDictionary *markedTextAttributes;
     NSAttributedString *markedText;
 	
-	BOOL CURSOR;
-	BOOL drawAllowed;
+    BOOL CURSOR;
+	BOOL forceUpdate;
 	
     // geometry
 	float lineHeight;
     float lineWidth;
 	float charWidth;
 	float charWidthWithoutSpacing, charHeightWithoutSpacing;
+	int numberOfLines;
     
     NSFont *font;
     NSFont *nafont;
-    NSColor* colorTable[256];
+    NSColor* colorTable[16];
     NSColor* defaultFGColor;
     NSColor* defaultBGColor;
     NSColor* defaultBoldColor;
@@ -90,41 +96,31 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 	
 	// transparency
 	float transparency;
-    BOOL useTransparency;
 	
     // data source
     VT100Screen *dataSource;
     id _delegate;
 	
-	//selection
-	int startX, startY, endX, endY;
-	int oldStartX, oldStartY, oldEndX, oldEndY;
+    //selection
+    int startX, startY, endX, endY;
 	BOOL mouseDown;
 	BOOL mouseDragged;
-	char selectMode;
-	BOOL mouseDownOnSelection;
-	NSEvent *mouseDownEvent;
-		
+	
 	//find support
 	int lastFindX, lastFindY;
 	
-	BOOL reportingMouseDown;
+	//cache
+	CharCache	charImages[CACHESIZE];
 	
 	// blinking cursor
 	BOOL blinkingCursor;
 	BOOL showCursor;
 	BOOL blinkShow;
-    struct timeval lastBlink;
-    int oldCursorX, oldCursorY;
 	
 	// trackingRect tab
 	NSTrackingRectTag trackingRectTag;
-	
-	BOOL keyIsARepeat;
-    
 }
 
-+ (NSCursor *) textViewCursor;
 - (id)initWithFrame: (NSRect) aRect;
 - (void)dealloc;
 - (BOOL) becomeFirstResponder;
@@ -134,22 +130,14 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (BOOL)shouldDrawInsertionPoint;
 - (void)drawRect:(NSRect)rect;
 - (void)keyDown:(NSEvent *)event;
-- (BOOL) keyIsARepeat;
 - (void)mouseExited:(NSEvent *)event;
 - (void)mouseEntered:(NSEvent *)event;
 - (void)mouseDown:(NSEvent *)event;
 - (void)mouseUp:(NSEvent *)event;
 - (void)mouseDragged:(NSEvent *)event;
 - (void) otherMouseDown: (NSEvent *) event;
-- (void)otherMouseUp:(NSEvent *)event;
-- (void)otherMouseDragged:(NSEvent *)event;
-- (void)rightMouseDown:(NSEvent *)event;
-- (void)rightMouseUp:(NSEvent *)event;
-- (void)rightMouseDragged:(NSEvent *)event;
-- (void)scrollWheel:(NSEvent *)event;
-- (NSString *) contentFromX:(int)startx Y:(int)starty ToX:(int)endx Y:(int)endy pad: (BOOL) pad;
+- (NSString *) contentFromX:(int)startx Y:(int)starty ToX:(int)endx Y:(int)endy breakLines: (BOOL) breakLines;
 - (NSString *) selectedText;
-- (NSString *) selectedTextWithPad: (BOOL) pad;
 - (NSString *) content;
 - (void)copy: (id) sender;
 - (void)paste:(id)sender;
@@ -158,7 +146,6 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void)changeFont:(id)sender;
 - (NSMenu *)menuForEvent:(NSEvent *)theEvent;
 - (void) browse:(id)sender;
-- (void) searchInBrowser:(id)sender;
 - (void) mail:(id)sender;
 
 //get/set methods
@@ -167,8 +154,6 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void) setFont:(NSFont*)aFont nafont:(NSFont*)naFont;
 - (BOOL) antiAlias;
 - (void) setAntiAlias: (BOOL) antiAliasFlag;
-- (BOOL) disableBold;
-- (void) setDisableBold: (BOOL) boldFlag;
 - (BOOL) blinkingCursor;
 - (void) setBlinkingCursor: (BOOL) bFlag;
 
@@ -176,7 +161,7 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (NSColor *) defaultFGColor;
 - (NSColor *) defaultBGColor;
 - (NSColor *) defaultBoldColor;
-- (NSColor *) colorForCode:(int) index;
+- (NSColor *) colorForCode:(unsigned int) index;
 - (NSColor *) selectionColor;
 - (NSColor *) defaultCursorColor;
 - (NSColor *) selectedTextColor;
@@ -184,11 +169,12 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void) setFGColor:(NSColor*)color;
 - (void) setBGColor:(NSColor*)color;
 - (void) setBoldColor:(NSColor*)color;
-- (void) setColorTable:(int) index color:(NSColor *) c;
+- (void) setColorTable:(int) index highLight:(BOOL)hili color:(NSColor *) c;
 - (void) setSelectionColor: (NSColor *) aColor;
 - (void)setCursorColor:(NSColor*) color;
 - (void) setSelectedTextColor: (NSColor *) aColor;
 - (void) setCursorTextColor:(NSColor*) color;
+- (void) forceUpdate;
 
 
 - (NSDictionary*) markedTextAttributes;
@@ -207,19 +193,16 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 
 - (void) refresh;
 - (void) setFrameSize: (NSSize) aSize;
-- (void) updateDirtyRects;
+- (void) setForceUpdate: (BOOL) flag;
 - (void) showCursor;
 - (void) hideCursor;
 
 // selection
 - (IBAction) selectAll: (id) sender;
-- (void) deselect;
 
 // transparency
 - (float) transparency;
 - (void) setTransparency: (float) fVal;
-- (BOOL) useTransparency;
-- (void) setUseTransparency: (BOOL) flag;
 
 //
 // Drag and Drop methods for our text view
@@ -244,11 +227,9 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void) scrollEnd;
 - (void) scrollToSelection;
 
-
     // Save method
 - (void) saveDocumentAs: (id) sender;
 - (void) print:(id)sender;
-- (void) printContent: (NSString *) aString;
 
 // Find method
 - (void) findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase;
@@ -267,10 +248,7 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (long)conversationIdentifier;
 - (NSRect)firstRectForCharacterRange:(NSRange)theRange;
 
-	// service stuff
-- (id)validRequestorForSendType:(NSString *)sendType returnType:(NSString *)returnType;
-- (BOOL)writeSelectionToPasteboard:(NSPasteboard *)pboard types:(NSArray *)types;
-- (BOOL)readSelectionFromPasteboard:(NSPasteboard *)pboard;	
+- (void)resetCharCache;
 
 @end
 
@@ -283,22 +261,21 @@ enum { SELECT_CHAR, SELECT_WORD, SELECT_LINE };
 - (void) _savePanelDidEnd: (NSSavePanel *) theSavePanel returnCode: (int) theReturnCode contextInfo: (void *) theContextInfo;
 
 - (void) _scrollToLine:(int)line;
+- (void) _selectFromX:(int)startx Y:(int)starty toX:(int)endx Y:(int)endy;
 - (NSString *) _getWordForX: (int) x 
 					y: (int) y 
 			   startX: (int *) startx 
 			   startY: (int *) starty 
 				 endX: (int *) endx 
 				 endY: (int *) endy;
-- (NSString *) _getURLForX: (int) x y: (int) y;
-- (void) _drawLine:(int)line AtY:(float)curY;
-- (void) _drawCursor;
+
+- (void) _renderChar:(NSImage *)image withChar:(unichar) carac withColor:(NSColor*)color withFont:(NSFont*)aFont bold:(int)bold;
+- (NSImage *) _getCharImage:(unichar) code color:(int)fg doubleWidth:(BOOL) dw;
 - (void) _drawCharacter:(unichar)c fgColor:(int)fg AtX:(float)X Y:(float)Y doubleWidth:(BOOL) dw;
 - (BOOL) _isBlankLine: (int) y;
 - (void) _openURL: (NSString *) aURLString;
-- (BOOL) _findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase wrapping: (BOOL) wrapping;
-- (BOOL) _findMatchingParenthesis: (NSString *) parenthesis withX:(int)X Y:(int)Y;
-- (void) _dragText: (NSString *) aString forEvent: (NSEvent *) theEvent;
-- (BOOL) _isCharSelectedInRow:(int)row col:(int)col checkOld:(BOOL)old;
+- (void) _clearCacheForColor:(int)colorIndex;
+- (BOOL) _findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase;
 
 @end
 

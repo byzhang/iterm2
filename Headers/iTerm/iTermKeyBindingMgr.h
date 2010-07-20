@@ -25,7 +25,6 @@
  */
 
 #import <Cocoa/Cocoa.h>
-#import <Tree.h>
 
 // Key Definitions
 #define KEY_CURSOR_DOWN					0
@@ -55,30 +54,27 @@
 #define KEY_F18							24
 #define KEY_F19							25
 #define KEY_F20							26
-#define KEY_HELP						27
-#define KEY_HEX_CODE					28
-#define KEY_HOME						29
-#define KEY_NUMERIC_0					30
-#define KEY_NUMERIC_1					31
-#define KEY_NUMERIC_2					32
-#define KEY_NUMERIC_3					33
-#define KEY_NUMERIC_4					34
-#define KEY_NUMERIC_5					35
-#define KEY_NUMERIC_6					36
-#define KEY_NUMERIC_7					37
-#define KEY_NUMERIC_8					38
-#define KEY_NUMERIC_9					39
-#define KEY_NUMERIC_ENTER				40
-#define KEY_NUMERIC_EQUAL				41
-#define KEY_NUMERIC_DIVIDE				42
-#define KEY_NUMERIC_MULTIPLY			43
-#define KEY_NUMERIC_MINUS				44
-#define KEY_NUMERIC_PLUS				45
-#define KEY_NUMERIC_PERIOD				46
-#define KEY_NUMLOCK						47
-#define KEY_PAGE_DOWN					48
-#define KEY_PAGE_UP						49
-#define KEY_INS							50
+#define KEY_HEX_CODE					27
+#define KEY_HOME						28
+#define KEY_NUMERIC_0					29
+#define KEY_NUMERIC_1					30
+#define KEY_NUMERIC_2					31
+#define KEY_NUMERIC_3					32
+#define KEY_NUMERIC_4					33
+#define KEY_NUMERIC_5					34
+#define KEY_NUMERIC_6					35
+#define KEY_NUMERIC_7					36
+#define KEY_NUMERIC_8					37
+#define KEY_NUMERIC_9					38
+#define KEY_NUMERIC_EQUAL				39
+#define KEY_NUMERIC_DIVIDE				40
+#define KEY_NUMERIC_MULTIPLY			41
+#define KEY_NUMERIC_MINUS				42
+#define KEY_NUMERIC_PLUS				43
+#define KEY_NUMERIC_PERIOD				44
+#define KEY_NUMLOCK						45
+#define KEY_PAGE_DOWN					46
+#define KEY_PAGE_UP						47
 
 
 // Actions for key bindings
@@ -94,8 +90,7 @@
 #define KEY_ACTION_SCROLL_PAGE_UP		9
 #define KEY_ACTION_ESCAPE_SEQUENCE		10
 #define KEY_ACTION_HEX_CODE				11
-#define KEY_ACTION_TEXT                 12
-#define KEY_ACTION_IGNORE				13
+#define KEY_ACTION_IGNORE				12
 
 
 @interface iTermKeyBindingMgr : NSObject {
@@ -125,34 +120,21 @@
 - (void) addEntryForKeyCode: (unsigned int) hexCode 
 				  modifiers: (unsigned int) modifiers
 					 action: (unsigned int) action
-			   highPriority: (BOOL) highPriority
 					   text: (NSString *) text
 					profile: (NSString *) profile;
 - (void) addEntryForKey: (unsigned int) key 
 				  modifiers: (unsigned int) modifiers
 					 action: (unsigned int) action
-			   highPriority: (BOOL) highPriority
 					   text: (NSString *) text
-				    profile: (NSString *) profile;
+				profile: (NSString *) profile;
 - (void) deleteEntryAtIndex: (int) index inProfile: (NSString *) profile;
 
 - (NSString *) keyCombinationAtIndex: (int) index inProfile: (NSString *) profile;
 - (NSString *) actionForKeyCombinationAtIndex: (int) index inProfile: (NSString *) profile;
-- (int) actionForKeyCode: (unichar)keyCode 
-			   modifiers: (unsigned int) keyModifiers 
-			highPriority: (BOOL *) highPriority
-					text: (NSString **) text 
-				 profile: (NSString *)profile;
-
-- (void) updateBookmarkNode: (TreeNode *)node forProfile: (NSString*) oldProfile with:(NSString*)newProfile;
-- (void) updateBookmarkProfile: (NSString*) oldProfile with:(NSString*)newProfile;
+- (int) actionForKeyCode: (unichar)keyCode modifiers: (unsigned int) keyModifiers text: (NSString **) text profile: (NSString *)profile;
 
 @end
 
 @interface iTermKeyBindingMgr (Private)
-- (int) _actionForKeyCode: (unichar)keyCode 
-				modifiers: (unsigned int) keyModifiers
-			 highPriority: (BOOL *) highPriority
-					 text: (NSString **) text 
-				  profile: (NSString *)profile;
+- (int) _actionForKeyCode: (unichar)keyCode modifiers: (unsigned int) keyModifiers text: (NSString **) text profile: (NSString *)profile;
 @end

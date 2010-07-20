@@ -1,4 +1,4 @@
-// $Id: PreferencePanel.m,v 1.162 2008-10-02 03:48:36 yfabian Exp $
+// $Id: PreferencePanel.m,v 1.116 2004-04-13 19:26:33 ujwal Exp $
 /*
  **  PreferencePanel.m
  **
@@ -33,10 +33,12 @@
 #import <iTerm/iTermDisplayProfileMgr.h>
 #import <iTerm/iTermTerminalProfileMgr.h>
 #import <iTerm/Tree.h>
-#import <iTermBookmarkController.h>
 
 static float versionNumber;
-static NSString *NoHandler = @"<No Handler>";
+
+static BOOL editingBookmark = NO;
+
+#define iTermOutlineViewPboardType 	@"iTermOutlineViewPboardType"
 
 @implementation PreferencePanel
 
@@ -52,32 +54,6 @@ static NSString *NoHandler = @"<No Handler>";
     return shared;
 }
 
-/*
- Static method to copy old preferences file, iTerm.plist, to new
- preferences file, net.sourceforge.iTerm.plist
- */
-+ (BOOL) migratePreferences {
-	
-	NSString *prefDir = [[NSHomeDirectory()
-        stringByAppendingPathComponent:@"Library"]
-        stringByAppendingPathComponent:@"Preferences"];
-	
-	NSString *oldPrefs = [prefDir stringByAppendingPathComponent:@"iTerm.plist"];
-	NSString *newPrefs = [prefDir stringByAppendingPathComponent:@"net.sourceforge.iTerm.plist"];
-	
-	NSFileManager *mgr = [NSFileManager defaultManager];
-	
-	if(([mgr fileExistsAtPath:oldPrefs]) &&
-	   (![mgr fileExistsAtPath:newPrefs])) {
-		NSLog(@"Preference file migrated");
-		[mgr copyPath:oldPrefs toPath:newPrefs handler:nil];
-		[NSUserDefaults resetStandardUserDefaults];
-		return (YES);	
-	}
-	return (NO);	
-}
-
-
 - (id) init
 {
 	unsigned int storedMajorVersion = 0, storedMinorVersion = 0, storedMicroVersion = 0;
@@ -85,8 +61,6 @@ static NSString *NoHandler = @"<No Handler>";
 	self = [super init];
 	
 	[self readPreferences];
-	if(defaultEnableBonjour == YES)
-		[[ITAddressBookMgr sharedInstance] locateBonjourServices];
 	
 	// get the version
 	NSDictionary *myDict = [[NSBundle bundleForClass:[self class]] infoDictionary];
@@ -103,130 +77,88 @@ static NSString *NoHandler = @"<No Handler>";
 	
 	// sync the version number
 	[prefs setObject: [myDict objectForKey:@"CFBundleVersion"] forKey: @"iTerm Version"];
-
-	[[NSNotificationCenter defaultCenter] addObserver: self
-									 selector: @selector(_reloadURLHandlers:)
-										 name: @"iTermReloadAddressBook"
-									   object: nil];	
-
+		
 	return (self);
 }
 
+- (id)initWithWindowNibName: (NSString *) windowNibName
+{
+#if DEBUG_OBJALLOC
+    NSLog(@"%s(%d):-[PreferencePanel init]", __FILE__, __LINE__);
+#endif
+    if ((self = [super init]) == nil)
+        return nil;
+	
+	[super initWithWindowNibName: windowNibName];
+                     
+	[[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(_reloadAddressBook:)
+                                                 name: @"iTermReloadAddressBook"
+                                               object: nil];	
+	
+    return self;
+}
 
 - (void)dealloc
 {
+	[[NSNotificationCenter defaultCenter] removeObserver:self];
 	[defaultWordChars release];
     [super dealloc];
 }
 
 - (void) readPreferences
 {
+	NSString *plistFile;
+	NSMutableDictionary *profilesDictionary, *keybindingProfiles, *displayProfiles, *terminalProfiles;
+		
     prefs = [NSUserDefaults standardUserDefaults];
-
-	// Force antialiasing to be allowed on small font sizes
-	[prefs setInteger:1 forKey:@"AppleAntiAliasingThreshold"];
-	[prefs setInteger:1 forKey:@"AppleSmoothFixedFontsSizeThreshold"];
-	[prefs setInteger:0 forKey:@"AppleScrollAnimationEnabled"];
          
-	defaultWindowStyle=[prefs objectForKey:@"WindowStyle"]?[prefs integerForKey:@"WindowStyle"]:0;
     defaultTabViewType=[prefs objectForKey:@"TabViewType"]?[prefs integerForKey:@"TabViewType"]:0;
-    if (defaultTabViewType>1) defaultTabViewType = 0;
-    defaultCopySelection=[prefs objectForKey:@"CopySelection"]?[[prefs objectForKey:@"CopySelection"] boolValue]:YES;
-	defaultPasteFromClipboard=[prefs objectForKey:@"PasteFromClipboard"]?[[prefs objectForKey:@"PasteFromClipboard"] boolValue]:YES;
+    defaultCopySelection=[[prefs objectForKey:@"CopySelection"] boolValue];
     defaultHideTab=[prefs objectForKey:@"HideTab"]?[[prefs objectForKey:@"HideTab"] boolValue]: YES;
-    defaultPromptOnClose = [prefs objectForKey:@"PromptOnClose"]?[[prefs objectForKey:@"PromptOnClose"] boolValue]: NO;
-    defaultOnlyWhenMoreTabs = [prefs objectForKey:@"OnlyWhenMoreTabs"]?[[prefs objectForKey:@"OnlyWhenMoreTabs"] boolValue]: NO;
+    defaultPromptOnClose = [prefs objectForKey:@"PromptOnClose"]?[[prefs objectForKey:@"PromptOnClose"] boolValue]: YES;
     defaultFocusFollowsMouse = [prefs objectForKey:@"FocusFollowsMouse"]?[[prefs objectForKey:@"FocusFollowsMouse"] boolValue]: NO;
-	defaultEnableBonjour = [prefs objectForKey:@"EnableRendezvous"]?[[prefs objectForKey:@"EnableRendezvous"] boolValue]: YES;
-	defaultEnableGrowl = [prefs objectForKey:@"EnableGrowl"]?[[prefs objectForKey:@"EnableGrowl"] boolValue]: NO;
-	defaultCmdSelection = [prefs objectForKey:@"CommandSelection"]?[[prefs objectForKey:@"CommandSelection"] boolValue]: YES;
-	defaultMaxVertically = [prefs objectForKey:@"MaxVertically"]?[[prefs objectForKey:@"MaxVertically"] boolValue]: YES;
-	defaultUseCompactLabel = [prefs objectForKey:@"UseCompactLabel"]?[[prefs objectForKey:@"UseCompactLabel"] boolValue]: YES;
-	defaultRefreshRate = [prefs objectForKey:@"RefreshRate"]?[[prefs objectForKey:@"RefreshRate"] intValue]: 10;
 	[defaultWordChars release];
-	defaultWordChars = [prefs objectForKey: @"WordCharacters"]?[[prefs objectForKey: @"WordCharacters"] retain]:@"/-+\\~_.";
-    defaultOpenBookmark = [prefs objectForKey:@"OpenBookmark"]?[[prefs objectForKey:@"OpenBookmark"] boolValue]: NO;
-	defaultQuitWhenAllWindowsClosed = [prefs objectForKey:@"QuitWhenAllWindowsClosed"]?[[prefs objectForKey:@"QuitWhenAllWindowsClosed"] boolValue]: NO;
-	defaultCursorType=[prefs objectForKey:@"CursorType"]?[prefs integerForKey:@"CursorType"]:2;
-	defaultCheckUpdate = [prefs objectForKey:@"SUEnableAutomaticChecks"]?[[prefs objectForKey:@"SUEnableAutomaticChecks"] boolValue]: YES;
-	defaultUseBorder = [prefs objectForKey:@"UseBorder"]?[[prefs objectForKey:@"UseBorder"] boolValue]: NO;
-	defaultHideScrollbar = [prefs objectForKey:@"HideScrollbar"]?[[prefs objectForKey:@"HideScrollbar"] boolValue]: NO;
-	defaultCheckTestRelease = [prefs objectForKey:@"CheckTestRelease"]?[[prefs objectForKey:@"CheckTestRelease"] boolValue]: YES;
-	NSString *appCast = defaultCheckTestRelease ?
-		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForTesting"] :
-		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinal"];
-	[[NSUserDefaults standardUserDefaults] setObject:appCast forKey:@"SUFeedURL"];
-
-	NSArray *urlArray;
-	NSDictionary *tempDict = [prefs objectForKey:@"URLHandlers"];
-	int i;
+	defaultWordChars = [[prefs objectForKey: @"WordCharacters"] retain];
 	
-	// make sure bookmarks are loaded
-	[iTermBookmarkController sharedInstance];
-    
-	// read in the handlers by converting the index back to bookmarks
-	urlHandlers = [[NSMutableDictionary alloc] init];
-	if (tempDict) {
-		NSEnumerator *enumerator = [tempDict keyEnumerator];
-		id key;
-		int index;
-	   
-		while ((key = [enumerator nextObject])) {
-			//NSLog(@"%@\n%@",[tempDict objectForKey:key], [[ITAddressBookMgr sharedInstance] bookmarkForIndex:[[tempDict objectForKey:key] intValue]]);
-			index = [[tempDict objectForKey:key] intValue];
-			if (index>=0 && index  < [[[ITAddressBookMgr sharedInstance] bookmarks] count])
-				[urlHandlers setObject:[[ITAddressBookMgr sharedInstance] bookmarkForIndex:index]
-								forKey:key];
-		}
-	}
-	urlArray = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleURLTypes"];
-	urlTypes = [[NSMutableArray alloc] initWithCapacity:[urlArray count]];
-	for (i=0; i<[urlArray count]; i++) {
-		[urlTypes addObject:[[[urlArray objectAtIndex:i] objectForKey: @"CFBundleURLSchemes"] objectAtIndex:0]];
-	}
+	// load saved profiles or default if we don't have any
+	keybindingProfiles = [prefs objectForKey: @"KeyBindings"];
+	displayProfiles = [prefs objectForKey: @"Displays"];
+	terminalProfiles = [prefs objectForKey: @"Terminals"];
+	
+	// if we got no profiles, load from our embedded plist
+	plistFile = [[NSBundle bundleForClass: [self class]] pathForResource:@"Profiles" ofType:@"plist"];
+	profilesDictionary = [NSMutableDictionary dictionaryWithContentsOfFile: plistFile];
+	if([keybindingProfiles count] == 0)
+		keybindingProfiles = [profilesDictionary objectForKey: @"KeyBindings"];
+	if([displayProfiles count] == 0)
+		displayProfiles = [profilesDictionary objectForKey: @"Displays"];
+	if([terminalProfiles count] == 0)
+		terminalProfiles = [profilesDictionary objectForKey: @"Terminals"];
+		
+	[[iTermKeyBindingMgr singleInstance] setProfiles: keybindingProfiles];
+	[[iTermDisplayProfileMgr singleInstance] setProfiles: displayProfiles];
+	[[iTermTerminalProfileMgr singleInstance] setProfiles: terminalProfiles];
+	
+	// load bookmarks
+	[[ITAddressBookMgr sharedInstance] setBookmarks: [prefs objectForKey: @"Bookmarks"]];
+	// migrate old bookmarks, if any
+	[[ITAddressBookMgr sharedInstance] migrateOldBookmarks];
+	[prefs setObject: [[ITAddressBookMgr sharedInstance] bookmarks] forKey: @"Bookmarks"];
 }
 
 - (void) savePreferences
 {
     [prefs setBool:defaultCopySelection forKey:@"CopySelection"];
-	[prefs setBool:defaultPasteFromClipboard forKey:@"PasteFromClipboard"];
     [prefs setBool:defaultHideTab forKey:@"HideTab"];
-	[prefs setInteger:defaultWindowStyle forKey:@"WindowStyle"];
     [prefs setInteger:defaultTabViewType forKey:@"TabViewType"];
     [prefs setBool:defaultPromptOnClose forKey:@"PromptOnClose"];
-    [prefs setBool:defaultOnlyWhenMoreTabs forKey:@"OnlyWhenMoreTabs"];
     [prefs setBool:defaultFocusFollowsMouse forKey:@"FocusFollowsMouse"];
-	[prefs setBool:defaultEnableBonjour forKey:@"EnableRendezvous"];
-	[prefs setBool:defaultEnableGrowl forKey:@"EnableGrowl"];
-	[prefs setBool:defaultCmdSelection forKey:@"CommandSelection"];
-	[prefs setBool:defaultMaxVertically forKey:@"MaxVertically"];
-	[prefs setBool:defaultUseCompactLabel forKey:@"UseCompactLabel"];
-	[prefs setInteger:defaultRefreshRate forKey:@"RefreshRate"];
 	[prefs setObject: defaultWordChars forKey: @"WordCharacters"];
-	[prefs setBool:defaultOpenBookmark forKey:@"OpenBookmark"];
 	[prefs setObject: [[iTermKeyBindingMgr singleInstance] profiles] forKey: @"KeyBindings"];
 	[prefs setObject: [[iTermDisplayProfileMgr singleInstance] profiles] forKey: @"Displays"];
 	[prefs setObject: [[iTermTerminalProfileMgr singleInstance] profiles] forKey: @"Terminals"];
 	[prefs setObject: [[ITAddressBookMgr sharedInstance] bookmarks] forKey: @"Bookmarks"];
-	[prefs setBool:defaultQuitWhenAllWindowsClosed forKey:@"QuitWhenAllWindowsClosed"];
-	[prefs setBool:defaultCheckUpdate forKey:@"SUEnableAutomaticChecks"];
-	[prefs setInteger:defaultCursorType forKey:@"CursorType"];
-	[prefs setBool:defaultUseBorder forKey:@"UseBorder"];
-	[prefs setBool:defaultHideScrollbar forKey:@"HideScrollbar"];
-	[prefs setBool:defaultCheckTestRelease forKey:@"CheckTestRelease"];
-	
-	// save the handlers by converting the bookmark into an index
-	NSMutableDictionary *tempDict = [[NSMutableDictionary alloc] init];
-	NSEnumerator *enumerator = [urlHandlers keyEnumerator];
-	id key;
-   
-	while ((key = [enumerator nextObject])) {
-		[tempDict setObject:[NSNumber numberWithInt:[[ITAddressBookMgr sharedInstance] indexForBookmark:[urlHandlers objectForKey:key]]]
-					 forKey:key];
-	}
-	[prefs setObject: tempDict forKey:@"URLHandlers"];
-
-	[prefs synchronize];
 }
 
 - (void)run
@@ -237,90 +169,277 @@ static NSString *NoHandler = @"<No Handler>";
 		[self initWithWindowNibName: @"PreferencePanel"];
 			    
 	[[self window] setDelegate: self]; // also forces window to load
-	[wordChars setDelegate: self];
 	
-	[windowStyle selectItemAtIndex: defaultWindowStyle];
 	[tabPosition selectItemAtIndex: defaultTabViewType];
     [selectionCopiesText setState:defaultCopySelection?NSOnState:NSOffState];
-	[middleButtonPastesFromClipboard setState:defaultPasteFromClipboard?NSOnState:NSOffState];
     [hideTab setState:defaultHideTab?NSOnState:NSOffState];
     [promptOnClose setState:defaultPromptOnClose?NSOnState:NSOffState];
-	[onlyWhenMoreTabs setState:defaultOnlyWhenMoreTabs?NSOnState:NSOffState];
-	[onlyWhenMoreTabs setEnabled: defaultPromptOnClose];
 	[focusFollowsMouse setState: defaultFocusFollowsMouse?NSOnState:NSOffState];
-	[enableBonjour setState: defaultEnableBonjour?NSOnState:NSOffState];
-	[enableGrowl setState: defaultEnableGrowl?NSOnState:NSOffState];
-	[cmdSelection setState: defaultCmdSelection?NSOnState:NSOffState];
-	[maxVertically setState: defaultMaxVertically?NSOnState:NSOffState];
-	[useCompactLabel setState: defaultUseCompactLabel?NSOnState:NSOffState];
-    [openBookmark setState: defaultOpenBookmark?NSOnState:NSOffState];
-    [refreshRate setIntValue: defaultRefreshRate];
 	[wordChars setStringValue: ([defaultWordChars length] > 0)?defaultWordChars:@""];	
-	[quitWhenAllWindowsClosed setState: defaultQuitWhenAllWindowsClosed?NSOnState:NSOffState];
-	[checkUpdate setState: defaultCheckUpdate?NSOnState:NSOffState];
-	[cursorType selectCellWithTag:defaultCursorType];
-	[useBorder setState: defaultUseBorder?NSOnState:NSOffState];
-	[hideScrollbar setState: defaultHideScrollbar?NSOnState:NSOffState];
-	[checkTestRelease setState: defaultCheckTestRelease?NSOnState:NSOffState];
 	
 	[self showWindow: self];
-	[[self window] setLevel:NSNormalWindowLevel];
-		
-	// Show the window.
-	[[self window] makeKeyAndOrderFront:self];
-	
+
 }
 
-- (IBAction)settingChanged:(id)sender
+- (IBAction)cancel:(id)sender
+{
+	[[self window] performClose: self];
+	[self readPreferences];
+}
+
+- (IBAction)ok:(id)sender
 {    
 
-    if (sender == windowStyle || 
-        sender == tabPosition ||
-        sender == hideTab ||
-        sender == useCompactLabel ||
-		sender == cursorType ||
-		sender == useBorder ||
-		sender == hideScrollbar)
-    {
-        defaultWindowStyle = [windowStyle indexOfSelectedItem];
-        defaultTabViewType=[tabPosition indexOfSelectedItem];
-        defaultUseCompactLabel = ([useCompactLabel state] == NSOnState);
-        defaultHideTab=([hideTab state]==NSOnState);
-		defaultCursorType = [[cursorType selectedCell] tag];
-        defaultUseBorder = ([useBorder state] == NSOnState);
-        defaultHideScrollbar = ([hideScrollbar state] == NSOnState);
-        [[NSNotificationCenter defaultCenter] postNotificationName: @"iTermRefreshTerminal" object: nil userInfo: nil];    
-    }
-    else
-    {
-        defaultCopySelection=([selectionCopiesText state]==NSOnState);
-        defaultPasteFromClipboard=([middleButtonPastesFromClipboard state]==NSOnState);
-        defaultPromptOnClose = ([promptOnClose state] == NSOnState);
-        defaultOnlyWhenMoreTabs = ([onlyWhenMoreTabs state] == NSOnState);
-        [onlyWhenMoreTabs setEnabled: defaultPromptOnClose];
-		defaultFocusFollowsMouse = ([focusFollowsMouse state] == NSOnState);
-        defaultEnableBonjour = ([enableBonjour state] == NSOnState);
-        defaultEnableGrowl = ([enableGrowl state] == NSOnState);
-        defaultCmdSelection = ([cmdSelection state] == NSOnState);
-        defaultMaxVertically = ([maxVertically state] == NSOnState);
-        defaultOpenBookmark = ([openBookmark state] == NSOnState);
-        defaultRefreshRate = [refreshRate intValue];
-        [defaultWordChars release];
-        defaultWordChars = [[wordChars stringValue] retain];
-        defaultQuitWhenAllWindowsClosed = ([quitWhenAllWindowsClosed state] == NSOnState);
-        defaultCheckUpdate = ([checkUpdate state] == NSOnState);
-        
-		if (defaultCheckTestRelease != ([checkTestRelease state] == NSOnState)) {
-		
-			defaultCheckTestRelease = ([checkTestRelease state] == NSOnState);
+    defaultTabViewType=[tabPosition indexOfSelectedItem];
+    defaultCopySelection=([selectionCopiesText state]==NSOnState);
+    defaultHideTab=([hideTab state]==NSOnState);
+    defaultPromptOnClose = ([promptOnClose state] == NSOnState);
+    defaultFocusFollowsMouse = ([focusFollowsMouse state] == NSOnState);
+	[defaultWordChars release];
+	defaultWordChars = [[wordChars stringValue] retain];
 
-			NSString *appCast = defaultCheckTestRelease ?
-				[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForTesting"] : 
-				[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinal"];
-			[[NSUserDefaults standardUserDefaults] setObject: appCast forKey:@"SUFeedURL"];
-		}
+    [[self window] performClose: self];
+}
+
+// NSOutlineView delegate methods
+- (void) outlineViewSelectionDidChange: (NSNotification *) aNotification
+{
+	int selectedRow = [bookmarksView selectedRow];
+	id selectedItem;
+	
+	if(selectedRow == -1)
+	{
+		[bookmarkDeleteButton setEnabled: NO];
+		[bookmarkEditButton setEnabled: NO];
+	}
+	else
+	{
+		selectedItem = [bookmarksView itemAtRow: selectedRow];
+		
+		if([[ITAddressBookMgr sharedInstance] mayDeleteBookmarkNode: selectedItem])
+			[bookmarkDeleteButton setEnabled: YES];
+		else
+			[bookmarkDeleteButton setEnabled: NO];
+		
+		if([[ITAddressBookMgr sharedInstance] isExpandable: selectedItem])
+			[bookmarkEditButton setEnabled: NO];
+		else
+			[bookmarkEditButton setEnabled: YES];
 	}
 }
+
+// NSOutlineView data source methods
+// required
+- (id)outlineView:(NSOutlineView *)ov child:(int)index ofItem:(id)item
+{
+    //NSLog(@"%s", __PRETTY_FUNCTION__);
+    return [[ITAddressBookMgr sharedInstance] child:index ofItem: item];
+}
+
+- (BOOL)outlineView:(NSOutlineView *)ov isItemExpandable:(id)item
+{
+    //NSLog(@"%s", __PRETTY_FUNCTION__);
+    return [[ITAddressBookMgr sharedInstance] isExpandable: item];
+}
+
+- (int)outlineView:(NSOutlineView *)ov numberOfChildrenOfItem:(id)item
+{
+    //NSLog(@"%s", __PRETTY_FUNCTION__);
+    return [[ITAddressBookMgr sharedInstance] numberOfChildrenOfItem: item];
+}
+
+- (id)outlineView:(NSOutlineView *)ov objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:(id)item
+{
+    //NSLog(@"%s", __PRETTY_FUNCTION__);
+	// item should be a tree node witha dictionary data object
+    return [[ITAddressBookMgr sharedInstance] objectForKey:[tableColumn identifier] inItem: item];
+}
+
+// Optional method: needed to allow editing.
+- (void)outlineView:(NSOutlineView *)olv setObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn byItem:(id)item  
+{
+	[[ITAddressBookMgr sharedInstance] setObjectValue: object forKey:[tableColumn identifier] inItem: item];	
+}
+
+// ================================================================
+//  NSOutlineView data source methods. (dragging related)
+// ================================================================
+
+- (BOOL)outlineView:(NSOutlineView *)olv writeItems:(NSArray*)items toPasteboard:(NSPasteboard*)pboard 
+{
+    draggedNodes = items; // Don't retain since this is just holding temporaral drag information, and it is only used during a drag!  We could put this in the pboard actually.
+    
+    // Provide data for our custom type, and simple NSStrings.
+    [pboard declareTypes:[NSArray arrayWithObjects: iTermOutlineViewPboardType, nil] owner:self];
+    
+    // the actual data doesn't matter since DragDropSimplePboardType drags aren't recognized by anyone but us!.
+    [pboard setData:[NSData data] forType:iTermOutlineViewPboardType]; 
+    	
+    return YES;
+}
+
+- (unsigned int)outlineView:(NSOutlineView*)olv validateDrop:(id <NSDraggingInfo>)info proposedItem:(id)item proposedChildIndex:(int)childIndex 
+{
+    // This method validates whether or not the proposal is a valid one. Returns NO if the drop should not be allowed.
+    TreeNode *targetNode = item;
+    BOOL targetNodeIsValid = YES;
+		
+	// Refuse if: dropping "on" the view itself unless we have no data in the view.
+	if (targetNode==nil && childIndex==NSOutlineViewDropOnItemIndex && [[ITAddressBookMgr sharedInstance] numberOfChildrenOfItem: nil]!=0) 
+		targetNodeIsValid = NO;
+	
+	if ([targetNode isLeaf])
+		targetNodeIsValid = NO;
+		
+	// Check to make sure we don't allow a node to be inserted into one of its descendants!
+	if (targetNodeIsValid && ([info draggingSource]==bookmarksView) && [[info draggingPasteboard] availableTypeFromArray:[NSArray arrayWithObject: iTermOutlineViewPboardType]] != nil) 
+	{
+		NSArray *_draggedNodes = [[[info draggingSource] dataSource] _draggedNodes];
+		targetNodeIsValid = ![targetNode isDescendantOfNodeInArray: _draggedNodes];
+	}
+    
+    // Set the item and child index in case we computed a retargeted one.
+    [bookmarksView setDropItem:targetNode dropChildIndex:childIndex];
+    
+    return targetNodeIsValid ? NSDragOperationGeneric : NSDragOperationNone;
+}
+
+- (BOOL)outlineView:(NSOutlineView*)olv acceptDrop:(id <NSDraggingInfo>)info item:(id)targetItem childIndex:(int)childIndex 
+{
+	TreeNode *parentNode;
+	
+	parentNode = targetItem;
+	if(parentNode == nil)
+		parentNode = [[ITAddressBookMgr sharedInstance] rootNode];
+
+	childIndex = (childIndex==NSOutlineViewDropOnItemIndex?0:childIndex);
+    
+    [self _performDropOperation:info onNode:parentNode atIndex:childIndex];
+	
+    return YES;
+}
+
+
+// Bookmark actions
+- (IBAction) addBookmarkFolder: (id) sender
+{
+	[NSApp beginSheet: addBookmarkFolderPanel
+	   modalForWindow: [self window]
+		modalDelegate: self
+	   didEndSelector: @selector(_addBookmarkFolderSheetDidEnd:returnCode:contextInfo:)
+		  contextInfo: nil];        
+}
+
+- (IBAction) addBookmarkFolderConfirm: (id) sender
+{
+	//NSLog(@"%s", __PRETTY_FUNCTION__);
+	[NSApp endSheet:addBookmarkFolderPanel returnCode:NSOKButton];
+}
+
+- (IBAction) addBookmarkFolderCancel: (id) sender
+{
+	//NSLog(@"%s", __PRETTY_FUNCTION__);
+	[NSApp endSheet:addBookmarkFolderPanel returnCode:NSCancelButton];
+}
+
+- (IBAction) deleteBookmarkFolder: (id) sender
+{
+	[NSApp beginSheet: deleteBookmarkPanel
+	   modalForWindow: [self window]
+		modalDelegate: self
+	   didEndSelector: @selector(_deleteBookmarkSheetDidEnd:returnCode:contextInfo:)
+		  contextInfo: nil];        
+}
+
+- (IBAction) deleteBookmarkConfirm: (id) sender
+{
+	[NSApp endSheet:deleteBookmarkPanel returnCode:NSOKButton];
+}
+
+- (IBAction) deleteBookmarkCancel: (id) sender
+{
+	[NSApp endSheet:deleteBookmarkPanel returnCode:NSCancelButton];
+}
+
+- (IBAction) addBookmark: (id) sender
+{
+	
+	editingBookmark = NO;
+	
+	// load our profiles
+	[self _loadProfiles];
+	
+	[NSApp beginSheet: editBookmarkPanel
+	   modalForWindow: [self window]
+		modalDelegate: self
+	   didEndSelector: @selector(_editBookmarkSheetDidEnd:returnCode:contextInfo:)
+		  contextInfo: nil];        
+}
+
+- (IBAction) addBookmarkConfirm: (id) sender
+{
+	[NSApp endSheet:editBookmarkPanel returnCode:NSOKButton];
+}
+
+- (IBAction) addBookmarkCancel: (id) sender
+{
+	[NSApp endSheet:editBookmarkPanel returnCode:NSCancelButton];
+}
+
+- (IBAction) deleteBookmark: (id) sender
+{
+	[NSApp beginSheet: deleteBookmarkPanel
+	   modalForWindow: [self window]
+		modalDelegate: self
+	   didEndSelector: @selector(_deleteBookmarkSheetDidEnd:returnCode:contextInfo:)
+		  contextInfo: nil];        
+}
+
+- (IBAction) editBookmark: (id) sender
+{
+	id selectedItem;
+	NSString *terminalProfile, *keyboardProfile, *displayProfile, *shortcut;
+	
+	editingBookmark = YES;
+	
+	// load our profiles
+	[self _loadProfiles];
+	
+	selectedItem = [bookmarksView itemAtRow: [bookmarksView selectedRow]];
+	[bookmarkName setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_NAME inItem: selectedItem]];
+	[bookmarkCommand setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_COMMAND inItem: selectedItem]];
+	[bookmarkWorkingDirectory setStringValue: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_WORKING_DIRECTORY inItem: selectedItem]];
+	
+	terminalProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_TERMINAL_PROFILE inItem: selectedItem];
+	keyboardProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_KEYBOARD_PROFILE inItem: selectedItem];
+	displayProfile = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_DISPLAY_PROFILE inItem: selectedItem];
+	
+	if([bookmarkTerminalProfile indexOfItemWithTitle: terminalProfile] < 0)
+		terminalProfile = NSLocalizedStringFromTableInBundle(@"Default",@"iTerm", [NSBundle bundleForClass: [self class]], @"Terminal Profiles");
+	[bookmarkTerminalProfile selectItemWithTitle: terminalProfile];
+	
+	if([bookmarkKeyboardProfile indexOfItemWithTitle: keyboardProfile] < 0)
+		keyboardProfile = NSLocalizedStringFromTableInBundle(@"Global",@"iTerm", [NSBundle bundleForClass: [self class]], @"Key Binding Profiles");
+	[bookmarkKeyboardProfile selectItemWithTitle: keyboardProfile];
+	
+	if([bookmarkDisplayProfile indexOfItemWithTitle: displayProfile] < 0)
+		displayProfile = NSLocalizedStringFromTableInBundle(@"Default",@"iTerm", [NSBundle bundleForClass: [self class]], @"Display Profiles");
+	[bookmarkDisplayProfile selectItemWithTitle: displayProfile];
+	
+	shortcut = [[ITAddressBookMgr sharedInstance] objectForKey: KEY_SHORTCUT inItem: selectedItem];
+	shortcut = [shortcut uppercaseString];
+	if([shortcut length] <= 0)
+		shortcut = @"";
+	[bookmarkShortcut selectItemWithTitle: shortcut];
+
+	
+	[NSApp beginSheet: editBookmarkPanel
+	   modalForWindow: [self window]
+		modalDelegate: self
+	   didEndSelector: @selector(_editBookmarkSheetDidEnd:returnCode:contextInfo:)
+		  contextInfo: nil];        
+}
+
 
 // NSWindow delegate
 - (void)windowWillLoad
@@ -329,15 +448,26 @@ static NSString *NoHandler = @"<No Handler>";
     [self setWindowFrameAutosaveName: @"Preferences"];
 }
 
-- (void)windowWillClose:(NSNotification *)aNotification
+- (void) windowDidLoad
 {
-	[self savePreferences];
+	// Register to get our custom type!
+    [bookmarksView registerForDraggedTypes:[NSArray arrayWithObjects: iTermOutlineViewPboardType, nil]];
+
 }
 
 - (void)windowDidBecomeKey:(NSNotification *)aNotification
 {
+	// make sure buttons are properly enabled/disabled
+	[bookmarksView reloadData];
+	[self outlineViewSelectionDidChange: nil];
     // Post a notification
     [[NSNotificationCenter defaultCenter] postNotificationName: @"nonTerminalWindowBecameKey" object: nil userInfo: nil];        
+}
+
+- (void)windowWillClose:(NSNotification *)aNotification
+{
+	[self savePreferences];
+	[profilesWindow performClose: self];
 }
 
 
@@ -352,16 +482,6 @@ static NSString *NoHandler = @"<No Handler>";
 - (void) setCopySelection: (BOOL) flag
 {
 	defaultCopySelection = flag;
-}
-
-- (BOOL) pasteFromClipboard
-{
-	return (defaultPasteFromClipboard);
-}
-
-- (void) setPasteFromClipboard: (BOOL) flag
-{
-	defaultPasteFromClipboard = flag;
 }
 
 - (BOOL) hideTab
@@ -379,59 +499,14 @@ static NSString *NoHandler = @"<No Handler>";
     return (defaultTabViewType);
 }
 
-- (int) windowStyle
-{
-	return (defaultWindowStyle);
-}
-
 - (BOOL)promptOnClose
 {
     return (defaultPromptOnClose);
 }
 
-- (BOOL)onlyWhenMoreTabs
-{
-    return (defaultOnlyWhenMoreTabs);
-}
-
 - (BOOL) focusFollowsMouse
 {
     return (defaultFocusFollowsMouse);
-}
-
-- (BOOL) enableBonjour
-{
-	return (defaultEnableBonjour);
-}
-
-- (BOOL) enableGrowl
-{
-	return (defaultEnableGrowl);
-}
-
-- (BOOL) cmdSelection
-{
-	return (defaultCmdSelection);
-}
-
-- (BOOL) maxVertically
-{
-	return (defaultMaxVertically);
-}
-
-- (BOOL) useCompactLabel
-{
-	return (defaultUseCompactLabel);
-}
-
-- (BOOL) openBookmark
-{
-	return (defaultOpenBookmark);
-}
-
-- (int) refreshRate
-{
-	return (defaultRefreshRate);
 }
 
 - (NSString *) wordChars
@@ -441,214 +516,186 @@ static NSString *NoHandler = @"<No Handler>";
 	return (defaultWordChars);
 }
 
-- (ITermCursorType) cursorType
-{
-	return defaultCursorType;
-}
-
-- (BOOL) useBorder
-{
-	return (defaultUseBorder);
-}
-
-- (BOOL) hideScrollbar
-{
-	return defaultHideScrollbar;
-}
-
-- (BOOL) checkTestRelease
-{
-	return defaultCheckTestRelease;
-}
-
-- (BOOL) quitWhenAllWindowsClosed
-{
-    return defaultQuitWhenAllWindowsClosed;
-}
-
-// The following are preferences with no UI, but accessible via "defaults read/write"
-// examples:
-//  defaults write net.sourceforge.iTerm UseUnevenTabs -bool true
-//  defaults write net.sourceforge.iTerm MinTabWidth -int 100        
-//  defaults write net.sourceforge.iTerm MinCompactTabWidth -int 120
-//  defaults write net.sourceforge.iTerm OptimumTabWidth -int 100
-
-- (BOOL) useUnevenTabs
-{
-    return [prefs objectForKey:@"UseUnevenTabs"]?[[prefs objectForKey:@"UseUnevenTabs"] boolValue]:NO;
-}
-
-- (int) minTabWidth
-{
-    return [prefs objectForKey:@"MinTabWidth"]?[[prefs objectForKey:@"MinTabWidth"] intValue]:75;
-}
-
-- (int) minCompactTabWidth
-{
-    return [prefs objectForKey:@"MinCompactTabWidth"]?[[prefs objectForKey:@"MinCompactTabWidth"] intValue]:60;
-}
-
-- (int) optimumTabWidth
-{
-    return [prefs objectForKey:@"OptimumTabWidth"]?[[prefs objectForKey:@"OptimumTabWidth"] intValue]:175;
-}
-
-- (NSString *) searchCommand
-{
-	return [prefs objectForKey:@"SearchCommand"]?[prefs objectForKey:@"SearchCommand"]:@"http://google.com/search?q=%@";
-}
-
-// URL handler stuff
-- (TreeNode *) handlerBookmarkForURL:(NSString *)url
-{
-	return [urlHandlers objectForKey: url];
-}
-
-// NSTableView data source
-- (int) numberOfRowsInTableView: (NSTableView *)aTableView
-{
-	return [urlTypes count];
-}
-
-- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex
-{
-    //NSLog(@"%s: %@", __PRETTY_FUNCTION__, aTableView);
-    
-	return [urlTypes objectAtIndex: rowIndex];
-}
-
-// NSTableView delegate
-- (void)tableViewSelectionDidChange:(NSNotification *)aNotification
-{
-	int i;
-	
-    //NSLog(@"%s", __PRETTY_FUNCTION__);
-	if ((i=[urlTable selectedRow])<0) 
-		[urlHandlerOutline deselectAll:nil];
-	else {
-		id temp = [urlHandlers objectForKey: [urlTypes objectAtIndex: i]];
-		if (temp) {
-			[urlHandlerOutline selectRow: [urlHandlerOutline rowForItem: temp] byExtendingSelection:NO];
-		}
-		else {
-			[urlHandlerOutline selectRow: 0 byExtendingSelection:NO];
-		}
-		[urlHandlerOutline scrollRowToVisible: [urlHandlerOutline selectedRow]];
-	}
-}
-
-// NSOutlineView delegate methods
-- (void) outlineViewSelectionDidChange: (NSNotification *) aNotification
-{
-}
-
-// NSOutlineView data source methods
-// required
-- (id)outlineView:(NSOutlineView *)ov child:(int)index ofItem:(id)item
-{
-    //NSLog(@"%s", __PRETTY_FUNCTION__);
-	if (item)
-		return [[ITAddressBookMgr sharedInstance] child:index ofItem: item];
-	else if (index)
-		return [[ITAddressBookMgr sharedInstance] child:index-1 ofItem: item];
-	else
-		return NoHandler;
-}
-
-- (BOOL)outlineView:(NSOutlineView *)ov isItemExpandable:(id)item
-{
-    //NSLog(@"%s", __PRETTY_FUNCTION__);
-	if ([item isKindOfClass:[NSString class]])
-		return NO;
-	else
-		return [[ITAddressBookMgr sharedInstance] isExpandable: item];
-}
-
-- (int)outlineView:(NSOutlineView *)ov numberOfChildrenOfItem:(id)item
-{
-    //NSLog(@"%s: ov = 0x%x; item = 0x%x; numChildren: %d", __PRETTY_FUNCTION__, ov, item,
-	//	  [[ITAddressBookMgr sharedInstance] numberOfChildrenOfItem: item]);
-	if (item)
-		return [[ITAddressBookMgr sharedInstance] numberOfChildrenOfItem: item];
-	else
-		return [[ITAddressBookMgr sharedInstance] numberOfChildrenOfItem: item] + 1;
-}
-
-- (id)outlineView:(NSOutlineView *)ov objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:(id)item
-{
-    //NSLog(@"%s: outlineView = 0x%x; item = %@; column= %@", __PRETTY_FUNCTION__, ov, item, [tableColumn identifier]);
-	// item should be a tree node witha dictionary data object
-	if ([item isKindOfClass:[NSString class]])
-        return item;
-	else
-		return [[ITAddressBookMgr sharedInstance] objectForKey:@"Name" inItem: item];
-}
-
-- (BOOL)outlineView:(NSOutlineView *)outlineView shouldEditTableColumn:(NSTableColumn *)tableColumn item:(id)item
-{
-	return NO;
-}
-
-- (IBAction)connectURL:(id)sender
-{
-	int i, j;
-
-	if ((i=[urlTable selectedRow])<0 ||(j=[urlHandlerOutline selectedRow])<0) return;
-	if (!j) { // No Handler
-		[urlHandlers removeObjectForKey:[urlTypes objectAtIndex: i]];
-	}
-	else {
-		[urlHandlers setObject:[urlHandlerOutline itemAtRow:j] forKey: [urlTypes objectAtIndex: i]];
-		
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
-		NSURL *appURL = nil;
-		OSStatus err;
-		BOOL set = NO;
-		
-		err = LSGetApplicationForURL((CFURLRef)[NSURL URLWithString:[[urlTypes objectAtIndex: i] stringByAppendingString:@":"]], kLSRolesAll, NULL, (CFURLRef *)&appURL);
-		if (err != noErr) {
-			set = NSRunAlertPanel([NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"iTerm is not the default handler for %@. Would you like to set iTerm as the default handler?", @"iTerm", [NSBundle bundleForClass: [self class]], @"URL Handler"), [urlTypes objectAtIndex: i]],
-								  NSLocalizedStringFromTableInBundle(@"There is no handler currently.",@"iTerm", [NSBundle bundleForClass: [self class]], @"URL Handler"),
-								  NSLocalizedStringFromTableInBundle(@"OK",@"iTerm", [NSBundle bundleForClass: [self class]], @"OK"),
-								  NSLocalizedStringFromTableInBundle(@"Cancel",@"iTerm", [NSBundle bundleForClass: [self class]], @"Cancel")
-								  ,nil) == NSAlertDefaultReturn;
-		}
-		else if (![[[NSFileManager defaultManager] displayNameAtPath:[appURL path]] isEqualToString:@"iTerm"]) {
-			set = NSRunAlertPanel([NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"iTerm is not the default handler for %@. Would you like to set iTerm as the default handler?", @"iTerm", [NSBundle bundleForClass: [self class]], @"URL Handler"), [urlTypes objectAtIndex: i]],
-								  [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"The current handler is: %@" ,@"iTerm", [NSBundle bundleForClass: [self class]], @"URL Handler"), [[NSFileManager defaultManager] displayNameAtPath:[appURL path]]],
-								  NSLocalizedStringFromTableInBundle(@"OK",@"iTerm", [NSBundle bundleForClass: [self class]], @"OK"),
-								  NSLocalizedStringFromTableInBundle(@"Cancel",@"iTerm", [NSBundle bundleForClass: [self class]], @"Cancel")
-								  ,nil) == NSAlertDefaultReturn;
-		}
-			
-		if (set) {
-			  LSSetDefaultHandlerForURLScheme ((CFStringRef)[urlTypes objectAtIndex: i],(CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
-		}
-#endif
-	}
-	//NSLog(@"urlHandlers:%@", urlHandlers);
-}
-
-- (IBAction)closeWindow:(id)sender
-{
-	[[self window] close];
-}
-
-
-// NSTextField delegate
-- (void)controlTextDidChange:(NSNotification *)aNotification
-{
-	defaultWordChars = [[wordChars stringValue] retain];
-}
 
 @end
 
-
 @implementation PreferencePanel (Private)
 
-- (void) _reloadURLHandlers: (NSNotification *) aNotification
+- (void)_addBookmarkFolderSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
 {
-	[urlHandlerOutline reloadData];
+	TreeNode *parentNode;
+	int selectedRow;
+	
+	selectedRow = [bookmarksView selectedRow];
+	
+	// if no row is selected, new node is child of root
+	if(selectedRow == -1)
+		parentNode = nil;
+	else
+		parentNode = [bookmarksView itemAtRow: selectedRow];
+	
+	// If a leaf node is selected, make new node its sibling
+	if([bookmarksView isExpandable: parentNode] == NO)
+		parentNode = [parentNode nodeParent];
+	
+	if(returnCode == NSOKButton && [[bookmarkFolderName stringValue] length] > 0)
+	{		
+		[[ITAddressBookMgr sharedInstance] addFolder: [bookmarkFolderName stringValue] toNode: parentNode];
+	}
+	[addBookmarkFolderPanel close];
+}
+
+- (void)_deleteBookmarkSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
+{
+	
+	if(returnCode == NSOKButton)
+	{		
+		[[ITAddressBookMgr sharedInstance] deleteBookmarkNode: [bookmarksView itemAtRow: [bookmarksView selectedRow]]];
+	}
+	[deleteBookmarkPanel close];
+}
+
+- (void)_editBookmarkSheetDidEnd:(NSWindow *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
+{
+	NSMutableDictionary *aDict;
+	TreeNode *targetNode;
+	int selectedRow;
+	NSString *aName, *aCmd, *aPwd, *shortcut;
+	
+	if(returnCode == NSOKButton)
+	{
+		aName = [bookmarkName stringValue];
+		aCmd = [bookmarkCommand stringValue];
+		aPwd = [bookmarkWorkingDirectory stringValue];
+		
+		if([aName length] <= 0)
+		{
+			NSBeep();
+			[editBookmarkPanel close];
+			return;
+		}
+		if([aCmd length] <= 0)
+		{
+			NSBeep();
+			[editBookmarkPanel close];
+			return;
+		}
+		if([aPwd length] <= 0)
+		{
+			aPwd = @"";
+		}
+		
+		aDict = [[NSMutableDictionary alloc] init];
+		
+		[aDict setObject: [bookmarkName stringValue] forKey: KEY_NAME];
+		[aDict setObject: [bookmarkCommand stringValue] forKey: KEY_DESCRIPTION];
+		[aDict setObject: [bookmarkCommand stringValue] forKey: KEY_COMMAND];
+		[aDict setObject: [bookmarkWorkingDirectory stringValue] forKey: KEY_WORKING_DIRECTORY];
+		[aDict setObject: [bookmarkTerminalProfile titleOfSelectedItem] forKey: KEY_TERMINAL_PROFILE];
+		[aDict setObject: [bookmarkKeyboardProfile titleOfSelectedItem] forKey: KEY_KEYBOARD_PROFILE];
+		[aDict setObject: [bookmarkDisplayProfile titleOfSelectedItem] forKey: KEY_DISPLAY_PROFILE];
+		shortcut = [bookmarkShortcut titleOfSelectedItem];
+		if([shortcut length] <= 0)
+			shortcut = @"";
+		[aDict setObject: shortcut forKey: KEY_SHORTCUT];
+		
+		selectedRow = [bookmarksView selectedRow];
+		
+		// if no row is selected, new node is child of root
+		if(selectedRow == -1)
+			targetNode = nil;
+		else
+			targetNode = [bookmarksView itemAtRow: selectedRow];
+		
+		// If a leaf node is selected, make new node its sibling
+		if([bookmarksView isExpandable: targetNode] == NO && !editingBookmark)
+			targetNode = [targetNode nodeParent];
+		
+		if(editingBookmark == NO)
+			[[ITAddressBookMgr sharedInstance] addBookmarkWithData: aDict toNode: targetNode];
+		else
+		{
+			[aDict setObject: [[ITAddressBookMgr sharedInstance] objectForKey: KEY_DESCRIPTION inItem: targetNode] forKey: KEY_DESCRIPTION];
+			[[ITAddressBookMgr sharedInstance] setBookmarkWithData: aDict forNode: targetNode];
+		}
+
+		[aDict release];
+	}
+	
+	[editBookmarkPanel close];
+}
+
+- (void) _loadProfiles
+{
+	NSArray *profileArray;
+	
+	profileArray = [[[iTermTerminalProfileMgr singleInstance] profiles] allKeys];
+	[bookmarkTerminalProfile removeAllItems];
+	[bookmarkTerminalProfile addItemsWithTitles: profileArray];
+	[bookmarkTerminalProfile selectItemWithTitle: [[iTermTerminalProfileMgr singleInstance] defaultProfileName]];
+	
+	profileArray = [[[iTermKeyBindingMgr singleInstance] profiles] allKeys];
+	[bookmarkKeyboardProfile removeAllItems];
+	[bookmarkKeyboardProfile addItemsWithTitles: profileArray];
+	[bookmarkKeyboardProfile selectItemWithTitle: [[iTermKeyBindingMgr singleInstance] globalProfileName]];
+	
+	profileArray = [[[iTermDisplayProfileMgr singleInstance] profiles] allKeys];
+	[bookmarkDisplayProfile removeAllItems];
+	[bookmarkDisplayProfile addItemsWithTitles: profileArray];
+	[bookmarkDisplayProfile selectItemWithTitle: [[iTermDisplayProfileMgr singleInstance] defaultProfileName]];
+	
+	[bookmarkShortcut selectItemWithTitle: @""];
+}
+
+- (NSArray *) _selectedNodes 
+{ 
+    NSMutableArray *items = [NSMutableArray array];
+    NSEnumerator *selectedRows = [bookmarksView selectedRowEnumerator];
+    NSNumber *selRow = nil;
+    while( (selRow = [selectedRows nextObject]) ) 
+	{
+        if ([bookmarksView itemAtRow:[selRow intValue]]) 
+            [items addObject: [bookmarksView itemAtRow:[selRow intValue]]];
+    }
+    return items;
+}
+
+
+- (NSArray*) _draggedNodes   
+{ 
+	return draggedNodes; 
+}
+
+- (void)_performDropOperation:(id <NSDraggingInfo>)info onNode:(TreeNode*)parentNode atIndex:(int)childIndex 
+{
+    // Helper method to insert dropped data into the model. 
+    NSPasteboard * pboard = [info draggingPasteboard];
+    NSMutableArray * itemsToSelect = nil;
+    
+    // Do the appropriate thing depending on wether the data is DragDropSimplePboardType or NSStringPboardType.
+    if ([pboard availableTypeFromArray:[NSArray arrayWithObjects:iTermOutlineViewPboardType, nil]] != nil) {
+        PreferencePanel *dragDataSource = [[info draggingSource] dataSource];
+        NSArray *_draggedNodes = [TreeNode minimumNodeCoverFromNodesInArray: [dragDataSource _draggedNodes]];
+        NSEnumerator *draggedNodesEnum = [_draggedNodes objectEnumerator];
+        TreeNode *_draggedNode = nil, *_draggedNodeParent = nil;
+        
+		itemsToSelect = [NSMutableArray arrayWithArray:[self _selectedNodes]];
+		
+        while ((_draggedNode = [draggedNodesEnum nextObject])) {
+            _draggedNodeParent = [_draggedNode nodeParent];
+            if (parentNode==_draggedNodeParent && [parentNode indexOfChild: _draggedNode]<childIndex) childIndex--;
+            [_draggedNodeParent removeChild: _draggedNode];
+        }
+        [parentNode insertChildren: _draggedNodes atIndex: childIndex];
+    } 
+	
+	[bookmarksView reloadData];
+
+}
+
+- (void) _reloadAddressBook: (NSNotification *) aNotification
+{
+	[bookmarksView reloadData];
 }
 
 @end

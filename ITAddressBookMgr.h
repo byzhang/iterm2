@@ -36,9 +36,9 @@
 #define KEY_DISPLAY_PROFILE				@"Display Profile"
 #define KEY_SHORTCUT					@"Shortcut"
 #define KEY_DEFAULT_BOOKMARK			@"Default Bookmark"
-#define KEY_BONJOUR_GROUP			@"Bonjour Group"
-#define KEY_BONJOUR_SERVICE			@"Bonjour Service"
-#define KEY_BONJOUR_SERVICE_ADDRESS  @"Bonjour Service Address"
+#define KEY_RENDEZVOUS_GROUP			@"Rendezvous Group"
+#define KEY_RENDEZVOUS_SERVICE			@"Rendezvous Service"
+#define KEY_RENDEZVOUS_SERVICE_ADDRESS  @"Rendezvous Service Address"
 
 
 @class TreeNode;
@@ -46,18 +46,18 @@
 @interface ITAddressBookMgr : NSObject 
 {
 	TreeNode *bookmarks;
-	NSNetServiceBrowser *sshBonjourBrowser;
-	NSNetServiceBrowser *ftpBonjourBrowser;
-	NSNetServiceBrowser *telnetBonjourBrowser;
-	TreeNode *bonjourGroup;
-	NSMutableArray *bonjourServices;
+	NSNetServiceBrowser *sshRendezvousBrowser;
+	NSNetServiceBrowser *ftpRendezvousBrowser;
+	NSNetServiceBrowser *telnetRendezvousBrowser;
+	TreeNode *rendezvousGroup;
+	NSMutableArray *rendezvousServices;
 }
 
 + (id)sharedInstance;
 
 - (void) setBookmarks: (NSDictionary *) aDict;
 - (NSDictionary *) bookmarks;
-- (void) locateBonjourServices;
+
 - (void) migrateOldBookmarks;
 
 // Model for NSOutlineView tree structure
@@ -73,20 +73,15 @@
 - (BOOL) mayDeleteBookmarkNode: (TreeNode *) aNode;
 - (TreeNode *) rootNode;
 
-- (TreeNode *) defaultBookmark;
-- (void) setDefaultBookmark: (TreeNode *) aNode;
 - (NSDictionary *) defaultBookmarkData;
 - (NSDictionary *) dataForBookmarkWithName: (NSString *) bookmarkName;
-
-- (int) indexForBookmark: (NSDictionary *)bookmark;
-- (NSDictionary *) bookmarkForIndex: (int)index;
 
 @end
 
 @interface ITAddressBookMgr (Private)
 
 - (BOOL) _checkForDefaultBookmark: (TreeNode *) rootNode defaultBookmark: (TreeNode **)defaultBookmark;
-- (TreeNode *) _getBookmarkNodeWithName: (NSString *) aName searchFromNode: (TreeNode *) aNode;
-- (TreeNode *) _getBonjourServiceTypeNode: (NSString *) aType;
+- (NSDictionary *) _getBookmarkNodeWithName: (NSString *) aName searchFromNode: (TreeNode *) aNode;
+- (TreeNode *) _getRendezvousServiceTypeNode: (NSString *) aType;
 
 @end

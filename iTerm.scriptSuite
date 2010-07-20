@@ -33,20 +33,6 @@
 					<key>Type</key>
 					<string>NSColor</string>
 				</dict>
-				<key>cursorColor</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Ccol</string>
-					<key>Type</key>
-					<string>NSColor</string>
-				</dict>
-				<key>cursorTextColor</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Ctxt</string>
-					<key>Type</key>
-					<string>NSColor</string>
-				</dict>
 				<key>foregroundColor</key>
 				<dict>
 					<key>AppleEventCode</key>
@@ -65,13 +51,6 @@
 				<dict>
 					<key>AppleEventCode</key>
 					<string>Scol</string>
-					<key>Type</key>
-					<string>NSColor</string>
-				</dict>
-				<key>selectedTextColor</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Stco</string>
 					<key>Type</key>
 					<string>NSColor</string>
 				</dict>
@@ -107,21 +86,21 @@
 			</dict>
 			<key>ToOneRelationships</key>
 			<dict>
-				<key>contents</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>ctxt</string>
-					<key>ReadOnly</key>
-					<string>YES</string>
-					<key>Type</key>
-					<string>NSString</string>
-				</dict>
 				<key>number</key>
 				<dict>
 					<key>AppleEventCode</key>
 					<string>Snum</string>
 					<key>Type</key>
 					<string>NSNumber&lt;Int&gt;</string>
+				</dict>
+				<key>textStorage</key>
+				<dict>
+					<key>AppleEventCode</key>
+					<string>ctxt</string>
+					<key>ReadOnly</key>
+					<string>YES</string>
+					<key>Type</key>
+					<string>NSTextStorage</string>
 				</dict>
 				<key>tty</key>
 				<dict>
@@ -140,13 +119,6 @@
 			<string>Ptrm</string>
 			<key>Attributes</key>
 			<dict>
-				<key>antiAlias</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Aals</string>
-					<key>Type</key>
-					<string>NSNumber&lt;Bool&gt;</string>
-				</dict>
 				<key>columns</key>
 				<dict>
 					<key>AppleEventCode</key>
