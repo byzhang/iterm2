@@ -1,0 +1,33 @@
+{
+    IBClasses = (
+        {CLASS = NSSegmentedControl; LANGUAGE = ObjC; SUPERCLASS = NSControl; }, 
+        {
+            ACTIONS = {closeWindow = id; connectURL = id; settingChanged = id; }; 
+            CLASS = PreferencePanel; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                checkUpdate = NSButton; 
+                cmdSelection = NSButton; 
+                enableBonjour = NSButton; 
+                enableGrowl = NSButton; 
+                focusFollowsMouse = NSButton; 
+                hideTab = NSButton; 
+                maxVertically = NSButton; 
+                middleButtonPastesFromClipboard = NSButton; 
+                openBookmark = NSButton; 
+                promptOnClose = NSButton; 
+                quitWhenAllWindowsClosed = NSButton; 
+                refreshRate = NSSlider; 
+                selectionCopiesText = NSButton; 
+                tabPosition = NSPopUpButton; 
+                urlHandlerOutline = NSOutlineView; 
+                urlTable = NSTableView; 
+                useCompactLabel = NSButton; 
+                windowStyle = NSPopUpButton; 
+                wordChars = NSTextField; 
+            }; 
+            SUPERCLASS = NSWindowController; 
+        }
+    ); 
+    IBVersion = 1; 
+}

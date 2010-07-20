@@ -1,0 +1,77 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {
+                adEditBackground = id; 
+                adEditCancel = id; 
+                adEditFont = id; 
+                adEditForeground = id; 
+                adEditNAFont = id; 
+                adEditOK = id; 
+                adbAddEntry = id; 
+                adbDuplicateEntry = id; 
+                adbEditEntry = id; 
+                adbRemoveEntry = id; 
+                changeColorScheme = id; 
+                changeTab = id; 
+                editColorScheme = id; 
+                executeABCommand = id; 
+            }; 
+            CLASS = AddressBookWindowController; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                "AE_PANEL" = id; 
+                adAI = id; 
+                adAICode = id; 
+                adBackground = NSColorWell; 
+                adBold = NSColorWell; 
+                adClose = id; 
+                adCol = id; 
+                adCommand = NSTextField; 
+                adDir = id; 
+                adDoubleWidth = id; 
+                adEncoding = NSPopUpButton; 
+                adForeground = NSColorWell; 
+                adNATextExample = NSTextField; 
+                adName = NSTextField; 
+                adRemapDeleteKey = NSButton; 
+                adRow = id; 
+                adSelection = NSColorWell; 
+                adShortcut = id; 
+                adTable = NSTableView; 
+                adTermType = NSPopUpButton; 
+                adTextExample = NSTextField; 
+                adTransparency = id; 
+                adTransparency2 = id; 
+                addButton = NSButton; 
+                ansiBlack = NSColorWell; 
+                ansiBlue = NSColorWell; 
+                ansiCyan = NSColorWell; 
+                ansiGreen = NSColorWell; 
+                ansiHiBlack = NSColorWell; 
+                ansiHiBlue = NSColorWell; 
+                ansiHiCyan = NSColorWell; 
+                ansiHiGreen = NSColorWell; 
+                ansiHiMagenta = NSColorWell; 
+                ansiHiRed = NSColorWell; 
+                ansiHiWhite = NSColorWell; 
+                ansiHiYellow = NSColorWell; 
+                ansiMagenta = NSColorWell; 
+                ansiRed = NSColorWell; 
+                ansiWhite = NSColorWell; 
+                ansiYellow = NSColorWell; 
+                colorScheme = id; 
+                deleteButton = NSButton; 
+                duplicateButton = NSButton; 
+                editButton = NSButton; 
+                openInTab = NSButton; 
+                openInWindow = NSButton; 
+                tabSelection = NSPopUpButton; 
+                tabView = NSTabView; 
+            }; 
+            SUPERCLASS = NSWindowController; 
+        }, 
+        {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }
+    ); 
+    IBVersion = 1; 
+}

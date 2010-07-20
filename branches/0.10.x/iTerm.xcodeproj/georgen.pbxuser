@@ -1,0 +1,88 @@
+// !$*UTF8*$!
+{
+	0464AB0C006CD2EC7F000001 /* Project object */ = {
+		activeBuildConfigurationName = Development;
+		activeExecutable = 1DAC6DB311ECEBBA00BFB3D8 /* iTerm */;
+		activeTarget = 874206460564169600CFC3F1 /* iTerm */;
+		codeSenseManager = 1DAC6DDA11ECEBD600BFB3D8 /* Code sense */;
+		executables = (
+			1DAC6DB311ECEBBA00BFB3D8 /* iTerm */,
+		);
+		perUserDictionary = {
+			PBXConfiguration.PBXFileTableDataSource3.PBXFileTableDataSource = {
+				PBXFileTableDataSourceColumnSortingDirectionKey = "-1";
+				PBXFileTableDataSourceColumnSortingKey = PBXFileDataSource_Filename_ColumnID;
+				PBXFileTableDataSourceColumnWidthsKey = (
+					20,
+					341,
+					20,
+					48.16259765625,
+					43,
+					43,
+					20,
+				);
+				PBXFileTableDataSourceColumnsKey = (
+					PBXFileDataSource_FiletypeID,
+					PBXFileDataSource_Filename_ColumnID,
+					PBXFileDataSource_Built_ColumnID,
+					PBXFileDataSource_ObjectSize_ColumnID,
+					PBXFileDataSource_Errors_ColumnID,
+					PBXFileDataSource_Warnings_ColumnID,
+					PBXFileDataSource_Target_ColumnID,
+				);
+			};
+			PBXPerProjectTemplateStateSaveDate = 300739514;
+			PBXWorkspaceStateSaveDate = 300739514;
+		};
+		sourceControlManager = 1DAC6DD911ECEBD600BFB3D8 /* Source Control */;
+		userBuildSettings = {
+		};
+	};
+	1DAC6DB311ECEBBA00BFB3D8 /* iTerm */ = {
+		isa = PBXExecutable;
+		activeArgIndices = (
+		);
+		argumentStrings = (
+		);
+		autoAttachOnCrash = 1;
+		breakpointsEnabled = 0;
+		configStateDict = {
+		};
+		customDataFormattersEnabled = 1;
+		debuggerPlugin = GDBDebugging;
+		disassemblyDisplayState = 0;
+		dylibVariantSuffix = "";
+		enableDebugStr = 1;
+		environmentEntries = (
+		);
+		executableSystemSymbolLevel = 0;
+		executableUserSymbolLevel = 0;
+		libgmallocEnabled = 0;
+		name = iTerm;
+		sourceDirectories = (
+		);
+	};
+	1DAC6DD911ECEBD600BFB3D8 /* Source Control */ = {
+		isa = PBXSourceControlManager;
+		fallbackIsa = XCSourceControlManager;
+		isSCMEnabled = 0;
+		scmConfiguration = {
+		};
+	};
+	1DAC6DDA11ECEBD600BFB3D8 /* Code sense */ = {
+		isa = PBXCodeSenseManager;
+		indexTemplatePath = "";
+	};
+	874205EE0564168A00CFC3F1 /* iTerm Framework */ = {
+		activeExec = 0;
+	};
+	874206460564169600CFC3F1 /* iTerm */ = {
+		activeExec = 0;
+		executables = (
+			1DAC6DB311ECEBBA00BFB3D8 /* iTerm */,
+		);
+	};
+	F69E79100AB8CDB3001EC0FF /* Growl */ = {
+		activeExec = 0;
+	};
+}

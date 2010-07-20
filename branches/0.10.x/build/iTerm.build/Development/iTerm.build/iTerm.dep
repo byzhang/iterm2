@@ -1,0 +1,16 @@
+1a6fc8526b55ad514f8441d5b12e8b5e 387f8597d484048c24acdccfe5de79b7 ffffffffffffffffffffffffffffffff 102 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app
+000000004c3cb45300000000000000cc 6db7690149aa8b5f798989148fa04e45 ffffffffffffffffffffffffffffffff 204 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Frameworks/iTerm.framework
+000000004c3cb44000000000000000aa 31997bdf80c3d09b31124d1d086ecd68 ffffffffffffffffffffffffffffffff 170 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Frameworks/Growl.framework
+000000004c3bb73d00000000000000ee fc6c9469d4760b5818ada77a0f47e6e2 ffffffffffffffffffffffffffffffff 204 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Frameworks/Sparkle.framework
+a94918fc6c96a4e44a67c18b3ccbea48 3339028bb9b20b8de23697f83d46a2ad ffffffffffffffffffffffffffffffff 54464 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/MacOS/iTerm
+00000000000000000000000000000000 8282e41e7c6be04435bc62c099b771eb ffffffffffffffffffffffffffffffff 1178 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Resources/dsa_pub.pem
+000000004c3bb73e00000000000249b3 64a838dc358790b8f46d752d40068205 ffffffffffffffffffffffffffffffff 36752 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Resources/English.lproj/MainMenu.nib
+00000000000000000000000000000000 4784ccd4ce2504db1baf9c400b015f70 ffffffffffffffffffffffffffffffff 785 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Resources/folder.png
+00000000000000000000000000000000 5efc3414f7ca7876623391fb10670270 ffffffffffffffffffffffffffffffff 48101 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Resources/iTerm.icns
+00000000000000000000000000000000 6aff088e98a1223f6473d204bcffe924 ffffffffffffffffffffffffffffffff 578 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Resources/English.lproj/iTerm Help
+000000004c3bb73f00000000000019be b5f0781e07f7cbe56bddbc874600b13b ffffffffffffffffffffffffffffffff 13182 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Resources/English.lproj/iTerm.strings
+00000000000000000000000000000000 b259c61c2360b870d7349933d7faf886 ffffffffffffffffffffffffffffffff 8 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/PkgInfo
+00000000000000000000000000000000 b259c61c2360b870d7349933d7faf886 ffffffffffffffffffffffffffffffff 4409 /Users/georgen/myterm/branches/0.10.x/build/Development/iTerm.app/Contents/Info.plist
+0000000000eb65e6000000000003515f 7904f9693d427e224844192357ba418c ffffffffffffffffffffffffffffffff 33180 /Users/georgen/myterm/branches/0.10.x/build/iTerm.build/Development/iTerm.build/Objects-normal/i386/iTermApplication.o
+000000004a2fd2f5000000000003a02e de7518c77c426865fa60f18005da4ea4 ffffffffffffffffffffffffffffffff 119752 /Users/georgen/myterm/branches/0.10.x/build/iTerm.build/Development/iTerm.build/Objects-normal/i386/iTermApplicationDelegate.o
+000000000000007f0000000000000efb 0e38f95262a0afe0f84329286ca4c094 ffffffffffffffffffffffffffffffff 4736 /Users/georgen/myterm/branches/0.10.x/build/iTerm.build/Development/iTerm.build/Objects-normal/i386/main.o

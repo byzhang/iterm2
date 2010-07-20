@@ -1,0 +1,106 @@
+/* Context menu */
+"-> Browser" = "-> Browser";
+
+/* Context menu */
+"-> Mail" = "-> Mail";
+
+/* Toolbar Item:Address Book */
+"Address Book" = "Address Book";
+
+/* Close window */
+"All sessions will be closed" = "All sessions will be closed";
+
+/* Cancel */
+"Cancel" = "Cancel";
+
+/* Context menu */
+"Clear Buffer" = "Clear Buffer";
+
+/* Toolbar Item: Close Session */
+"Close" = "Close";
+
+/* Toolbar Item Tip: Close */
+"Close the current session" = "Close the current session";
+
+/* Close window */
+"Close Window?" = "Close Window?";
+
+/* Close Session */
+"The current session will be closed"="The current session will be closed";
+"All unsaved data will be lost"="All unsaved data will be lost";
+
+/* Toolbar Item:Configure */
+"Configure" = "Configure";
+
+/* Toolbar Item Tip:Configure */
+"Configure current window" = "Configure current window";
+
+/* Context menu */
+"Configure..." = "Configure...";
+
+/* Context menu */
+"Copy" = "Copy";
+
+/* Context menu */
+"New Tab" = "New Tab";
+
+/* Context menu */
+"New Window" = "New Window";
+
+
+/* Removal Alert */
+"Do you really want to remove this item?" = "Do you really want to remove this item?";
+
+/* Toolbar Item:New */
+"Default session"="Default session";
+"New" = "New";
+"Open in a new window"="Open in a new window";
+"Open a new session"="Open a new session";
+
+/* OK */
+"OK" = "OK";
+
+/* Toolbar Item Tip:Address Book */
+"Open the address book" = "Open the address book";
+
+/* Context menu */
+"Paste" = "Paste";
+
+/* Context menu */
+"Save" = "Save";
+
+/* Context menu */
+"Select" = "Select";
+
+/* Context menu */
+"Move to new window" = "Move to new window";
+
+/* Anti-Idle: wrong input */
+"Please enter a valid code (0~255)" = "Please enter a valid code (0~255)";
+
+/* wrong input */
+"Please enter a valid window size" = "Please enter a valid window size";
+
+/* Remove */
+"Remove" = "Remove";
+
+/* Context menu */
+"Select All" = "Select All";
+"Save" = "Save";
+
+/* Removal Alert */
+"There is no undo for this operation." = "There is no undo for this operation.";
+
+/* wrong input */
+"Wrong Input" = "Wrong Input";
+
+/* Upgrade */
+"Upgrade Warning: New language encodings available!"="Upgrade Warning: New language encodings available!";
+"Please reset all the encoding settings in your preference and address book"="Please reset all the encoding settings in your preference and address book";
+
+/* Author */
+"fabian"="fabian";
+"Ujwal S. Sathyam"="Ujwal S. Sathyam";
+
+/* About */
+"Report A Bug"="Report A Bug";

@@ -1,0 +1,175 @@
+2002-12-18	fabian
+    * change the shortcut key to close terminal to command-w
+      and close window to shift-command-w, a la mozilla
+      
+2002-12-18	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Page up/down scrolling keys now need Shift key down 
+      a la xterm since some programs like vi need to 
+      interpret page up/down keys on their own.
+      
+
+2002-12-17	fabian
+    * Added an AutoClose option in preference
+    * Re-arranged preference panel
+    * Re-arranged the toolbar items
+    * Got rid of the quick-run panel
+    * Del key now sends the correct escape sequence instead of 
+      0x7f
+    * Set default term type to xterm, which is consitent with
+      the rest of the code
+    * Version number is now 0.5.7
+    * Fixed a bug related to setting default shell
+    
+2002-12-17	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Using user's default shell in setting initial preferences.
+    
+    * Added drag-n-drop support for the text view. Text and file 
+      names get pasted into the shell when dragged and dropped 
+      onto the text view.
+      
+    * Fixed crash when customizing toolbar.
+    
+    * Page Up and Page Down keys now scroll the text view.
+    
+
+2002-12-16	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Removed ugly hack of spinning off a new thread when 
+      switching sessions using popup menu. Calling selectSession: 
+      directly now works.
+      
+
+2002-12-16	fabian
+    * Got the addressbook popup button icon to work
+    * Updated strings files for Chinese
+    
+2002-12-16	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Removed addressbook toolbar item since the 
+      addressbook popup menu gives similar functionality.
+      Ideally, the icon for the popup button should be 
+      the addressbook icon, but I couldn't get it to work.
+      More research needs to be done on that...
+      
+    * Fixed bugs in MainMenu that did not save addressbook 
+      when entries were deleted.
+      
+
+2002-12-16	fabian
+    * Changed version number to 0.5.6
+    * Made author name localized strings in About panel.
+    * Added a "Report a Bug" link in About panel.
+    * Turned on the GREED_KEYDOWN flag in PTYTextView.m to 
+      allow special key to work when IM is turned on.
+    * Added a 2nd font option to display CJK font to address
+      some screen text alignment problems.
+    * Added anti-idle settings to AddressBook
+      
+2002-12-14	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Added popup button in toolbar for quick access to 
+      addressbook entries.
+      
+    * Added missing OK button in AddressBook panel. 
+      Was causing addressbook changes not to be saved.
+    
+    * Refactored addressbook code by introducing an 
+      "executeABCommand:" method in MainMenu.
+      
+
+2002-12-11	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Made links to authors and web site in the About
+      panel of the English NIB.
+
+
+2002-12-11	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Removed keyDown code from PsudoTerminal. 
+      First responder is TEXTVIEW.
+
+
+2002-12-11	fabian
+    * Changed/Added several shortcut keys:
+      command-left and right arrow: pre/next session
+      command-Fn: switch to n-th session
+      
+2002-12-10	fabian
+    * Rewritten all the encoding related code. Now all 
+      the encodings that are available on the system will 
+      be usable.
+      (Note, the local settings file will have to be 
+       manually updated)
+    * Fixed a few inconsistencies in the interface about 
+      transparency
+    * Fixed a bug that make user unable to open a new 
+      window from quick run and address book panel.
+    * Now the version number is 0.5.5
+
+2002-12-08	fabian
+    * fixed a bug that causes crash when a ended session 
+      is manually closed
+    * now a warning panel will pop out when you try to 
+      close an active session
+    * session button uses gray to suggest the session has 
+      ended, and session name is enclosed in []
+    * fixed a bug in screenSizeInFrame() in VT100Screen.m,
+      which makes row/col smaller than it should be
+      (this one need more test)
+      
+2002-12-07	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Re-implemented transparency code to affect only text 
+     instead of the whole window. Had to subclass NSWindow 
+     since I ran into a nasty window redrawing Cocoa bug.
+     
+    * Instantiating scroll view in code rather than in NIB 
+      to make layout look better.
+      
+    * PseudoTerminal is now a NSWindowController rather 
+      than a NSResponder. Later I will refactor the code 
+      to make is a true window controller.
+      
+
+2002-12-06	fabian
+    * Fix (temporally) a bug that causes program to hang when a session is closed
+    * Fix the NLog info in PTYSession.m
+
+2002-12-05	fabian
+    * Fix a bug that disable "clear buffer" in the menu
+    * Fix a bug that causes incorrectly display of session status
+    * Now choosing "open new tab" while no windows are open
+      will open a new window first.
+    * Cleaned up nib files
+    
+2002-12-04	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Added a pulldown menu at the bottom right corner 
+      when window cannot draw all the session buttons.
+      
+    * Made session buttons narrower in height.
+    
+    * Refactored some code.
+    
+
+2002-11-30	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Fixed bug in PreferencePanel where transparency was
+      not being stored.
+      
+
+2002-11-28	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Fixed crash when closing window when a session program 
+      had exited.
+      
+
+2002-11-28      fabian
+    * Added Japanese (EUC-JP/SJIS) and Korean (EUC-KR) support
+
+2002-11-27	Ujwal S. Sathyam <ujwal@setlurgroup.com>
+
+    * Added menu item and keyboard shortcut to close the current 
+      terminal session.
