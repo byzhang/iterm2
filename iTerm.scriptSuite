@@ -6,6 +6,27 @@
 	<string>ITRM</string>
 	<key>Classes</key>
 	<dict>
+		<key>NSApplication</key>
+		<dict>
+			<key>AppleEventCode</key>
+			<string>capp</string>
+			<key>DefaultSubcontainerAttribute</key>
+			<string></string>
+			<key>Superclass</key>
+			<string>NSCoreSuite.NSApplication</string>
+			<key>ToManyRelationships</key>
+			<dict>
+				<key>terminals</key>
+				<dict>
+					<key>AppleEventCode</key>
+					<string>Ptrm</string>
+					<key>LocationRequiredToCreate</key>
+					<string>NO</string>
+					<key>Type</key>
+					<string>PseudoTerminal</string>
+				</dict>
+			</dict>
+		</dict>
 		<key>PTYSession</key>
 		<dict>
 			<key>AppleEventCode</key>
@@ -19,31 +40,10 @@
 					<key>Type</key>
 					<string>NSColor</string>
 				</dict>
-				<key>backgroundImagePath</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>BImg</string>
-					<key>Type</key>
-					<string>NSString</string>
-				</dict>
 				<key>boldColor</key>
 				<dict>
 					<key>AppleEventCode</key>
 					<string>bCol</string>
-					<key>Type</key>
-					<string>NSColor</string>
-				</dict>
-				<key>cursorColor</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Ccol</string>
-					<key>Type</key>
-					<string>NSColor</string>
-				</dict>
-				<key>cursorTextColor</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Ctxt</string>
 					<key>Type</key>
 					<string>NSColor</string>
 				</dict>
@@ -68,13 +68,6 @@
 					<key>Type</key>
 					<string>NSColor</string>
 				</dict>
-				<key>selectedTextColor</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Stco</string>
-					<key>Type</key>
-					<string>NSColor</string>
-				</dict>
 				<key>transparency</key>
 				<dict>
 					<key>AppleEventCode</key>
@@ -82,16 +75,9 @@
 					<key>Type</key>
 					<string>NSNumber&lt;Float&gt;</string>
 				</dict>
-				<key>uniqueID</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>ID  </string>
-					<key>ReadOnly</key>
-					<string>YES</string>
-					<key>Type</key>
-					<string>NSString</string>
-				</dict>
 			</dict>
+			<key>DefaultSubcontainerAttribute</key>
+			<string></string>
 			<key>Superclass</key>
 			<string>NSCoreSuite.AbstractObject</string>
 			<key>SupportedCommands</key>
@@ -107,30 +93,12 @@
 			</dict>
 			<key>ToOneRelationships</key>
 			<dict>
-				<key>contents</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>ctxt</string>
-					<key>ReadOnly</key>
-					<string>YES</string>
-					<key>Type</key>
-					<string>NSString</string>
-				</dict>
 				<key>number</key>
 				<dict>
 					<key>AppleEventCode</key>
 					<string>Snum</string>
 					<key>Type</key>
 					<string>NSNumber&lt;Int&gt;</string>
-				</dict>
-				<key>tty</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Stty</string>
-					<key>ReadOnly</key>
-					<string>YES</string>
-					<key>Type</key>
-					<string>NSString</string>
 				</dict>
 			</dict>
 		</dict>
@@ -140,13 +108,6 @@
 			<string>Ptrm</string>
 			<key>Attributes</key>
 			<dict>
-				<key>antiAlias</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Aals</string>
-					<key>Type</key>
-					<string>NSNumber&lt;Bool&gt;</string>
-				</dict>
 				<key>columns</key>
 				<dict>
 					<key>AppleEventCode</key>
@@ -162,14 +123,14 @@
 					<string>NSNumber&lt;Int&gt;</string>
 				</dict>
 			</dict>
+			<key>DefaultSubcontainerAttribute</key>
+			<string></string>
 			<key>Superclass</key>
 			<string>NSCoreSuite.AbstractObject</string>
 			<key>SupportedCommands</key>
 			<dict>
 				<key>launch</key>
 				<string>handleLaunchScriptCommand:</string>
-				<key>select</key>
-				<string>handleSelectScriptCommand:</string>
 			</dict>
 			<key>ToManyRelationships</key>
 			<dict>
@@ -191,35 +152,6 @@
 					<string>Cssn</string>
 					<key>Type</key>
 					<string>PTYSession</string>
-				</dict>
-			</dict>
-		</dict>
-		<key>iTermApplication</key>
-		<dict>
-			<key>AppleEventCode</key>
-			<string>capp</string>
-			<key>Superclass</key>
-			<string>NSCoreSuite.NSApplication</string>
-			<key>ToManyRelationships</key>
-			<dict>
-				<key>terminals</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Ptrm</string>
-					<key>LocationRequiredToCreate</key>
-					<string>NO</string>
-					<key>Type</key>
-					<string>PseudoTerminal</string>
-				</dict>
-			</dict>
-			<key>ToOneRelationships</key>
-			<dict>
-				<key>currentTerminal</key>
-				<dict>
-					<key>AppleEventCode</key>
-					<string>Ctrm</string>
-					<key>Type</key>
-					<string>PseudoTerminal</string>
 				</dict>
 			</dict>
 		</dict>
@@ -278,7 +210,7 @@
 			<key>AppleEventClassCode</key>
 			<string>ITRM</string>
 			<key>AppleEventCode</key>
-			<string>Strm</string>
+			<string>Term</string>
 			<key>CommandClass</key>
 			<string>NSScriptCommand</string>
 		</dict>

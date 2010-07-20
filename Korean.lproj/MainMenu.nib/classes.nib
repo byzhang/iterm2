@@ -5,26 +5,29 @@
                 clearBuffer = id; 
                 clearScrollbackBuffer = id; 
                 closeCurrentSession = id; 
-                findNext = id; 
-                findPrevious = id; 
-                findWithSelection = id; 
-                jumpToSelection = id; 
                 logStart = id; 
                 logStop = id; 
                 nextSession = id; 
-                pasteSelection = id; 
                 previousSession = id; 
-                saveDisplayProfile = id; 
-                saveTerminalProfile = id; 
+                saveSession = id; 
                 showConfigWindow = id; 
-                showFindPanel = id; 
-                toggleBookmarksView = id; 
-                toggleFontSizeFollowWindowSize = id; 
-                toggleInputToAllSessions = id; 
-                toggleRemapDeleteKey = id; 
             }; 
             CLASS = FirstResponder; 
             LANGUAGE = ObjC; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            ACTIONS = {
+                aboutOK = id; 
+                newSession = id; 
+                newWindow = id; 
+                showABWindow = id; 
+                showAbout = id; 
+                showPrefWindow = id; 
+            }; 
+            CLASS = MainMenu; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {ABOUT = id; AUTHORS = NSTextView; FRONT = id; }; 
             SUPERCLASS = NSObject; 
         }, 
         {CLASS = PTYTextView; LANGUAGE = ObjC; SUPERCLASS = NSTextView; }, 
@@ -77,8 +80,6 @@
                 newSession = id; 
                 nextSession = id; 
                 previousSession = id; 
-                saveDisplayProfile = id; 
-                saveTerminalProfile = id; 
                 setMainMenu = id; 
                 switchSession = id; 
                 windowConfigBackground = id; 
@@ -106,40 +107,6 @@
                 WINDOW = id; 
             }; 
             SUPERCLASS = NSResponder; 
-        }, 
-        {
-            ACTIONS = {
-                aboutOK = id; 
-                biggerFont = id; 
-                newSession = id; 
-                newWindow = id; 
-                nextTerminal = id; 
-                previousTerminal = id; 
-                showAbout = id; 
-                showPrefWindow = id; 
-                smallerFont = id; 
-                useTransparency = id; 
-            }; 
-            CLASS = iTermApplicationDelegate; 
-            LANGUAGE = ObjC; 
-            OUTLETS = {
-                ABOUT = id; 
-                AUTHORS = NSTextView; 
-                closeTab = NSMenuItem; 
-                closeWindow = NSMenuItem; 
-                fontSizeFollowWindowResize = NSMenuItem; 
-                logStart = NSMenuItem; 
-                logStop = NSMenuItem; 
-                newTab = NSMenuItem; 
-                newWindow = NSMenuItem; 
-                nextTerminal = NSMenuItem; 
-                previousTerminal = NSMenuItem; 
-                selectTab = NSMenuItem; 
-                sendInputToAllSessions = NSMenuItem; 
-                toggleBookmarksView = NSMenuItem; 
-                toggleTransparency = NSMenuItem; 
-            }; 
-            SUPERCLASS = NSObject; 
         }
     ); 
     IBVersion = 1; 

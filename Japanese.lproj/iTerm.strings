@@ -1,0 +1,109 @@
+/* Context menu */
+"-> Browser" = "Webブラウザで開く";
+
+/* Context menu */
+"-> Mail" = "メールを送信";
+
+/* Toolbar Item:Address Book */
+"Address Book" = "アドレスブック";
+
+/* Close window */
+"All sessions will be closed" = "ウインドウ内の全てのセッションが閉じられます";
+
+/* Cancel */
+"Cancel" = "キャンセル";
+
+/* Context menu */
+"Clear Buffer" = "バッファを消去";
+
+/* Toolbar Item: Close Session */
+"Close" = "閉じる";
+
+/* Toolbar Item Tip: Close */
+"Close the current session" = "このセッションを閉じる";
+
+/* Close window */
+"Close Window?" = "ウインドウを閉じますか？";
+
+/* Close Session */
+"The current session will be closed"="このセッションを閉じます";
+"All unsaved data will be lost"="保存していないデータは失われます";
+
+/* Toolbar Item:Configure */
+"Configure" = "設定";
+
+/* Toolbar Item Tip:Configure */
+"Configure current window" = "このウインドウを設定する";
+
+/* Context menu */
+"Configure..." = "設定...";
+
+/* Context menu */
+"Copy" = "コピー";
+
+/* Removal Alert */
+"Do you really want to remove this item?" = "このアイテムを本当に消去しますか？";
+
+/* Toolbar Item:New */
+"Default session"="通常セッション";
+"New" = "新規セッション";
+"Open in a new window"="新しいウインドウに開く";
+"Open a new session"="新しいセッションを開く";
+
+/* OK */
+"OK" = "OK";
+
+/* Toolbar Item Tip:Address Book */
+"Open the address book" = "アドレスブックを開く";
+
+/* Context menu */
+"Paste" = "ペースト";
+
+/* Context menu */
+"Save" = "保存";
+
+/* Anti-Idle: wrong input */
+"Please enter a valid code (0~255)" = "正しいコードを入力して下さい (0~255)";
+
+/* wrong input */
+"Please enter a valid window size" = "正しいウインドウサイズを入力して下さい";
+
+/* Remove */
+"Remove" = "消去";
+
+/* Context menu */
+"Select All" = "すべてを選択";
+"New Tab"="新規ターミナル";
+"New Window"="新規ウインドウ";
+
+/* Removal Alert */
+"There is no undo for this operation." = "この操作は取り消しできません.";
+
+/* wrong input */
+"Wrong Input" = "間違った入力";
+
+/* Upgrade */
+"Upgrade Warning: New language encodings available"="アップグレード警告: 新しいエンコーディングが存在します";
+"Please reset all the encoding settings in your preference and address book"="環境設定とアドレスブックの中の全てのエンコーディング設定を再設定して下さい";
+
+/* Author */
+"fabian"="fabian";
+"Ujwal S. Sathyam"="Ujwal S. Sathyam";
+
+/* About */
+"Report A Bug"="バグを報告";
+
+/* OS Version */
+"Minimum_OS"="iTermの実行には Mac OS X 10.2以上の環境が必要です。アプリケーションを終了します。";
+
+/* Sorry */
+"Sorry"="申し訳ありません";
+
+/* Quit */
+"Quit"="終了";
+
+/* PreferencePanel */
+"Display"="ディスプレイ";
+"Shell"="シェル";
+"Emulation"="エミュレーション";
+"Color"="カラー";

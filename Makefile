@@ -1,23 +1,18 @@
-PATH := /usr/bin:/bin:/usr/sbin:/sbin
+##
+## $Id: Makefile,v 1.1.1.1 2002-11-26 04:56:47 ujwal Exp $
+## JTerminal Makefile
+## 2001 Copyright(C) Kiichi Kusama
+##
 
-Development:
-	xcodebuild -alltargets -configuration Development && \
-	chmod -R go+rX build/Development
+PBXBUILD=pbxbuild
+BUILDSTYLE=Development
+PROJECTNAME=JTerminal
 
-Deployment:
-	xcodebuild -alltargets -configuration Deployment && \
-	chmod -R go+rX build/Deployment
-
-run: Development
-	build/Development/iTerm.app/Contents/MacOS/iTerm
-
-zip: Deployment
-	cd build/Deployment && \
-	zip -r iTerm_$$(cat ../../version.txt).$$(date '+%Y%m%d').zip iTerm.app
+all:
+	$(PBXBUILD) -buildstyle $(BUILDSTYLE)
 
 clean:
-	xcodebuild -alltargets clean
+	$(PBXBUILD) clean
 	rm -rf build
 	rm -f *~
-
 

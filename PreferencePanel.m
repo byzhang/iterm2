@@ -1,10 +1,10 @@
-// $Id: PreferencePanel.m,v 1.162 2008-10-02 03:48:36 yfabian Exp $
+// $Id: PreferencePanel.m,v 1.46 2003-05-06 06:39:54 ujwal Exp $
 /*
  **  PreferencePanel.m
  **
  **  Copyright (c) 2002, 2003
  **
- **  Author: Fabian, Ujwal S. Setlur
+ **  Author: Fabian, Ujwal S. Sathyam
  **
  **  Project: iTerm
  **
@@ -25,343 +25,783 @@
  **  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#import <iTerm/PreferencePanel.h>
-#import <iTerm/NSStringITerm.h>
-#import <iTerm/iTermController.h>
-#import <iTerm/ITAddressBookMgr.h>
-#import <iTerm/iTermKeyBindingMgr.h>
-#import <iTerm/iTermDisplayProfileMgr.h>
-#import <iTerm/iTermTerminalProfileMgr.h>
-#import <iTerm/Tree.h>
-#import <iTermBookmarkController.h>
+#import "PreferencePanel.h"
+#import "NSStringITerm.h"
+
+#define NIB_PATH  @"MainMenu"
+
+static NSColor *iTermBackground;
+static NSColor *iTermForeground;
+static NSColor *iTermSelection;
+static NSColor *iTermBold;
+static NSColor* iTermColorTable[2][8];
+static NSColor *xtermBackground;
+static NSColor *xtermForeground;
+static NSColor *xtermSelection;
+static NSColor *xtermBold;
+static NSColor* xtermColorTable[2][8];
+
+static NSString *DEFAULT_FONTNAME = @"FreeMonoBold";
+static float     DEFAULT_FONTSIZE = 13;
+static NSFont* FONT;
+
+static int   COL   = 80;
+static int   ROW   = 25;
+static unsigned int  SCROLLBACK = 1000000;
+
+static NSString* TERM    =@"xterm";
+static NSString* SHELL   =@"/bin/bash --login";
+static NSStringEncoding const *encodingList=nil;
+
+static int TRANSPARENCY  =10;
 
 static float versionNumber;
-static NSString *NoHandler = @"<No Handler>";
 
 @implementation PreferencePanel
 
-+ (PreferencePanel*)sharedInstance;
++ (void)initialize
 {
-    static PreferencePanel* shared = nil;
-
-    if (!shared)
-	{
-		shared = [[self alloc] init];
-	}
+    int i;
     
-    return shared;
+    iTermBackground = [[NSColor blackColor] retain];
+    iTermForeground = [[NSColor colorWithCalibratedRed:0.8f
+                                            green:0.8f
+                                             blue:0.8f
+                                            alpha:1.0f]
+        retain];
+    iTermSelection = [[NSColor colorWithCalibratedRed:0.45f
+                                               green:0.5f
+                                                blue:0.55f
+                                               alpha:1.0f]
+        retain];
+
+    iTermBold = [[NSColor redColor] retain];
+
+    xtermBackground = [[NSColor whiteColor] retain];
+    xtermForeground = [[NSColor blackColor] retain];
+    xtermSelection = [NSColor selectedTextBackgroundColor];
+    xtermBold = [[NSColor redColor] retain];
+    
+    xtermColorTable[0][0]  = [[NSColor blackColor] retain];
+    xtermColorTable[0][1]  = [[NSColor redColor] retain];
+    xtermColorTable[0][2]  = [[NSColor greenColor] retain];
+    xtermColorTable[0][3] = [[NSColor yellowColor] retain];
+    xtermColorTable[0][4] = [[NSColor blueColor] retain];
+    xtermColorTable[0][5] = [[NSColor magentaColor] retain];
+    xtermColorTable[0][6]  = [[NSColor cyanColor] retain];
+    xtermColorTable[0][7]  = [[NSColor whiteColor] retain];
+    iTermColorTable[0][0]  = [[NSColor colorWithCalibratedRed:0.0f
+                                                                 green:0.0f
+                                                                  blue:0.0f
+                                                                 alpha:1.0f]
+        retain];
+    iTermColorTable[0][1]  = [[NSColor colorWithCalibratedRed:0.7f
+                                                        green:0.0f
+                                                         blue:0.0f
+                                                        alpha:1.0f]
+        retain];
+    iTermColorTable[0][2]  = [[NSColor colorWithCalibratedRed:0.0f
+                                                        green:0.7f
+                                                         blue:0.0f
+                                                        alpha:1.0f]
+        retain];
+    iTermColorTable[0][3] = [[NSColor colorWithCalibratedRed:0.7f
+                                                       green:0.7f
+                                                        blue:0.0f
+                                                       alpha:1.0f]
+        retain];
+    iTermColorTable[0][4] = [[NSColor colorWithCalibratedRed:0.0f
+                                                       green:0.0f
+                                                        blue:0.7f
+                                                       alpha:1.0f]
+        retain];
+    iTermColorTable[0][5] = [[NSColor colorWithCalibratedRed:0.7f
+                                                       green:0.0f
+                                                        blue:0.7f
+                                                       alpha:1.0f]
+        retain];
+    iTermColorTable[0][6]  = [[NSColor colorWithCalibratedRed:0.45f
+                                                        green:0.45f
+                                                         blue:0.7f
+                                                        alpha:1.0f]
+        retain];
+    iTermColorTable[0][7]  = [[NSColor colorWithCalibratedRed:0.7f
+                                                        green:0.7f
+                                                         blue:0.7f
+                                                        alpha:1.0f]
+        retain];
+    
+    for (i=0;i<8;i++) {
+        xtermColorTable[1][i]=[[PreferencePanel highlightColor:xtermColorTable[0][i]] retain];
+        iTermColorTable[1][i]=[[PreferencePanel highlightColor:iTermColorTable[0][i]] retain];
+    }
+    
+    FONT = [[NSFont fontWithName:DEFAULT_FONTNAME
+			    size:DEFAULT_FONTSIZE] retain];
 }
 
-/*
- Static method to copy old preferences file, iTerm.plist, to new
- preferences file, net.sourceforge.iTerm.plist
- */
-+ (BOOL) migratePreferences {
-	
-	NSString *prefDir = [[NSHomeDirectory()
-        stringByAppendingPathComponent:@"Library"]
-        stringByAppendingPathComponent:@"Preferences"];
-	
-	NSString *oldPrefs = [prefDir stringByAppendingPathComponent:@"iTerm.plist"];
-	NSString *newPrefs = [prefDir stringByAppendingPathComponent:@"net.sourceforge.iTerm.plist"];
-	
-	NSFileManager *mgr = [NSFileManager defaultManager];
-	
-	if(([mgr fileExistsAtPath:oldPrefs]) &&
-	   (![mgr fileExistsAtPath:newPrefs])) {
-		NSLog(@"Preference file migrated");
-		[mgr copyPath:oldPrefs toPath:newPrefs handler:nil];
-		[NSUserDefaults resetStandardUserDefaults];
-		return (YES);	
-	}
-	return (NO);	
-}
-
-
-- (id) init
++ (NSColor *) highlightColor:(NSColor *)color
 {
-	unsigned int storedMajorVersion = 0, storedMinorVersion = 0, storedMicroVersion = 0;
 
-	self = [super init];
-	
-	[self readPreferences];
-	if(defaultEnableBonjour == YES)
-		[[ITAddressBookMgr sharedInstance] locateBonjourServices];
-	
-	// get the version
-	NSDictionary *myDict = [[NSBundle bundleForClass:[self class]] infoDictionary];
-	versionNumber = [(NSNumber *)[myDict objectForKey:@"CFBundleVersion"] floatValue];
-	if([prefs objectForKey: @"iTerm Version"])
-	{
-		sscanf([[prefs objectForKey: @"iTerm Version"] cString], "%d.%d.%d", &storedMajorVersion, &storedMinorVersion, &storedMicroVersion);
-		// briefly, version 0.7.0 was stored as 0.70
-		if(storedMajorVersion == 0 && storedMinorVersion == 70)
-			storedMinorVersion = 7;
-	}
-	//NSLog(@"Stored version = %d.%d.%d", storedMajorVersion, storedMinorVersion, storedMicroVersion);
-	
-	
-	// sync the version number
-	[prefs setObject: [myDict objectForKey:@"CFBundleVersion"] forKey: @"iTerm Version"];
+    color=[color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+    if ([color brightnessComponent]>0.5) {
+        if ([color brightnessComponent]>0.81) {
+            color=[NSColor colorWithCalibratedHue:[color hueComponent]
+                                       saturation:[color saturationComponent]
+                                       brightness:[color brightnessComponent]-0.3
+                                            alpha:[color alphaComponent]];
+            //                color=[color shadowWithLevel:0.2];
+        }
+        else {
+            color=[NSColor colorWithCalibratedHue:[color hueComponent]
+                                       saturation:[color saturationComponent]
+                                       brightness:[color brightnessComponent]+0.3
+                                            alpha:[color alphaComponent]];
+        }
+        //            color=[color highlightWithLevel:0.2];
+    }
+    else {
+        if ([color brightnessComponent]>0.19) {
+            color=[NSColor colorWithCalibratedHue:[color hueComponent]
+                                       saturation:[color saturationComponent]
+                                       brightness:[color brightnessComponent]-0.3
+                                            alpha:[color alphaComponent]];
+            //                color=[color shadowWithLevel:0.2];
+        }
+        else {
+            color=[NSColor colorWithCalibratedHue:[color hueComponent]
+                                       saturation:[color saturationComponent]
+                                       brightness:[color brightnessComponent]+0.3
+                                            alpha:[color alphaComponent]];
+            //                color=[color highlightWithLevel:0.2];
+        }
+    }
 
-	[[NSNotificationCenter defaultCenter] addObserver: self
-									 selector: @selector(_reloadURLHandlers:)
-										 name: @"iTermReloadAddressBook"
-									   object: nil];	
-
-	return (self);
+    return color;
 }
 
+- (id)init
+{
+    char *userShell, *thisUser;
+    float storedVersionNumber;
+#if DEBUG_OBJALLOC
+    NSLog(@"%s(%d):-[PreferencePanel init]", __FILE__, __LINE__);
+#endif
+    if ((self = [super init]) == nil)
+        return nil;
+    
+    // Get the user's default shell
+    if((thisUser = getenv("USER")) != NULL)
+        SHELL = [[NSString stringWithFormat: @"login -fp %s", thisUser] retain];
+    else if((userShell = getenv("SHELL")) != NULL)
+        SHELL = [[NSString stringWithCString: userShell] retain];
+
+    // get the version
+    NSDictionary *myDict = [[NSBundle bundleForClass:[self class]] infoDictionary];
+    versionNumber = [(NSNumber *)[myDict objectForKey:@"CFBundleVersion"] floatValue];
+    if([prefs objectForKey: @"iTerm Version"])
+	storedVersionNumber = [prefs floatForKey: @"iTerm Version"];
+    else
+	storedVersionNumber = 0.0;
+        
+    [self readPreferences];
+
+    // If we are pre 0.70 and are still using the old default font Osaka-Mono, switch to the new FreeMono
+    if(storedVersionNumber < 0.7 && [[defaultFont fontName] isEqualToString: @"Osaka-Mono"])
+    {
+	[defaultFont release];
+	defaultFont = [FONT copy];
+    }
+
+    // sync the version number
+    [prefs setObject: [myDict objectForKey:@"CFBundleVersion"] forKey: @"iTerm Version"];
+                 
+    return self;
+}
 
 - (void)dealloc
 {
-	[defaultWordChars release];
+    int i;
+    
+    [defaultTerminal release];
+    [defaultShell release];
+    [defaultForeground release];
+    [defaultBackground release];
+    [defaultSelectionColor release];
+    [defaultFont release];
+    [defaultNAFont release];
+    for(i=0;i<8;i++) {
+        [defaultColorTable[0][i] release];
+        [defaultColorTable[1][i] release];
+    }
     [super dealloc];
 }
 
 - (void) readPreferences
 {
-    prefs = [NSUserDefaults standardUserDefaults];
-
-	// Force antialiasing to be allowed on small font sizes
-	[prefs setInteger:1 forKey:@"AppleAntiAliasingThreshold"];
-	[prefs setInteger:1 forKey:@"AppleSmoothFixedFontsSizeThreshold"];
-	[prefs setInteger:0 forKey:@"AppleScrollAnimationEnabled"];
-         
-	defaultWindowStyle=[prefs objectForKey:@"WindowStyle"]?[prefs integerForKey:@"WindowStyle"]:0;
-    defaultTabViewType=[prefs objectForKey:@"TabViewType"]?[prefs integerForKey:@"TabViewType"]:0;
-    if (defaultTabViewType>1) defaultTabViewType = 0;
-    defaultCopySelection=[prefs objectForKey:@"CopySelection"]?[[prefs objectForKey:@"CopySelection"] boolValue]:YES;
-	defaultPasteFromClipboard=[prefs objectForKey:@"PasteFromClipboard"]?[[prefs objectForKey:@"PasteFromClipboard"] boolValue]:YES;
-    defaultHideTab=[prefs objectForKey:@"HideTab"]?[[prefs objectForKey:@"HideTab"] boolValue]: YES;
-    defaultPromptOnClose = [prefs objectForKey:@"PromptOnClose"]?[[prefs objectForKey:@"PromptOnClose"] boolValue]: NO;
-    defaultOnlyWhenMoreTabs = [prefs objectForKey:@"OnlyWhenMoreTabs"]?[[prefs objectForKey:@"OnlyWhenMoreTabs"] boolValue]: NO;
-    defaultFocusFollowsMouse = [prefs objectForKey:@"FocusFollowsMouse"]?[[prefs objectForKey:@"FocusFollowsMouse"] boolValue]: NO;
-	defaultEnableBonjour = [prefs objectForKey:@"EnableRendezvous"]?[[prefs objectForKey:@"EnableRendezvous"] boolValue]: YES;
-	defaultEnableGrowl = [prefs objectForKey:@"EnableGrowl"]?[[prefs objectForKey:@"EnableGrowl"] boolValue]: NO;
-	defaultCmdSelection = [prefs objectForKey:@"CommandSelection"]?[[prefs objectForKey:@"CommandSelection"] boolValue]: YES;
-	defaultMaxVertically = [prefs objectForKey:@"MaxVertically"]?[[prefs objectForKey:@"MaxVertically"] boolValue]: YES;
-	defaultUseCompactLabel = [prefs objectForKey:@"UseCompactLabel"]?[[prefs objectForKey:@"UseCompactLabel"] boolValue]: YES;
-	defaultRefreshRate = [prefs objectForKey:@"RefreshRate"]?[[prefs objectForKey:@"RefreshRate"] intValue]: 10;
-	[defaultWordChars release];
-	defaultWordChars = [prefs objectForKey: @"WordCharacters"]?[[prefs objectForKey: @"WordCharacters"] retain]:@"/-+\\~_.";
-    defaultOpenBookmark = [prefs objectForKey:@"OpenBookmark"]?[[prefs objectForKey:@"OpenBookmark"] boolValue]: NO;
-	defaultQuitWhenAllWindowsClosed = [prefs objectForKey:@"QuitWhenAllWindowsClosed"]?[[prefs objectForKey:@"QuitWhenAllWindowsClosed"] boolValue]: NO;
-	defaultCursorType=[prefs objectForKey:@"CursorType"]?[prefs integerForKey:@"CursorType"]:2;
-	defaultCheckUpdate = [prefs objectForKey:@"SUEnableAutomaticChecks"]?[[prefs objectForKey:@"SUEnableAutomaticChecks"] boolValue]: YES;
-	defaultUseBorder = [prefs objectForKey:@"UseBorder"]?[[prefs objectForKey:@"UseBorder"] boolValue]: NO;
-	defaultHideScrollbar = [prefs objectForKey:@"HideScrollbar"]?[[prefs objectForKey:@"HideScrollbar"] boolValue]: NO;
-	defaultCheckTestRelease = [prefs objectForKey:@"CheckTestRelease"]?[[prefs objectForKey:@"CheckTestRelease"] boolValue]: YES;
-	NSString *appCast = defaultCheckTestRelease ?
-		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForTesting"] :
-		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinal"];
-	[[NSUserDefaults standardUserDefaults] setObject:appCast forKey:@"SUFeedURL"];
-
-	NSArray *urlArray;
-	NSDictionary *tempDict = [prefs objectForKey:@"URLHandlers"];
-	int i;
-	
-	// make sure bookmarks are loaded
-	[iTermBookmarkController sharedInstance];
+    int i;
     
-	// read in the handlers by converting the index back to bookmarks
-	urlHandlers = [[NSMutableDictionary alloc] init];
-	if (tempDict) {
-		NSEnumerator *enumerator = [tempDict keyEnumerator];
-		id key;
-		int index;
-	   
-		while ((key = [enumerator nextObject])) {
-			//NSLog(@"%@\n%@",[tempDict objectForKey:key], [[ITAddressBookMgr sharedInstance] bookmarkForIndex:[[tempDict objectForKey:key] intValue]]);
-			index = [[tempDict objectForKey:key] intValue];
-			if (index>=0 && index  < [[[ITAddressBookMgr sharedInstance] bookmarks] count])
-				[urlHandlers setObject:[[ITAddressBookMgr sharedInstance] bookmarkForIndex:index]
-								forKey:key];
-		}
-	}
-	urlArray = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleURLTypes"];
-	urlTypes = [[NSMutableArray alloc] initWithCapacity:[urlArray count]];
-	for (i=0; i<[urlArray count]; i++) {
-		[urlTypes addObject:[[[urlArray objectAtIndex:i] objectForKey: @"CFBundleURLSchemes"] objectAtIndex:0]];
-	}
-}
+    prefs = [NSUserDefaults standardUserDefaults];
+    encodingList=[NSString availableStringEncodings];
 
-- (void) savePreferences
-{
-    [prefs setBool:defaultCopySelection forKey:@"CopySelection"];
-	[prefs setBool:defaultPasteFromClipboard forKey:@"PasteFromClipboard"];
-    [prefs setBool:defaultHideTab forKey:@"HideTab"];
-	[prefs setInteger:defaultWindowStyle forKey:@"WindowStyle"];
-    [prefs setInteger:defaultTabViewType forKey:@"TabViewType"];
-    [prefs setBool:defaultPromptOnClose forKey:@"PromptOnClose"];
-    [prefs setBool:defaultOnlyWhenMoreTabs forKey:@"OnlyWhenMoreTabs"];
-    [prefs setBool:defaultFocusFollowsMouse forKey:@"FocusFollowsMouse"];
-	[prefs setBool:defaultEnableBonjour forKey:@"EnableRendezvous"];
-	[prefs setBool:defaultEnableGrowl forKey:@"EnableGrowl"];
-	[prefs setBool:defaultCmdSelection forKey:@"CommandSelection"];
-	[prefs setBool:defaultMaxVertically forKey:@"MaxVertically"];
-	[prefs setBool:defaultUseCompactLabel forKey:@"UseCompactLabel"];
-	[prefs setInteger:defaultRefreshRate forKey:@"RefreshRate"];
-	[prefs setObject: defaultWordChars forKey: @"WordCharacters"];
-	[prefs setBool:defaultOpenBookmark forKey:@"OpenBookmark"];
-	[prefs setObject: [[iTermKeyBindingMgr singleInstance] profiles] forKey: @"KeyBindings"];
-	[prefs setObject: [[iTermDisplayProfileMgr singleInstance] profiles] forKey: @"Displays"];
-	[prefs setObject: [[iTermTerminalProfileMgr singleInstance] profiles] forKey: @"Terminals"];
-	[prefs setObject: [[ITAddressBookMgr sharedInstance] bookmarks] forKey: @"Bookmarks"];
-	[prefs setBool:defaultQuitWhenAllWindowsClosed forKey:@"QuitWhenAllWindowsClosed"];
-	[prefs setBool:defaultCheckUpdate forKey:@"SUEnableAutomaticChecks"];
-	[prefs setInteger:defaultCursorType forKey:@"CursorType"];
-	[prefs setBool:defaultUseBorder forKey:@"UseBorder"];
-	[prefs setBool:defaultHideScrollbar forKey:@"HideScrollbar"];
-	[prefs setBool:defaultCheckTestRelease forKey:@"CheckTestRelease"];
-	
-	// save the handlers by converting the bookmark into an index
-	NSMutableDictionary *tempDict = [[NSMutableDictionary alloc] init];
-	NSEnumerator *enumerator = [urlHandlers keyEnumerator];
-	id key;
-   
-	while ((key = [enumerator nextObject])) {
-		[tempDict setObject:[NSNumber numberWithInt:[[ITAddressBookMgr sharedInstance] indexForBookmark:[urlHandlers objectForKey:key]]]
-					 forKey:key];
-	}
-	[prefs setObject: tempDict forKey:@"URLHandlers"];
+    defaultCol=([prefs integerForKey:@"Col"]?[prefs integerForKey:@"Col"]:COL);
+    defaultRow=([prefs integerForKey:@"Row"]?[prefs integerForKey:@"Row"]:ROW);
+    defaultScrollback=([prefs objectForKey:@"Scrollback"]?[prefs integerForKey:@"Scrollback"]:SCROLLBACK);
+    defaultTransparency=([prefs stringForKey:@"Transparency"]!=nil?[prefs integerForKey:@"Transparency"]:TRANSPARENCY);
+    defaultAntiAlias=[prefs objectForKey:@"AntiAlias"]?[[prefs objectForKey:@"AntiAlias"] boolValue]: YES;
 
-	[prefs synchronize];
+    if(defaultTerminal != nil)
+        [defaultTerminal release];
+    defaultTerminal=[([prefs objectForKey:@"Terminal"]?[prefs objectForKey:@"Terminal"]:TERM)
+                    copy];
+
+    // This is for compatibility with old pref
+    if ([[prefs objectForKey:@"Encoding"] isKindOfClass:[NSString class]]) {
+        NSRunAlertPanel(NSLocalizedStringFromTableInBundle(@"Upgrade Warning: New language encodings available",@"iTerm", [NSBundle bundleForClass: [self class]], @"Upgrade"),
+                        NSLocalizedStringFromTableInBundle(@"Please reset all the encoding settings in your preference and address book",@"iTerm", [NSBundle bundleForClass: [self class]], @"Upgrade"),
+                        NSLocalizedStringFromTableInBundle(@"OK",@"iTerm", [NSBundle bundleForClass: [self class]], @"OK"),
+                        nil,nil);
+        defaultEncoding=CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
+    }
+    else {
+        defaultEncoding=[prefs objectForKey:@"Encoding"]?[[prefs objectForKey:@"Encoding"] unsignedIntValue]:CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
+    }
+
+    [defaultShell release];    
+    defaultShell=[([prefs objectForKey:@"Shell"]?[prefs objectForKey:@"Shell"]:SHELL) copy];
+
+    defaultColorScheme = [prefs integerForKey: @"ColorScheme"];
+    
+    [defaultForeground release];                        
+    defaultForeground=[([prefs objectForKey:@"Foreground"]?
+    [NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"Foreground"]]:iTermForeground) copy];
+                      
+    [defaultBackground release];                        
+    defaultBackground=[([prefs objectForKey:@"Background"]?
+    [NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"Background"]]:iTermBackground) copy];
+                      
+    [defaultSelectionColor release];                        
+    defaultSelectionColor=[([prefs objectForKey:@"SelectionColor"]?
+    [NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"SelectionColor"]]:iTermSelection) copy];
+
+    [defaultBoldColor release];
+    defaultBoldColor=[([prefs objectForKey:@"BoldColor"]?
+    [NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"BoldColor"]]:iTermBold) copy];    
+                      
+    [defaultFont release];                        
+    defaultFont=[([prefs objectForKey:@"Font"]?
+    [NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"Font"]]:FONT) copy];
+    if(defaultFont == nil)
+	defaultFont = [[NSFont userFixedPitchFontOfSize: 12] copy];
+                      
+    [defaultNAFont release];                        
+    defaultNAFont=[([prefs objectForKey:@"NAFont"]?
+                   [NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"NAFont"]]:FONT) copy];
+    if(defaultNAFont == nil)
+	defaultNAFont = [[NSFont userFixedPitchFontOfSize: 12] copy];
+        
+    defaultAutoclose=[prefs objectForKey:@"AutoClose"]?[[prefs objectForKey:@"AutoClose"] boolValue]: YES;
+    defaultOption=[prefs objectForKey:@"OptionKey"]?[prefs integerForKey:@"OptionKey"]:0;
+    defaultTabViewType=[prefs objectForKey:@"TabViewType"]?[prefs integerForKey:@"TabViewType"]:0;
+    defaultCopySelection=[[prefs objectForKey:@"CopySelection"] boolValue];
+    defaultHideTab=[prefs objectForKey:@"HideTab"]?[[prefs objectForKey:@"HideTab"] boolValue]: YES;
+    defaultSilenceBell=[[prefs objectForKey:@"SilenceBell"] boolValue];
+    defaultDoubleWidth=[[prefs objectForKey:@"DoubleWidth"] boolValue];
+    defaultRemapDeleteKey = [prefs objectForKey:@"RemapDeleteKey"]?[[prefs objectForKey:@"RemapDeleteKey"] boolValue]: YES;
+    defaultOpenAddressBook = [prefs objectForKey:@"OpenAddressBook"]?[[prefs objectForKey:@"OpenAddressBook"] boolValue]: NO;
+    defaultPromptOnClose = [prefs objectForKey:@"PromptOnClose"]?[[prefs objectForKey:@"PromptOnClose"] boolValue]: YES;
+    changingNA=NO;
+    if ([prefs objectForKey:@"AnsiBlack"]) {
+        defaultColorTable[0][0]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiBlack"]] copy];
+        defaultColorTable[0][1]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiRed"]] copy];
+        defaultColorTable[0][2]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiGreen"]] copy];
+        defaultColorTable[0][3]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiYellow"]] copy];
+        defaultColorTable[0][4]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiBlue"]] copy];
+        defaultColorTable[0][5]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiMagenta"]] copy];
+        defaultColorTable[0][6]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiCyan"]] copy];
+        defaultColorTable[0][7]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiWhite"]] copy];
+        defaultColorTable[1][0]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiHiBlack"]] copy];
+        defaultColorTable[1][1]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiHiRed"]] copy];
+        defaultColorTable[1][2]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiHiGreen"]] copy];
+        defaultColorTable[1][3]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiHiYellow"]] copy];
+        defaultColorTable[1][4]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiHiBlue"]] copy];
+        defaultColorTable[1][5]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiHiMagenta"]] copy];
+        defaultColorTable[1][6]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiHiCyan"]] copy];
+        defaultColorTable[1][7]=[[NSUnarchiver unarchiveObjectWithData:[prefs objectForKey:@"AnsiHiWhite"]] copy];
+    }
+    else {
+        for(i=0;i<8;i++) {
+            defaultColorTable[0][i]=[iTermColorTable[0][i] copy];
+            defaultColorTable[1][i]=[iTermColorTable[1][i] copy];
+        }
+    }
 }
 
 - (void)run
 {
-	
-	// load nib if we haven't already
-	if([self window] == nil)
-		[self initWithWindowNibName: @"PreferencePanel"];
-			    
-	[[self window] setDelegate: self]; // also forces window to load
-	[wordChars setDelegate: self];
-	
-	[windowStyle selectItemAtIndex: defaultWindowStyle];
-	[tabPosition selectItemAtIndex: defaultTabViewType];
-    [selectionCopiesText setState:defaultCopySelection?NSOnState:NSOffState];
-	[middleButtonPastesFromClipboard setState:defaultPasteFromClipboard?NSOnState:NSOffState];
-    [hideTab setState:defaultHideTab?NSOnState:NSOffState];
-    [promptOnClose setState:defaultPromptOnClose?NSOnState:NSOffState];
-	[onlyWhenMoreTabs setState:defaultOnlyWhenMoreTabs?NSOnState:NSOffState];
-	[onlyWhenMoreTabs setEnabled: defaultPromptOnClose];
-	[focusFollowsMouse setState: defaultFocusFollowsMouse?NSOnState:NSOffState];
-	[enableBonjour setState: defaultEnableBonjour?NSOnState:NSOffState];
-	[enableGrowl setState: defaultEnableGrowl?NSOnState:NSOffState];
-	[cmdSelection setState: defaultCmdSelection?NSOnState:NSOffState];
-	[maxVertically setState: defaultMaxVertically?NSOnState:NSOffState];
-	[useCompactLabel setState: defaultUseCompactLabel?NSOnState:NSOffState];
-    [openBookmark setState: defaultOpenBookmark?NSOnState:NSOffState];
-    [refreshRate setIntValue: defaultRefreshRate];
-	[wordChars setStringValue: ([defaultWordChars length] > 0)?defaultWordChars:@""];	
-	[quitWhenAllWindowsClosed setState: defaultQuitWhenAllWindowsClosed?NSOnState:NSOffState];
-	[checkUpdate setState: defaultCheckUpdate?NSOnState:NSOffState];
-	[cursorType selectCellWithTag:defaultCursorType];
-	[useBorder setState: defaultUseBorder?NSOnState:NSOffState];
-	[hideScrollbar setState: defaultHideScrollbar?NSOnState:NSOffState];
-	[checkTestRelease setState: defaultCheckTestRelease?NSOnState:NSOffState];
-	
-	[self showWindow: self];
-	[[self window] setLevel:NSNormalWindowLevel];
-		
-	// Show the window.
-	[[self window] makeKeyAndOrderFront:self];
-	
-}
-
-- (IBAction)settingChanged:(id)sender
-{    
-
-    if (sender == windowStyle || 
-        sender == tabPosition ||
-        sender == hideTab ||
-        sender == useCompactLabel ||
-		sender == cursorType ||
-		sender == useBorder ||
-		sender == hideScrollbar)
-    {
-        defaultWindowStyle = [windowStyle indexOfSelectedItem];
-        defaultTabViewType=[tabPosition indexOfSelectedItem];
-        defaultUseCompactLabel = ([useCompactLabel state] == NSOnState);
-        defaultHideTab=([hideTab state]==NSOnState);
-		defaultCursorType = [[cursorType selectedCell] tag];
-        defaultUseBorder = ([useBorder state] == NSOnState);
-        defaultHideScrollbar = ([hideScrollbar state] == NSOnState);
-        [[NSNotificationCenter defaultCenter] postNotificationName: @"iTermRefreshTerminal" object: nil userInfo: nil];    
+    NSStringEncoding const *p=encodingList;
+    int r;
+    
+    // Load our bundle
+    if ([NSBundle loadNibNamed:@"PreferencePanel" owner:self] == NO)
+	return;
+    
+    [prefPanel center];
+    if(defaultShell != nil)
+	[shell setStringValue:defaultShell];
+    if(defaultTerminal != nil)
+	[terminal setStringValue:defaultTerminal];
+    [encoding removeAllItems];
+    [tabSelector removeAllItems];
+    [tabSelector addItemWithTitle:NSLocalizedStringFromTableInBundle(@"Display",@"iTerm", [NSBundle bundleForClass: [self class]], @"PreferencePanel")];
+    [tabSelector addItemWithTitle:NSLocalizedStringFromTableInBundle(@"Shell",@"iTerm", [NSBundle bundleForClass: [self class]], @"PreferencePanel")];
+    [tabSelector addItemWithTitle:NSLocalizedStringFromTableInBundle(@"Emulation",@"iTerm", [NSBundle bundleForClass: [self class]], @"PreferencePanel")];
+    [tabSelector addItemWithTitle:NSLocalizedStringFromTableInBundle(@"Color",@"iTerm", [NSBundle bundleForClass: [self class]], @"PreferencePanel")];
+    [tabSelector selectItemAtIndex:0];
+    [prefTab selectTabViewItemAtIndex:0];
+    
+    r=0;
+    while (*p) {
+        //        NSLog(@"%@",[NSString localizedNameOfStringEncoding:*p]);
+        [encoding addItemWithObjectValue:[NSString localizedNameOfStringEncoding:*p]];
+        if (*p==defaultEncoding) r=p-encodingList;
+        p++;
     }
-    else
-    {
-        defaultCopySelection=([selectionCopiesText state]==NSOnState);
-        defaultPasteFromClipboard=([middleButtonPastesFromClipboard state]==NSOnState);
-        defaultPromptOnClose = ([promptOnClose state] == NSOnState);
-        defaultOnlyWhenMoreTabs = ([onlyWhenMoreTabs state] == NSOnState);
-        [onlyWhenMoreTabs setEnabled: defaultPromptOnClose];
-		defaultFocusFollowsMouse = ([focusFollowsMouse state] == NSOnState);
-        defaultEnableBonjour = ([enableBonjour state] == NSOnState);
-        defaultEnableGrowl = ([enableGrowl state] == NSOnState);
-        defaultCmdSelection = ([cmdSelection state] == NSOnState);
-        defaultMaxVertically = ([maxVertically state] == NSOnState);
-        defaultOpenBookmark = ([openBookmark state] == NSOnState);
-        defaultRefreshRate = [refreshRate intValue];
-        [defaultWordChars release];
-        defaultWordChars = [[wordChars stringValue] retain];
-        defaultQuitWhenAllWindowsClosed = ([quitWhenAllWindowsClosed state] == NSOnState);
-        defaultCheckUpdate = ([checkUpdate state] == NSOnState);
-        
-		if (defaultCheckTestRelease != ([checkTestRelease state] == NSOnState)) {
-		
-			defaultCheckTestRelease = ([checkTestRelease state] == NSOnState);
+    [encoding selectItemAtIndex:r];
 
-			NSString *appCast = defaultCheckTestRelease ?
-				[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForTesting"] : 
-				[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinal"];
-			[[NSUserDefaults standardUserDefaults] setObject: appCast forKey:@"SUFeedURL"];
-		}
-	}
+    [colorScheme selectItemAtIndex: defaultColorScheme];
+    
+    [background setColor:defaultBackground];
+    [foreground setColor:defaultForeground];
+    [selectionColor setColor: defaultSelectionColor];
+    [boldColor setColor: defaultBoldColor];
+    [ansiBlack setColor:defaultColorTable[0][0]];
+    [ansiRed setColor:defaultColorTable[0][1]];
+    [ansiGreen setColor:defaultColorTable[0][2]];
+    [ansiYellow setColor:defaultColorTable[0][3]];
+    [ansiBlue setColor:defaultColorTable[0][4]];
+    [ansiMagenta setColor:defaultColorTable[0][5]];
+    [ansiCyan setColor:defaultColorTable[0][6]];
+    [ansiWhite setColor:defaultColorTable[0][7]];
+    [ansiHiBlack setColor:defaultColorTable[1][0]];
+    [ansiHiRed setColor:defaultColorTable[1][1]];
+    [ansiHiGreen setColor:defaultColorTable[1][2]];
+    [ansiHiYellow setColor:defaultColorTable[1][3]];
+    [ansiHiBlue setColor:defaultColorTable[1][4]];
+    [ansiHiMagenta setColor:defaultColorTable[1][5]];
+    [ansiHiCyan setColor:defaultColorTable[1][6]];
+    [ansiHiWhite setColor:defaultColorTable[1][7]];
+    
+    [row setIntValue:defaultRow];
+    [col setIntValue:defaultCol];
+    [scrollbackLines setIntValue:defaultScrollback];
+    [transparency setIntValue:defaultTransparency];
+    [transparency_control setIntValue:defaultTransparency];
+    [antiAlias setState:defaultAntiAlias?NSOnState:NSOffState];
+    
+    [fontExample setTextColor:defaultForeground];
+    [fontExample setBackgroundColor:defaultBackground];
+    [fontExample setFont:defaultFont];
+    [fontExample setStringValue:[NSString stringWithFormat:@"%@ %g", [defaultFont fontName], [defaultFont pointSize]]];
+
+    [nafontExample setTextColor:defaultForeground];
+    [nafontExample setBackgroundColor:defaultBackground];
+    [nafontExample setFont:defaultNAFont];
+    [nafontExample setStringValue:[NSString stringWithFormat:@"%@ %g", [defaultNAFont fontName], [defaultNAFont pointSize]]];
+    [autoclose setState:defaultAutoclose?NSOnState:NSOffState];
+    [optionKey selectCellAtRow:0 column:defaultOption];
+    [tabViewType selectCellWithTag: defaultTabViewType];
+    [copySelection setState:defaultCopySelection?NSOnState:NSOffState];
+    [hideTab setState:defaultHideTab?NSOnState:NSOffState];
+    [silenceBell setState:defaultSilenceBell?NSOnState:NSOffState];
+    [doubleWidth setState:defaultDoubleWidth?NSOnState:NSOffState];
+    [remapDeleteKey setState:defaultRemapDeleteKey?NSOnState:NSOffState];
+    [openAddressBook setState:defaultOpenAddressBook?NSOnState:NSOffState];
+    [promptOnClose setState:defaultPromptOnClose?NSOnState:NSOffState];
+   
+    [NSApp runModalForWindow:prefPanel];
+    [prefPanel close];
 }
 
-// NSWindow delegate
-- (void)windowWillLoad
+- (IBAction)cancel:(id)sender
 {
-    // We finally set our autosave window frame name and restore the one from the user's defaults.
-    [self setWindowFrameAutosaveName: @"Preferences"];
+    [self readPreferences];
+    [NSApp abortModal];
 }
 
-- (void)windowWillClose:(NSNotification *)aNotification
+- (IBAction)changeBackground:(id)sender
 {
-	[self savePreferences];
+    [fontExample setBackgroundColor:[sender color]];
+    [nafontExample setBackgroundColor:[sender color]];
 }
 
-- (void)windowDidBecomeKey:(NSNotification *)aNotification
+- (IBAction)changeFontButton:(id)sender
 {
-    // Post a notification
-    [[NSNotificationCenter defaultCenter] postNotificationName: @"nonTerminalWindowBecameKey" object: nil userInfo: nil];        
+    changingNA=NO;
+
+    [[fontExample window] makeFirstResponder:[fontExample window]];
+    [[fontExample window] setDelegate:self];
+    [[NSFontManager sharedFontManager] setSelectedFont:defaultFont isMultiple:NO];
+    [[NSFontManager sharedFontManager] orderFrontFontPanel:self];
 }
 
+- (IBAction)changeNAFontButton:(id)sender
+{
+    changingNA=YES;
+    [[nafontExample window] makeFirstResponder:[nafontExample window]];
+    [[nafontExample window] setDelegate:self];
+    [[NSFontManager sharedFontManager] setSelectedFont:defaultNAFont isMultiple:NO];
+    [[NSFontManager sharedFontManager] orderFrontFontPanel:self];
+}
 
-// accessors for preferences
+- (IBAction)changeForeground:(id)sender
+{
+    [fontExample setTextColor:[sender color]];
+    [nafontExample setTextColor:[sender color]];
+}
 
+- (void)changeFont:(id)fontManager
+{
+    if (changingNA) {
+        [defaultNAFont autorelease];
+        defaultNAFont=[fontManager convertFont:[nafontExample font]];
+        [nafontExample setStringValue:[NSString stringWithFormat:@"%@ %g", [defaultNAFont fontName], [defaultNAFont pointSize]]];
+        [nafontExample setFont:defaultNAFont];
+    }
+    else {
+        [defaultFont autorelease];
+        defaultFont=[fontManager convertFont:[fontExample font]];
+        [fontExample setStringValue:[NSString stringWithFormat:@"%@ %g", [defaultFont fontName], [defaultFont pointSize]]];
+        [fontExample setFont:defaultFont];
+    }
+}
+
+- (IBAction)ok:(id)sender
+{
+    int i;
+    
+    if ([col intValue]<1||[row intValue]<1) {
+        NSRunAlertPanel(NSLocalizedStringFromTableInBundle(@"Wrong Input",@"iTerm", [NSBundle bundleForClass: [self class]], @"wrong input"),
+                        NSLocalizedStringFromTableInBundle(@"Please enter a valid window size",@"iTerm", [NSBundle bundleForClass: [self class]], @"wrong input"),
+                        NSLocalizedStringFromTableInBundle(@"OK",@"iTerm", [NSBundle bundleForClass: [self class]], @"OK"),
+                        nil,nil);
+        return;
+    }
+    
+    [defaultBackground autorelease];
+    [defaultForeground autorelease];
+    [defaultSelectionColor autorelease];
+    [defaultBoldColor autorelease];
+    [defaultShell autorelease];
+    [defaultTerminal autorelease];
+    for(i=0;i<8;i++) {
+        [defaultColorTable[0][i] autorelease];
+        [defaultColorTable[1][i] autorelease];
+    }
+
+    defaultColorScheme = [colorScheme indexOfSelectedItem];
+    defaultBackground=[[background color] copy];
+    defaultForeground=[[foreground color] copy];
+    defaultSelectionColor = [[selectionColor color] copy];
+    defaultBoldColor = [[boldColor color] copy];
+    defaultColorTable[0][0] = [[ansiBlack color] copy];
+    defaultColorTable[0][1] = [[ansiRed color] copy];
+    defaultColorTable[0][2] = [[ansiGreen color] copy];
+    defaultColorTable[0][3] = [[ansiYellow color] copy];
+    defaultColorTable[0][4] = [[ansiBlue color] copy];
+    defaultColorTable[0][5] = [[ansiMagenta color] copy];
+    defaultColorTable[0][6] = [[ansiCyan color] copy];
+    defaultColorTable[0][7] = [[ansiWhite color] copy];
+    defaultColorTable[1][0] = [[ansiHiBlack color] copy];
+    defaultColorTable[1][1] = [[ansiHiRed color] copy];
+    defaultColorTable[1][2] = [[ansiHiGreen color] copy];
+    defaultColorTable[1][3] = [[ansiHiYellow color] copy];
+    defaultColorTable[1][4] = [[ansiHiBlue color] copy];
+    defaultColorTable[1][5] = [[ansiHiMagenta color] copy];
+    defaultColorTable[1][6] = [[ansiHiCyan color] copy];
+    defaultColorTable[1][7] = [[ansiHiWhite color] copy];
+    
+    defaultCol=[col intValue];
+    defaultRow=[row intValue];
+    defaultScrollback=[scrollbackLines intValue];
+    
+    defaultEncoding=encodingList[[encoding indexOfSelectedItem]];
+    defaultShell=[shell stringValue];
+    defaultTerminal=[terminal stringValue];
+    
+    defaultTransparency=[transparency intValue];
+    defaultAntiAlias = ([antiAlias state]==NSOnState);
+
+    defaultAutoclose=([autoclose state]==NSOnState);
+    defaultOption=[optionKey selectedColumn];
+    defaultTabViewType=[[tabViewType selectedCell] tag];
+    defaultCopySelection=([copySelection state]==NSOnState);
+    defaultHideTab=([hideTab state]==NSOnState);
+    defaultSilenceBell=([silenceBell state]==NSOnState);
+    defaultDoubleWidth=([doubleWidth state]==NSOnState);
+    defaultRemapDeleteKey = ([remapDeleteKey state] == NSOnState);
+    defaultOpenAddressBook = ([openAddressBook state] == NSOnState);
+    defaultPromptOnClose = ([promptOnClose state] == NSOnState);
+
+    [prefs setInteger:defaultCol forKey:@"Col"];
+    [prefs setInteger:defaultRow forKey:@"Row"];
+    [prefs setInteger:defaultScrollback forKey:@"Scrollback"];
+    [prefs setObject:defaultTerminal forKey:@"Terminal"];
+    [prefs setObject:[NSNumber numberWithUnsignedInt:defaultEncoding] forKey:@"Encoding"];
+    [prefs setObject:defaultShell forKey:@"Shell"];
+    [prefs setInteger:defaultTransparency forKey:@"Transparency"];
+
+    [prefs setInteger:defaultColorScheme forKey:@"ColorScheme"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultForeground]
+              forKey:@"Foreground"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultBackground]
+              forKey:@"Background"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultSelectionColor]
+              forKey:@"SelectionColor"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultBoldColor]
+              forKey:@"BoldColor"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[0][0]]
+              forKey:@"AnsiBlack"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[0][1]]
+              forKey:@"AnsiRed"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[0][2]]
+              forKey:@"AnsiGreen"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[0][3]]
+              forKey:@"AnsiYellow"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[0][4]]
+              forKey:@"AnsiBlue"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[0][5]]
+              forKey:@"AnsiMagenta"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[0][6]]
+              forKey:@"AnsiCyan"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[0][7]]
+              forKey:@"AnsiWhite"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[1][0]]
+              forKey:@"AnsiHiBlack"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[1][1]]
+              forKey:@"AnsiHiRed"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[1][2]]
+              forKey:@"AnsiHiGreen"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[1][3]]
+              forKey:@"AnsiHiYellow"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[1][4]]
+              forKey:@"AnsiHiBlue"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[1][5]]
+              forKey:@"AnsiHiMagenta"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[1][6]]
+              forKey:@"AnsiHiCyan"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultColorTable[1][7]]
+              forKey:@"AnsiHiWhite"];
+    
+
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultFont]
+              forKey:@"Font"];
+    [prefs setObject:[NSArchiver archivedDataWithRootObject:defaultNAFont]
+              forKey:@"NAFont"];
+    [prefs setBool:defaultAutoclose forKey:@"AutoClose"];
+    [prefs setInteger:defaultOption forKey:@"OptionKey"];
+    [prefs setBool:defaultAntiAlias forKey:@"AntiAlias"];
+    [prefs setBool:defaultCopySelection forKey:@"CopySelection"];
+    [prefs setBool:defaultHideTab forKey:@"HideTab"];
+    [prefs setBool:defaultSilenceBell forKey:@"SilenceBell"];
+    [prefs setBool:defaultDoubleWidth forKey:@"DoubleWidth"];
+    [prefs setInteger:defaultTabViewType forKey:@"TabViewType"];
+    [prefs setBool:defaultRemapDeleteKey forKey:@"RemapDeleteKey"];
+    [prefs setBool:defaultOpenAddressBook forKey:@"OpenAddressBook"];
+    [prefs setBool:defaultPromptOnClose forKey:@"PromptOnClose"];
+    
+    [NSApp stopModal];
+    [[NSColorPanel sharedColorPanel] close];
+    [[NSFontPanel sharedFontPanel] close];
+
+}
+
+- (IBAction)restore:(id)sender
+{
+    int r,i;
+    NSStringEncoding const *p=encodingList;
+    
+    [defaultBackground autorelease];
+    [defaultForeground autorelease];
+    [defaultSelectionColor autorelease];
+    [defaultBoldColor autorelease];
+    [defaultFont autorelease];
+    for(i=0;i<8;i++) {
+        [defaultColorTable[0][i] autorelease];
+        [defaultColorTable[1][i] autorelease];
+    }
+
+    defaultColorScheme = 0; // Custom
+    defaultBackground=[iTermBackground copy];
+    defaultForeground=[iTermForeground copy];
+    defaultSelectionColor=[iTermSelection copy];
+    defaultBoldColor=[iTermBold copy];
+    defaultFont=[FONT copy];
+    for(i=0;i<8;i++) {
+        defaultColorTable[0][i]=[iTermColorTable[0][i] copy];
+        defaultColorTable[1][i]=[iTermColorTable[1][i] copy];
+    }
+    
+    defaultCol=COL;
+    defaultRow=ROW;
+    defaultScrollback=SCROLLBACK;
+    
+    defaultEncoding=CFStringConvertEncodingToNSStringEncoding(CFStringGetSystemEncoding());
+    defaultShell=[SHELL copy];
+    defaultTerminal=[TERM copy];
+    
+    defaultTransparency=TRANSPARENCY;
+    defaultAutoclose=YES;
+    defaultOption=0;
+    defaultHideTab=YES;
+    defaultCopySelection=YES;
+    defaultSilenceBell=NO;
+    defaultDoubleWidth=YES;
+    defaultTabViewType = NSTopTabsBezelBorder;
+    defaultRemapDeleteKey = YES;
+    defaultOpenAddressBook = NO;
+    
+    [shell setStringValue:defaultShell];
+    [terminal setStringValue:defaultTerminal];
+    [encoding removeAllItems];
+    r=0;
+    while (*p) {
+        //NSLog(@"%@",[NSString localizedNameOfStringEncoding:*p]);
+        [encoding addItemWithObjectValue:[NSString localizedNameOfStringEncoding:*p]];
+        if (*p==defaultEncoding) r=p-encodingList;
+        p++;
+    }
+    [encoding selectItemAtIndex:r];
+
+
+    [colorScheme selectItemAtIndex: defaultColorScheme];
+    [background setColor:defaultBackground];
+    [foreground setColor:defaultForeground];
+    [selectionColor setColor: defaultSelectionColor];
+    [ansiBlack setColor:defaultColorTable[0][0]];
+    [ansiRed setColor:defaultColorTable[0][1]];
+    [ansiGreen setColor:defaultColorTable[0][2]];
+    [ansiYellow setColor:defaultColorTable[0][3]];
+    [ansiBlue setColor:defaultColorTable[0][4]];
+    [ansiMagenta setColor:defaultColorTable[0][5]];
+    [ansiCyan setColor:defaultColorTable[0][6]];
+    [ansiWhite setColor:defaultColorTable[0][7]];
+    [ansiHiBlack setColor:defaultColorTable[1][0]];
+    [ansiHiRed setColor:defaultColorTable[1][1]];
+    [ansiHiGreen setColor:defaultColorTable[1][2]];
+    [ansiHiYellow setColor:defaultColorTable[1][3]];
+    [ansiHiBlue setColor:defaultColorTable[1][4]];
+    [ansiHiMagenta setColor:defaultColorTable[1][5]];
+    [ansiHiCyan setColor:defaultColorTable[1][6]];
+    [ansiHiWhite setColor:defaultColorTable[1][7]];
+    
+    [row setIntValue:defaultRow];
+    [col setIntValue:defaultCol];
+    [scrollbackLines setIntValue:defaultScrollback];
+    [transparency setIntValue:defaultTransparency];
+    
+    [fontExample setTextColor:defaultForeground];
+    [fontExample setBackgroundColor:defaultBackground];
+    [fontExample setFont:defaultFont];
+    [fontExample setStringValue:[NSString stringWithFormat:@"%@ %g", [defaultFont fontName], [defaultFont pointSize]]];
+
+    [autoclose setState:defaultAutoclose?NSOnState:NSOffState];
+    [optionKey selectCellAtRow:0 column:defaultOption];
+    [copySelection setState:defaultCopySelection?NSOnState:NSOffState];
+    [hideTab setState:defaultHideTab?NSOnState:NSOffState];
+    [silenceBell setState:defaultSilenceBell?NSOnState:NSOffState];
+    [doubleWidth setState:defaultDoubleWidth?NSOnState:NSOffState];
+    [remapDeleteKey setState:defaultRemapDeleteKey?NSOnState:NSOffState];
+    [openAddressBook setState:defaultOpenAddressBook?NSOnState:NSOffState];
+    [promptOnClose setState:defaultPromptOnClose?NSOnState:NSOffState];
+    [tabViewType selectCellWithTag: defaultTabViewType];
+
+    
+}
+
+- (NSColor*) background
+{
+    return defaultBackground;
+}
+
+- (NSColor*) foreground
+{
+    return defaultForeground;
+}
+
+- (int) col
+{
+    return defaultCol;
+}
+
+- (int) row
+{
+    return defaultRow;
+}
+
+- (unsigned int) scrollbackLines
+{
+    return SCROLLBACK; //defaultScrollback;
+}
+
+- (NSStringEncoding) encoding
+{
+    return defaultEncoding;
+}
+
+- (NSString*) shell
+{
+    return defaultShell;
+}
+
+- (NSString*) terminalType
+{
+    return defaultTerminal;
+}
+
+- (int) transparency
+{
+    return defaultTransparency;
+}
+
+- (NSFont*) font
+{
+    return defaultFont;
+}
+
+- (NSFont*) nafont
+{
+    return defaultNAFont;
+}
+
+- (BOOL) antiAlias
+{
+    return defaultAntiAlias;
+}
+
+- (BOOL) ai
+{
+    return NO;
+}
+
+- (int) aiCode
+{
+    return 0;
+}
+
+- (BOOL) autoclose
+{
+    return defaultAutoclose;
+}
+
+- (int) option
+{
+    return defaultOption;
+}
 
 - (BOOL) copySelection
 {
     return (defaultCopySelection);
-}
-
-- (void) setCopySelection: (BOOL) flag
-{
-	defaultCopySelection = flag;
-}
-
-- (BOOL) pasteFromClipboard
-{
-	return (defaultPasteFromClipboard);
-}
-
-- (void) setPasteFromClipboard: (BOOL) flag
-{
-	defaultPasteFromClipboard = flag;
 }
 
 - (BOOL) hideTab
@@ -369,9 +809,24 @@ static NSString *NoHandler = @"<No Handler>";
     return (defaultHideTab);
 }
 
-- (void) setTabViewType: (NSTabViewType) type
+- (BOOL) silenceBell
 {
-    defaultTabViewType = type;
+    return (defaultSilenceBell);
+}
+
+- (BOOL) doubleWidth
+{
+    return (defaultDoubleWidth);
+}
+
+- (NSColor *) selectionColor
+{
+    return (defaultSelectionColor);
+}
+
+- (NSColor *) boldColor
+{
+    return (defaultBoldColor);
 }
 
 - (NSTabViewType) tabViewType
@@ -379,9 +834,14 @@ static NSString *NoHandler = @"<No Handler>";
     return (defaultTabViewType);
 }
 
-- (int) windowStyle
+- (BOOL)remapDeleteKey
 {
-	return (defaultWindowStyle);
+    return (defaultRemapDeleteKey);
+}
+
+- (BOOL)openAddressBook
+{
+    return (defaultOpenAddressBook);
 }
 
 - (BOOL)promptOnClose
@@ -389,266 +849,88 @@ static NSString *NoHandler = @"<No Handler>";
     return (defaultPromptOnClose);
 }
 
-- (BOOL)onlyWhenMoreTabs
+- (IBAction)editColorScheme: (id) sender
 {
-    return (defaultOnlyWhenMoreTabs);
+    // set the color scheme to custom
+    [colorScheme selectItemAtIndex: 0];
 }
 
-- (BOOL) focusFollowsMouse
+- (IBAction)changeColorScheme:(id)sender
 {
-    return (defaultFocusFollowsMouse);
-}
-
-- (BOOL) enableBonjour
-{
-	return (defaultEnableBonjour);
-}
-
-- (BOOL) enableGrowl
-{
-	return (defaultEnableGrowl);
-}
-
-- (BOOL) cmdSelection
-{
-	return (defaultCmdSelection);
-}
-
-- (BOOL) maxVertically
-{
-	return (defaultMaxVertically);
-}
-
-- (BOOL) useCompactLabel
-{
-	return (defaultUseCompactLabel);
-}
-
-- (BOOL) openBookmark
-{
-	return (defaultOpenBookmark);
-}
-
-- (int) refreshRate
-{
-	return (defaultRefreshRate);
-}
-
-- (NSString *) wordChars
-{
-	if([defaultWordChars length] <= 0)
-		return (@"");
-	return (defaultWordChars);
-}
-
-- (ITermCursorType) cursorType
-{
-	return defaultCursorType;
-}
-
-- (BOOL) useBorder
-{
-	return (defaultUseBorder);
-}
-
-- (BOOL) hideScrollbar
-{
-	return defaultHideScrollbar;
-}
-
-- (BOOL) checkTestRelease
-{
-	return defaultCheckTestRelease;
-}
-
-- (BOOL) quitWhenAllWindowsClosed
-{
-    return defaultQuitWhenAllWindowsClosed;
-}
-
-// The following are preferences with no UI, but accessible via "defaults read/write"
-// examples:
-//  defaults write net.sourceforge.iTerm UseUnevenTabs -bool true
-//  defaults write net.sourceforge.iTerm MinTabWidth -int 100        
-//  defaults write net.sourceforge.iTerm MinCompactTabWidth -int 120
-//  defaults write net.sourceforge.iTerm OptimumTabWidth -int 100
-
-- (BOOL) useUnevenTabs
-{
-    return [prefs objectForKey:@"UseUnevenTabs"]?[[prefs objectForKey:@"UseUnevenTabs"] boolValue]:NO;
-}
-
-- (int) minTabWidth
-{
-    return [prefs objectForKey:@"MinTabWidth"]?[[prefs objectForKey:@"MinTabWidth"] intValue]:75;
-}
-
-- (int) minCompactTabWidth
-{
-    return [prefs objectForKey:@"MinCompactTabWidth"]?[[prefs objectForKey:@"MinCompactTabWidth"] intValue]:60;
-}
-
-- (int) optimumTabWidth
-{
-    return [prefs objectForKey:@"OptimumTabWidth"]?[[prefs objectForKey:@"OptimumTabWidth"] intValue]:175;
-}
-
-- (NSString *) searchCommand
-{
-	return [prefs objectForKey:@"SearchCommand"]?[prefs objectForKey:@"SearchCommand"]:@"http://google.com/search?q=%@";
-}
-
-// URL handler stuff
-- (TreeNode *) handlerBookmarkForURL:(NSString *)url
-{
-	return [urlHandlers objectForKey: url];
-}
-
-// NSTableView data source
-- (int) numberOfRowsInTableView: (NSTableView *)aTableView
-{
-	return [urlTypes count];
-}
-
-- (id)tableView:(NSTableView *)aTableView objectValueForTableColumn:(NSTableColumn *)aTableColumn row:(int)rowIndex
-{
-    //NSLog(@"%s: %@", __PRETTY_FUNCTION__, aTableView);
+    int i;
     
-	return [urlTypes objectAtIndex: rowIndex];
+    switch ([sender indexOfSelectedItem]) {
+        case 0:
+            break;
+        case 1:
+            [defaultBackground autorelease];
+            [defaultForeground autorelease];
+            [defaultSelectionColor autorelease];
+            defaultForeground=[iTermForeground copy];
+            defaultBackground=[iTermBackground copy];
+            defaultSelectionColor=[iTermSelection copy];
+            [fontExample setBackgroundColor:defaultBackground];
+            [nafontExample setBackgroundColor:defaultBackground];
+            [fontExample setTextColor:defaultForeground];
+            [nafontExample setTextColor:defaultForeground];
+            
+            for(i=0;i<8;i++) {
+                defaultColorTable[0][i]=[iTermColorTable[0][i] copy];
+                defaultColorTable[1][i]=[iTermColorTable[1][i] copy];
+            }
+            break;
+        case 2:
+            [defaultBackground autorelease];
+            [defaultForeground autorelease];
+            [defaultSelectionColor autorelease];
+            defaultForeground=[xtermForeground copy];
+            defaultBackground=[xtermBackground copy];
+            defaultSelectionColor=[xtermSelection copy];
+            [fontExample setBackgroundColor:defaultBackground];
+            [nafontExample setBackgroundColor:defaultBackground];
+            [fontExample setTextColor:defaultForeground];
+            [nafontExample setTextColor:defaultForeground];
+
+            for(i=0;i<8;i++) {
+                defaultColorTable[0][i]=[xtermColorTable[0][i] copy];
+                defaultColorTable[1][i]=[xtermColorTable[1][i] copy];
+            }
+            break;
+    }
+   if ([sender indexOfSelectedItem]) {
+       [background setColor:defaultBackground];
+       [foreground setColor:defaultForeground];
+       [selectionColor setColor: defaultSelectionColor];
+       [ansiBlack setColor:defaultColorTable[0][0]];
+       [ansiRed setColor:defaultColorTable[0][1]];
+       [ansiGreen setColor:defaultColorTable[0][2]];
+       [ansiYellow setColor:defaultColorTable[0][3]];
+       [ansiBlue setColor:defaultColorTable[0][4]];
+       [ansiMagenta setColor:defaultColorTable[0][5]];
+       [ansiCyan setColor:defaultColorTable[0][6]];
+       [ansiWhite setColor:defaultColorTable[0][7]];
+       [ansiHiBlack setColor:defaultColorTable[1][0]];
+       [ansiHiRed setColor:defaultColorTable[1][1]];
+       [ansiHiGreen setColor:defaultColorTable[1][2]];
+       [ansiHiYellow setColor:defaultColorTable[1][3]];
+       [ansiHiBlue setColor:defaultColorTable[1][4]];
+       [ansiHiMagenta setColor:defaultColorTable[1][5]];
+       [ansiHiCyan setColor:defaultColorTable[1][6]];
+       [ansiHiWhite setColor:defaultColorTable[1][7]];
+   }        
 }
 
-// NSTableView delegate
-- (void)tableViewSelectionDidChange:(NSNotification *)aNotification
+- (IBAction)changeTab:(id)sender
 {
-	int i;
-	
-    //NSLog(@"%s", __PRETTY_FUNCTION__);
-	if ((i=[urlTable selectedRow])<0) 
-		[urlHandlerOutline deselectAll:nil];
-	else {
-		id temp = [urlHandlers objectForKey: [urlTypes objectAtIndex: i]];
-		if (temp) {
-			[urlHandlerOutline selectRow: [urlHandlerOutline rowForItem: temp] byExtendingSelection:NO];
-		}
-		else {
-			[urlHandlerOutline selectRow: 0 byExtendingSelection:NO];
-		}
-		[urlHandlerOutline scrollRowToVisible: [urlHandlerOutline selectedRow]];
-	}
+    [prefTab selectTabViewItemAtIndex:[sender indexOfSelectedItem]];
 }
 
-// NSOutlineView delegate methods
-- (void) outlineViewSelectionDidChange: (NSNotification *) aNotification
+- (NSColor *) colorFromTable:(int)index highLight:(BOOL)hili
 {
+    if (index<8)
+        return defaultColorTable[hili?1:0][index];
+    else return nil;
 }
 
-// NSOutlineView data source methods
-// required
-- (id)outlineView:(NSOutlineView *)ov child:(int)index ofItem:(id)item
-{
-    //NSLog(@"%s", __PRETTY_FUNCTION__);
-	if (item)
-		return [[ITAddressBookMgr sharedInstance] child:index ofItem: item];
-	else if (index)
-		return [[ITAddressBookMgr sharedInstance] child:index-1 ofItem: item];
-	else
-		return NoHandler;
-}
-
-- (BOOL)outlineView:(NSOutlineView *)ov isItemExpandable:(id)item
-{
-    //NSLog(@"%s", __PRETTY_FUNCTION__);
-	if ([item isKindOfClass:[NSString class]])
-		return NO;
-	else
-		return [[ITAddressBookMgr sharedInstance] isExpandable: item];
-}
-
-- (int)outlineView:(NSOutlineView *)ov numberOfChildrenOfItem:(id)item
-{
-    //NSLog(@"%s: ov = 0x%x; item = 0x%x; numChildren: %d", __PRETTY_FUNCTION__, ov, item,
-	//	  [[ITAddressBookMgr sharedInstance] numberOfChildrenOfItem: item]);
-	if (item)
-		return [[ITAddressBookMgr sharedInstance] numberOfChildrenOfItem: item];
-	else
-		return [[ITAddressBookMgr sharedInstance] numberOfChildrenOfItem: item] + 1;
-}
-
-- (id)outlineView:(NSOutlineView *)ov objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:(id)item
-{
-    //NSLog(@"%s: outlineView = 0x%x; item = %@; column= %@", __PRETTY_FUNCTION__, ov, item, [tableColumn identifier]);
-	// item should be a tree node witha dictionary data object
-	if ([item isKindOfClass:[NSString class]])
-        return item;
-	else
-		return [[ITAddressBookMgr sharedInstance] objectForKey:@"Name" inItem: item];
-}
-
-- (BOOL)outlineView:(NSOutlineView *)outlineView shouldEditTableColumn:(NSTableColumn *)tableColumn item:(id)item
-{
-	return NO;
-}
-
-- (IBAction)connectURL:(id)sender
-{
-	int i, j;
-
-	if ((i=[urlTable selectedRow])<0 ||(j=[urlHandlerOutline selectedRow])<0) return;
-	if (!j) { // No Handler
-		[urlHandlers removeObjectForKey:[urlTypes objectAtIndex: i]];
-	}
-	else {
-		[urlHandlers setObject:[urlHandlerOutline itemAtRow:j] forKey: [urlTypes objectAtIndex: i]];
-		
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
-		NSURL *appURL = nil;
-		OSStatus err;
-		BOOL set = NO;
-		
-		err = LSGetApplicationForURL((CFURLRef)[NSURL URLWithString:[[urlTypes objectAtIndex: i] stringByAppendingString:@":"]], kLSRolesAll, NULL, (CFURLRef *)&appURL);
-		if (err != noErr) {
-			set = NSRunAlertPanel([NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"iTerm is not the default handler for %@. Would you like to set iTerm as the default handler?", @"iTerm", [NSBundle bundleForClass: [self class]], @"URL Handler"), [urlTypes objectAtIndex: i]],
-								  NSLocalizedStringFromTableInBundle(@"There is no handler currently.",@"iTerm", [NSBundle bundleForClass: [self class]], @"URL Handler"),
-								  NSLocalizedStringFromTableInBundle(@"OK",@"iTerm", [NSBundle bundleForClass: [self class]], @"OK"),
-								  NSLocalizedStringFromTableInBundle(@"Cancel",@"iTerm", [NSBundle bundleForClass: [self class]], @"Cancel")
-								  ,nil) == NSAlertDefaultReturn;
-		}
-		else if (![[[NSFileManager defaultManager] displayNameAtPath:[appURL path]] isEqualToString:@"iTerm"]) {
-			set = NSRunAlertPanel([NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"iTerm is not the default handler for %@. Would you like to set iTerm as the default handler?", @"iTerm", [NSBundle bundleForClass: [self class]], @"URL Handler"), [urlTypes objectAtIndex: i]],
-								  [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"The current handler is: %@" ,@"iTerm", [NSBundle bundleForClass: [self class]], @"URL Handler"), [[NSFileManager defaultManager] displayNameAtPath:[appURL path]]],
-								  NSLocalizedStringFromTableInBundle(@"OK",@"iTerm", [NSBundle bundleForClass: [self class]], @"OK"),
-								  NSLocalizedStringFromTableInBundle(@"Cancel",@"iTerm", [NSBundle bundleForClass: [self class]], @"Cancel")
-								  ,nil) == NSAlertDefaultReturn;
-		}
-			
-		if (set) {
-			  LSSetDefaultHandlerForURLScheme ((CFStringRef)[urlTypes objectAtIndex: i],(CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
-		}
-#endif
-	}
-	//NSLog(@"urlHandlers:%@", urlHandlers);
-}
-
-- (IBAction)closeWindow:(id)sender
-{
-	[[self window] close];
-}
-
-
-// NSTextField delegate
-- (void)controlTextDidChange:(NSNotification *)aNotification
-{
-	defaultWordChars = [[wordChars stringValue] retain];
-}
-
-@end
-
-
-@implementation PreferencePanel (Private)
-
-- (void) _reloadURLHandlers: (NSNotification *) aNotification
-{
-	[urlHandlerOutline reloadData];
-}
 
 @end
