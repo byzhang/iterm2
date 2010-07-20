@@ -30,7 +30,7 @@
 #import <iTerm/iTermApplicationDelegate.h>
 #import <iTerm/iTermController.h>
 #import <iTerm/ITAddressBookMgr.h>
-#import <iTerm/PreferencePanel.h>
+#import <iTerm/Preferences.h>
 #import <iTerm/PseudoTerminal.h>
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Terminal.h>
@@ -75,10 +75,22 @@ static BOOL usingAutoLaunchScript = NO;
 	[self buildScriptMenu:nil];
 		
 	// read preferences
-    [PreferencePanel migratePreferences];
+    [Preferences migratePreferences];
 	[iTermProfileWindowController sharedInstance];
     [iTermBookmarkController sharedInstance];
-    [PreferencePanel sharedInstance];
+    [Preferences shared];
+    
+	
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
+	NSString *appCast = [[Preferences shared] checkTestRelease] ? 
+		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURL"] : 
+		[[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForFinalRelease"];
+	[[NSUserDefaults standardUserDefaults] setObject: appCast forKey:@"SUFeedURL"];
+#else
+	NSString *appCast = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"SUFeedURLForPanther"];
+	[[NSUserDefaults standardUserDefaults] setObject: appCast forKey:@"SUFeedURL"];
+#endif
+	
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
@@ -107,7 +119,7 @@ static BOOL usingAutoLaunchScript = NO;
 	terminals = [[iTermController sharedInstance] terminals];
 
 	// Display prompt if we need to
-    if ([[PreferencePanel sharedInstance] promptOnClose] && [terminals count] && (![[PreferencePanel sharedInstance] onlyWhenMoreTabs] || [terminals count] >1 || 
+    if ([[Preferences shared] promptOnClose] && [terminals count] && (![[Preferences shared] onlyWhenMoreTabs] || [terminals count] >1 || 
                                                              [[[[iTermController sharedInstance] currentTerminal] tabView] numberOfTabViewItems] > 1 )
         && 
 	    NSRunAlertPanel(NSLocalizedStringFromTableInBundle(@"Quit iTerm?",@"iTerm", [NSBundle bundleForClass: [self class]], @"Close window"),
@@ -121,7 +133,7 @@ static BOOL usingAutoLaunchScript = NO;
 	[iTermController sharedInstanceRelease];
 
 	// save preferences
-	[[PreferencePanel sharedInstance] savePreferences];
+	[[Preferences shared] savePreferences];
 
 	return (YES);
 }
@@ -169,7 +181,7 @@ static BOOL usingAutoLaunchScript = NO;
 		[autoLaunchScript release];
     }
     else {
-        if ([[PreferencePanel sharedInstance] openBookmark])
+        if ([[Preferences shared] openBookmark])
             [self showBookmarkWindow:nil];
         else
             [self newWindow:nil];
@@ -190,7 +202,7 @@ static BOOL usingAutoLaunchScript = NO;
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)app
 {
-    return [[PreferencePanel sharedInstance] quitWhenAllWindowsClosed];
+    return [[Preferences shared] quitWhenAllWindowsClosed];
 }
 
 // init
@@ -242,7 +254,7 @@ static BOOL usingAutoLaunchScript = NO;
 	NSURL *url = [NSURL URLWithString: urlStr];
 	NSString *urlType = [url scheme];
 
-	id bm = [[PreferencePanel sharedInstance] handlerBookmarkForURL: urlType];
+	id bm = [[Preferences shared] handlerBookmarkForURL: urlType];
 
 	//NSLog(@"Got the URL:%@\n%@", urlType, bm);
 	[[iTermController sharedInstance] launchBookmark:[bm nodeData] inTerminal:[[iTermController sharedInstance] currentTerminal] withURL:urlStr];
@@ -279,7 +291,7 @@ static BOOL usingAutoLaunchScript = NO;
 
 - (IBAction)showPrefWindow:(id)sender
 {
-    [[PreferencePanel sharedInstance] run];
+    [[Preferences shared] run];
 }
 
 - (IBAction)showBookmarkWindow:(id)sender
@@ -374,7 +386,7 @@ static BOOL usingAutoLaunchScript = NO;
     webSite = [[NSAttributedString alloc] initWithString: @"http://iterm.sourceforge.net" attributes: linkAttributes];
 
     // Bug report
-    bugURL = [NSURL URLWithString: @"http://iterm.sourceforge.net/tracker-bug"];
+    bugURL = [NSURL URLWithString: @"https://sourceforge.net/tracker/?func=add&group_id=67789&atid=518973"];
     linkAttributes= [NSDictionary dictionaryWithObjectsAndKeys: bugURL, NSLinkAttributeName,
         [NSNumber numberWithInt: NSSingleUnderlineStyle], NSUnderlineStyleAttributeName,
         [NSColor blueColor], NSForegroundColorAttributeName,

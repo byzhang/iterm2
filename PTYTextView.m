@@ -37,7 +37,7 @@
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Screen.h>
 #import <iTerm/FindPanelWindowController.h>
-#import <iTerm/PreferencePanel.h>
+#import <iTerm/Preferences.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTask.h>
 #import <iTerm/iTermController.h>
@@ -48,6 +48,7 @@
 #include <math.h>
 
 static NSCursor* textViewCursor =  nil;
+static float strokeWidth, boldStrokeWidth;
 
 @implementation PTYTextView
 
@@ -66,6 +67,8 @@ static NSCursor* textViewCursor =  nil;
     [reverseCursorImage compositeToPoint:NSMakePoint(2,0) operation:NSCompositePlusLighter];
     [aCursorImage unlockFocus];
     textViewCursor = [[NSCursor alloc] initWithImage:aCursorImage hotSpot:hotspot];
+    strokeWidth = [[Preferences shared] strokeWidth];
+    boldStrokeWidth = [[Preferences shared] boldStrokeWidth];
 }
 
 + (NSCursor *) textViewCursor
@@ -374,7 +377,7 @@ static NSCursor* textViewCursor =  nil;
 		}
 	}
 	else {
-		if([self disableBold] && (index & BOLD_MASK) && (index % 256 < 8)) {
+		if((index & BOLD_MASK) && (index % 256 < 8)) {
 			index = index - BOLD_MASK + 8;
 		}
 		color = colorTable[index & 0xff];
@@ -528,29 +531,16 @@ static NSCursor* textViewCursor =  nil;
 		dirty += WIDTH;
 	}
 
-	// Time to redraw blinking text?
-	struct timeval now;
-	BOOL redrawBlink = NO;
-	gettimeofday(&now, NULL);
-	if(now.tv_sec*10+now.tv_usec/100000 >= lastBlink.tv_sec*10+lastBlink.tv_usec/100000+7) {
-		blinkShow = !blinkShow;
-		lastBlink = now;
-		redrawBlink = YES;
-	}
-
 	// Visible chars that have changed selection status are dirty
-	// Also mark blinking text as dirty if needed
 	lineStart = [self visibleRect].origin.y / lineHeight;
 	lineEnd = lineStart + ceil([self visibleRect].size.height / lineHeight);
 	if(lineStart < 0) lineStart = 0;
 	if(lineEnd > [dataSource numberOfLines]) lineEnd = [dataSource numberOfLines];
 	for(int y = lineStart; y < lineEnd; y++) {
-		screen_char_t* theLine = [dataSource getLineAtIndex:y];
 		for(int x = 0; x < WIDTH; x++) {
 			BOOL isSelected = [self _isCharSelectedInRow:y col:x checkOld:NO];
 			BOOL wasSelected = [self _isCharSelectedInRow:y col:x checkOld:YES];
-			BOOL blinked = redrawBlink && (theLine[x].fg_color & BLINK_MASK);
-			if(isSelected != wasSelected || blinked) {
+			if(isSelected != wasSelected) {
 				NSRect dirtyRect = [self visibleRect];
 				dirtyRect.origin.y = y*lineHeight;
 				dirtyRect.size.height = lineHeight;
@@ -580,36 +570,45 @@ static NSCursor* textViewCursor =  nil;
 	[dataSource resetDirty];
 }
 
-// We override this method since both refresh and window resize can conflict
-// resulting in this happening twice So we do not allow the size to be set
-// larger than what the data source can fill
+// We override this method since both refresh and window resize can conflict resulting in this happening twice
+// So we do not allow the size to be set larger than what the data source can fill
 - (void)setFrameSize:(NSSize)frameSize
 {
 	// Force the height to always be correct
 	frameSize.height = [dataSource numberOfLines] * lineHeight;
 	[super setFrameSize:frameSize];
-}
 
-- (void)refresh
-{
-	if(dataSource == nil) return;
+	if(![(PTYScroller *)([[self enclosingScrollView] verticalScroller]) userScroll]) {
+		[self scrollEnd];
+	}
 
 	// reset tracking rect
 	if(trackingRectTag) {
 		[self removeTrackingRect:trackingRectTag];
 	}
 	trackingRectTag = [self addTrackingRect:[self visibleRect] owner:self userData:nil assumeInside:NO];
+}
 
-	// number of lines that have disappeared if circular buffer is full
+- (void)refresh
+{
+	if(dataSource == nil) return;
+
 	int scrollbackOverflow = [dataSource scrollbackOverflow];
 	[dataSource resetScrollbackOverflow];
 
-	// frame size changed?
 	int height = [dataSource numberOfLines] * lineHeight;
 	NSRect frame = [self frame];
 
+	// Blinking
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	if(now.tv_sec*10+now.tv_usec/100000 >= lastBlink.tv_sec*10+lastBlink.tv_usec/100000+7) {
+		blinkShow = !blinkShow;
+		lastBlink = now;
+	}
+
+	// Grow to allow space for drawing the new lines
 	if(height != frame.size.height) {
-		// Grow to allow space for drawing the new lines
 		// XXX - EPIC HACK below
 		// NSClipView has setCopiesOnScroll:YES by default. According to Apple
 		// this means it will do a quick copy of all the unchanged portion of
@@ -644,11 +643,10 @@ static NSCursor* textViewCursor =  nil;
 			[self setNeedsDisplayInRect:dirty];
 		}
 	}
+	// Handle scrollback overflows
 	else if(scrollbackOverflow > 0) {
 		NSScrollView* scrollView = [self enclosingScrollView];
-		NSClipView* clipView = [scrollView contentView];
 		float amount = [scrollView verticalLineScroll] * scrollbackOverflow;
-		BOOL userScroll = [(PTYScroller*)([scrollView verticalScroller]) userScroll];
 
 		// Keep correct selection highlighted
 		startY -= scrollbackOverflow;
@@ -658,23 +656,21 @@ static NSCursor* textViewCursor =  nil;
 		if(oldStartY < 0) oldStartX = -1;
 		oldEndY -= scrollbackOverflow;
 
-		// Keep the users' current scroll position, nothing to redraw
-		if(userScroll) {
+		// Keep the users' current scroll position
+		if([(PTYScroller*)([scrollView verticalScroller]) userScroll]) {
 			NSRect scrollRect = [self visibleRect];
 			scrollRect.origin.y -= amount;
 			if(scrollRect.origin.y < 0) scrollRect.origin.y = 0;
-			[clipView setCopiesOnScroll:NO];
 			[self scrollRectToVisible:scrollRect];
-			[clipView setCopiesOnScroll:YES];
-			return;
 		}
 
 		// Shift the old content upwards
-		if(scrollbackOverflow < [dataSource height] && !userScroll) {
+		if(scrollbackOverflow < [dataSource height]) {
 			[self scrollRect:[self visibleRect] by:NSMakeSize(0, -amount)];
 		}
 	}
 
+	// Mark dirty chars for redraw
 	[self updateDirtyRects];
 }
 
@@ -808,38 +804,61 @@ static NSCursor* textViewCursor =  nil;
 	[self _drawCursor];
 }
 
-- (void)keyDown:(NSEvent*)event
+- (void)keyDown:(NSEvent *)event
 {
-	id delegate = [self delegate];
+    NSInputManager *imana = [NSInputManager currentInputManager];
+    BOOL IMEnable = [imana wantsToInterpretAllKeystrokes];
+    id delegate = [self delegate];
 	unsigned int modflag = [event modifierFlags];
-	BOOL prev = [self hasMarkedText];
-
+    BOOL prev = [self hasMarkedText];
+	
 #if DEBUG_METHOD_TRACE
-	NSLog(@"%s(%d):-[PTYTextView keyDown:%@]", __FILE__, __LINE__, event );
+    NSLog(@"%s(%d):-[PTYTextView keyDown:%@]",
+          __FILE__, __LINE__, event );
 #endif
-
+    
 	keyIsARepeat = [event isARepeat];
-
-	// Hide the cursor
-	[NSCursor setHiddenUntilMouseMoves:YES];
-
-	// Should we process the event immediately in the delegate?
-	if([delegate hasKeyMappingForEvent:event highPriority:YES] ||
-		(modflag & NSNumericPadKeyMask) || (modflag & NSFunctionKeyMask) ||
-		((modflag & NSAlternateKeyMask) && [delegate optionKey] != OPT_NORMAL))
+	
+    // Hide the cursor
+    [NSCursor setHiddenUntilMouseMoves: YES];   
+		
+	if ([delegate hasKeyMappingForEvent: event highPriority: YES]) 
 	{
 		[delegate keyDown:event];
 		return;
 	}
-
-	// Let the IME process key events
-	IM_INPUT_INSERT = NO;
-	[self interpretKeyEvents:[NSArray arrayWithObject:event]];
-
-	// If the IME didn't want it, pass it on to the delegate
-	if(!prev && !IM_INPUT_INSERT && ![self hasMarkedText]) {
-		[delegate keyDown:event];
-	}
+	
+    IM_INPUT_INSERT = NO;
+    if (IMEnable) {
+        [self interpretKeyEvents:[NSArray arrayWithObject:event]];
+        
+        if (prev == NO &&
+            IM_INPUT_INSERT == NO &&
+            [self hasMarkedText] == NO)
+        {
+            [delegate keyDown:event];
+        }
+    }
+    else {
+		// Check whether we have a custom mapping for this event or if numeric or function keys were pressed.
+		if ( prev == NO && 
+			 ([delegate hasKeyMappingForEvent: event highPriority: NO] ||
+			  (modflag & NSNumericPadKeyMask) || 
+			  (modflag & NSFunctionKeyMask)))
+		{
+			[delegate keyDown:event];
+		}
+		else {
+			if([[self delegate] optionKey] == OPT_NORMAL)
+			{
+				[self interpretKeyEvents:[NSArray arrayWithObject:event]];
+			}
+			
+			if (IM_INPUT_INSERT == NO) {
+				[delegate keyDown:event];
+			}
+		}
+    }
 }
 
 - (BOOL) keyIsARepeat
@@ -888,7 +907,7 @@ static NSCursor* textViewCursor =  nil;
 		}
 	}
 	
-	if([[PreferencePanel sharedInstance] pasteFromClipboard])
+	if([[Preferences shared] pasteFromClipboard])
 		[self paste: nil];
 	else
 		[self pasteSelection: nil];
@@ -1129,7 +1148,7 @@ static NSCursor* textViewCursor =  nil;
 {
 	//NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
 	
-	if([[PreferencePanel sharedInstance] focusFollowsMouse])
+	if([[Preferences shared] focusFollowsMouse])
 		[[self window] makeKeyWindow];
 }
 
@@ -1180,10 +1199,7 @@ static NSCursor* textViewCursor =  nil;
 				break;
 		}
 	}
-
-	// Lock auto scrolling while the user is selecting text
-	[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:YES];
-
+	
 	if(mouseDownEvent != nil)
     {
 		[mouseDownEvent release];
@@ -1333,12 +1349,7 @@ static NSCursor* textViewCursor =  nil;
 				break;
 		}
 	}
-
-	// Unlock auto scrolling as the user as finished selecting text
-	if(([self visibleRect].origin.y + [self visibleRect].size.height) / lineHeight == [dataSource numberOfLines]) {
-		[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:NO];
-	}
-
+	
 	if(mouseDown == NO)
 		return;
 	mouseDown = NO;
@@ -1357,7 +1368,7 @@ static NSCursor* textViewCursor =  nil;
 			 [event clickCount] < 2 && !mouseDragged) 
 	{		
 		startX=-1;
-        if(([event modifierFlags] & NSCommandKeyMask) && [[PreferencePanel sharedInstance] cmdSelection] &&
+        if(([event modifierFlags] & NSCommandKeyMask) && [[Preferences shared] cmdSelection] &&
            [mouseDownEvent locationInWindow].x == [event locationInWindow].x &&
            [mouseDownEvent locationInWindow].y == [event locationInWindow].y)
         {
@@ -1374,7 +1385,7 @@ static NSCursor* textViewCursor =  nil;
 	
 	if (startX > -1 && _delegate) {
 		// if we want to copy our selection, do so
-		if([[PreferencePanel sharedInstance] copySelection])
+		if([[Preferences shared] copySelection])
 			[self copy: self];
 	}
 	
@@ -1746,7 +1757,7 @@ static NSCursor* textViewCursor =  nil;
 
 - (void) searchInBrowser:(id)sender
 {
-	[self _openURL: [[NSString stringWithFormat:[[PreferencePanel sharedInstance] searchCommand], [self selectedText]] stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding]];
+	[self _openURL: [[NSString stringWithFormat:[[Preferences shared] searchCommand], [self selectedText]] stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding]];
 }
 
 //
@@ -2408,7 +2419,7 @@ static NSCursor* textViewCursor =  nil;
 			}
 			[[[self defaultCursorColor] colorWithAlphaComponent: alpha] set];
 
-			switch ([[PreferencePanel sharedInstance] cursorType]) {
+			switch ([[Preferences shared] cursorType]) {
 				case CURSOR_BOX:
 					// draw the box
 					if([[self window] isKeyWindow]) {
@@ -2457,31 +2468,63 @@ static NSCursor* textViewCursor =  nil;
 
 - (void) _drawCharacter:(unichar)code fgColor:(int)fg AtX:(float)X Y:(float)Y doubleWidth:(BOOL) dw
 {
-	if (!code) return;
-
-	static int oldfg = -1;
-	static NSFont* oldFont = nil;
-	static NSMutableDictionary* attrib = nil;
-	if(attrib == nil) attrib = [[NSMutableDictionary alloc] init];
-
-	NSFont* theFont = dw?nafont:font;
-	BOOL renderBold = (fg&BOLD_MASK) && ![self disableBold];
-	NSColor* color = [self colorForCode:fg];
-
-	if(oldfg != fg)
-		[attrib setObject:color forKey:NSForegroundColorAttributeName];
-	if(oldFont != theFont)
-		[attrib setObject:theFont forKey: NSFontAttributeName];
-
-	Y += lineHeight + [theFont descender];
-	NSString* crap = [NSString stringWithCharacters:&code length:1];
-	[crap drawWithRect:NSMakeRect(X,Y, 0, 0) options:0 attributes:attrib];
-	
-	// redraw the character offset by 1 pixel, this is faster than real bold
-	if(renderBold) {
-		[crap drawWithRect:NSMakeRect(X+1,Y, 0, 0) options:0 attributes:attrib];
+	if (!code) {
+		return;
 	}
-}
+
+	//NSLog(@"%s: %c(%d)",__PRETTY_FUNCTION__, code,code);
+	//
+	NSColor* color;
+	NSString* crap;
+	NSDictionary* attrib;
+	NSFont* theFont;
+	float sw;
+	BOOL renderBold;
+	NSFontManager* fontManager = [NSFontManager sharedFontManager];
+
+	theFont = dw?nafont:font;
+	renderBold = (fg&BOLD_MASK) && ![self disableBold];
+	color = [self colorForCode: fg];
+	
+	if(renderBold) {
+		theFont = [fontManager convertFont: theFont toHaveTrait: NSBoldFontMask];
+		
+		// Check if there is native bold support
+		// if conversion was successful, else use our own methods to convert to bold
+		if ([fontManager traitsOfFont:theFont] & NSBoldFontMask) {
+			sw = antiAlias ? strokeWidth:0;
+			renderBold = NO;
+		}
+		else {
+			sw = antiAlias? boldStrokeWidth : 0;
+		}
+	}
+	else {
+		sw = antiAlias ? strokeWidth:0;
+	}
+
+	if (OSX_TIGERORLATER && sw) {
+		attrib=[NSDictionary dictionaryWithObjectsAndKeys:
+			theFont, NSFontAttributeName,
+			color, NSForegroundColorAttributeName,
+			[NSNumber numberWithFloat: sw], @"NSStrokeWidth",
+			nil];
+	}
+	else {
+		attrib=[NSDictionary dictionaryWithObjectsAndKeys:
+			theFont, NSFontAttributeName,
+			color, NSForegroundColorAttributeName,
+			nil];		
+	}
+
+	crap = [NSString stringWithCharacters:&code length:1];		
+	[crap drawWithRect:NSMakeRect(X,Y+[theFont ascender], 0, 0) options:0 attributes:attrib];
+	
+	// on older systems, for bold, redraw the character offset by 1 pixel
+	if (renderBold && (!OSX_TIGERORLATER || !antiAlias)) {
+		[crap drawWithRect:NSMakeRect(X+1,Y+[theFont ascender], 0, 0) options:0 attributes:attrib];
+	}
+}	
 
 - (void) _scrollToLine:(int)line
 {
@@ -2515,7 +2558,7 @@ static NSCursor* textViewCursor =  nil;
 	int width = [dataSource width];
 	
 	// grab our preference for extra characters to be included in a word
-	wordChars = [[PreferencePanel sharedInstance] wordChars];
+	wordChars = [[Preferences shared] wordChars];
 	if(wordChars == nil)
 		wordChars = @"";		
 	// find the beginning of the word
@@ -2808,7 +2851,7 @@ static NSCursor* textViewCursor =  nil;
 	
 	url = [NSURL URLWithString:trimmedURLString];
 
-	TreeNode *bm = [[PreferencePanel sharedInstance] handlerBookmarkForURL: [url scheme]];
+	TreeNode *bm = [[Preferences shared] handlerBookmarkForURL: [url scheme]];
 	
 	//NSLog(@"Got the URL:%@\n%@", [url scheme], bm);
 	if (bm != nil) 
@@ -2934,9 +2977,6 @@ static NSCursor* textViewCursor =  nil;
 		anIndex += foundRange.length - 1;
 		endX = anIndex % [dataSource width];
 		endY = anIndex/[dataSource width];
-
-		// Lock scrolling after finding text
-		[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:YES];
 
 		[self _scrollToLine:endY];
 		[self setNeedsDisplay:YES];

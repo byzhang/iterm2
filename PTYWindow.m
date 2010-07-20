@@ -30,7 +30,7 @@
 
 #import <iTerm/iTerm.h>
 #import <iTerm/PTYWindow.h>
-#import <iTerm/PreferencePanel.h>
+#import <iTerm/Preferences.h>
 #import <iTerm/PseudoTerminal.h>
 #import <iTerm/iTermController.h>
 #import <CGSInternal.h>
@@ -273,6 +273,20 @@ end:
 - (BOOL)canBecomeKeyWindow
 {
 	return YES;
+}
+
+- (void)sendEvent:(NSEvent *)event
+{
+	// NSLog(@"%s: 0x%x", __PRETTY_FUNCTION__, self);
+	
+	if([event type] == NSMouseEntered)
+	{		
+        //NSLog(@"window mouse entered");
+		if([[Preferences shared] focusFollowsMouse])
+			[self makeKeyWindow];
+	}
+	
+	if (super) [super sendEvent:event];
 }
 
 @end

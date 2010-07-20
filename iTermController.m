@@ -32,7 +32,6 @@
 #define DEBUG_METHOD_TRACE    0
 
 #import <iTerm/iTermController.h>
-#import <iTerm/PreferencePanel.h>
 #import <iTerm/PseudoTerminal.h>
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Screen.h>
@@ -43,12 +42,6 @@
 #import <iTerm/iTermGrowlDelegate.h>
 #import <iTermProfileWindowController.h>
 #import <iTermBookmarkController.h>
-
-
-@interface NSApplication (Undocumented)
-- (void)_cycleWindowsReversed:(BOOL)back;
-@end
-
 
 static NSString* APPLICATION_SUPPORT_DIRECTORY = @"~/Library/Application Support";
 static NSString *SUPPORT_DIRECTORY = @"~/Library/Application Support/iTerm";
@@ -214,13 +207,58 @@ static BOOL initDone = NO;
 }
 
 // navigation
-- (IBAction) previousTerminal:(id)sender
+- (IBAction) previousTerminal: (id) sender
 {
-	[NSApp _cycleWindowsReversed:YES];
+    unsigned int currentIndex;
+    BOOL looped = NO;
+	
+    currentIndex = [[self terminals] indexOfObject: FRONT];
+    if(FRONT == nil || currentIndex == NSNotFound)
+    {
+		NSBeep();
+		return;
+    }
+	
+    // get the previous terminal
+    do {
+        if(currentIndex == 0) {
+            if (looped) return;
+            currentIndex = [[self terminals] count] - 1;
+            looped = YES;
+        }
+        else
+			currentIndex--;
+    } while ([[[[self terminals] objectAtIndex: currentIndex] window] isMiniaturized]);
+    
+    // make sure that terminal's window active
+    [[[[self terminals] objectAtIndex: currentIndex] window] makeKeyAndOrderFront: self];
+    
 }
-- (IBAction)nextTerminal:(id)sender
+- (IBAction)nextTerminal: (id) sender
 {
-	[NSApp _cycleWindowsReversed:NO];
+    unsigned int currentIndex;
+    BOOL looped = NO;
+	
+    currentIndex = [[self terminals] indexOfObject: FRONT];
+    if(FRONT == nil || currentIndex == NSNotFound)
+    {
+		NSBeep();
+		return;
+    }
+	
+    // get the next terminal
+    do {
+        if(currentIndex == [[self terminals] count] - 1) {
+            if (looped) return;
+            currentIndex = 0;
+            looped = YES;
+        }
+        else
+            currentIndex++;
+    } while ([[[[self terminals] objectAtIndex: currentIndex] window] isMiniaturized]);
+	
+    // make sure that terminal's window active
+    [[[[self terminals] objectAtIndex: currentIndex] window] makeKeyAndOrderFront: self];
 }
 
 - (PseudoTerminal *) currentTerminal

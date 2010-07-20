@@ -33,7 +33,7 @@
 
 #define MAXRW 2048
 
-#import <Foundation/Foundation.h>
+#import <Cocoa/Cocoa.h>
 
 #include <unistd.h>
 #include <util.h>
@@ -41,7 +41,6 @@
 #include <sys/select.h>
 
 #import <iTerm/PTYTask.h>
-#import <iTerm/PreferencePanel.h>
 
 #include <dlfcn.h>
 #include <sys/mount.h>
@@ -198,7 +197,7 @@ static TaskNotifier* taskNotifier = nil;
 		while(task = [iter nextObject]) {
 			int fd = [task fd];
 			if(fd < 0)
-				goto breakloop;
+				continue;
 			if(fd > highfd)
 				highfd = fd;
 			if([task wantsRead])
@@ -213,7 +212,7 @@ static TaskNotifier* taskNotifier = nil;
 			switch(errno) {
 				case EAGAIN:
 				case EINTR:
-					goto breakloop;
+					continue;
 				default:
 					NSLog(@"Major fail! %s", strerror(errno));
 					exit(1);
@@ -233,7 +232,7 @@ static TaskNotifier* taskNotifier = nil;
 		while(task = [iter nextObject]) {
 			int fd = [task fd];
 			if(fd < 0)
-				goto breakloop;
+				continue;
 			if(FD_ISSET(fd, &rfds))
 				[task processRead];
 			if(FD_ISSET(fd, &wfds))
@@ -242,7 +241,6 @@ static TaskNotifier* taskNotifier = nil;
 				[task brokenPipe];
 		}
 
-		breakloop:
 		[innerPool drain];
 	}
 

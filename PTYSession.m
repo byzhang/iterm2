@@ -31,7 +31,7 @@
 #import <iTerm/PTYScrollView.h>;
 #import <iTerm/VT100Screen.h>
 #import <iTerm/VT100Terminal.h>
-#import <iTerm/PreferencePanel.h>
+#import <iTerm/Preferences.h>
 #import <iTerm/PseudoTerminal.h>
 #import <iTerm/iTermController.h>
 #import <iTerm/NSStringITerm.h>
@@ -162,7 +162,7 @@ static NSImage *warningImage;
 
 	// Allocate a scrollview
 	SCROLLVIEW = [[PTYScrollView alloc] initWithFrame: NSMakeRect(0, 0, aRect.size.width, aRect.size.height)];
-	[SCROLLVIEW setHasVerticalScroller:![parent fullScreen] && ![[PreferencePanel sharedInstance] hideScrollbar]];
+	[SCROLLVIEW setHasVerticalScroller:![parent fullScreen] && ![[Preferences shared] hideScrollbar]];
 	NSParameterAssert(SCROLLVIEW != nil);
 	[SCROLLVIEW setAutoresizingMask: NSViewWidthSizable|NSViewHeightSizable];
 
@@ -306,7 +306,9 @@ static NSImage *warningImage;
 			[self setBell: NO];
 			PTYScroller* ptys=(PTYScroller*)[SCROLLVIEW verticalScroller];
 			[SHELL writeTask: data];
-			[ptys setUserScroll:NO];
+			// Make sure we scroll down to the end
+			[TEXTVIEW scrollEnd];
+			[ptys setUserScroll: NO];
 		}
 	}
 	else {
@@ -909,7 +911,7 @@ static NSImage *warningImage;
 		  __FILE__, __LINE__);
 #endif
 	
-    if([[PreferencePanel sharedInstance] copySelection])
+    if([[Preferences shared] copySelection])
 		[TEXTVIEW copy: self];
 }
 
@@ -969,7 +971,7 @@ static NSImage *warningImage;
         else 
 		{
             if (newOutput) {
-                if(isProcessing == NO && ![[PreferencePanel sharedInstance] useCompactLabel])
+                if(isProcessing == NO && ![[Preferences shared] useCompactLabel])
                     [self setIsProcessing: YES];
 
                 if (!growlNewOutput && ![parent sendInputToAllSessions]) {
@@ -1365,7 +1367,7 @@ static NSImage *warningImage;
 
 - (int) objectCount
 {
-    return ([[PreferencePanel sharedInstance] useCompactLabel]?0:objectCount);
+    return ([[Preferences shared] useCompactLabel]?0:objectCount);
 }
 
 // This one is for purposes other than PSMTabBarControl
@@ -1740,18 +1742,18 @@ static NSImage *warningImage;
 		gettimeofday(&now, NULL);
 
 		if(now.tv_sec*10+now.tv_usec/100000 >= lastBlink.tv_sec*10+lastBlink.tv_usec/100000+7) {
+			[TEXTVIEW refresh];
 			if([parent tempTitle]) {
 				[parent setWindowTitle];
 				[parent resetTempTitle];
 			}
 			lastBlink = now;
 		}
+		else {
+			[TEXTVIEW refresh];
+		}
 	}
 
-	[TEXTVIEW refresh];
-	if(![(PTYScroller*)([SCROLLVIEW verticalScroller]) userScroll]) {
-		[TEXTVIEW scrollEnd];
-	}
 	[self scheduleUpdateSoon:NO];
 }
 
@@ -1769,7 +1771,7 @@ static NSImage *warningImage;
 
 	NSTimeInterval timeout = 0.5;
 	if(soon) {
-		timeout = (0.001 + 0.001*[[PreferencePanel sharedInstance] refreshRate]);
+		timeout = (0.001 + 0.001*[[Preferences shared] refreshRate]);
 	}
 
 	updateTimer = [[NSTimer scheduledTimerWithTimeInterval:timeout
