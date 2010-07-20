@@ -2473,13 +2473,12 @@ static NSCursor* textViewCursor =  nil;
 	if(oldFont != theFont)
 		[attrib setObject:theFont forKey: NSFontAttributeName];
 
-	Y += lineHeight + [theFont descender];
 	NSString* crap = [NSString stringWithCharacters:&code length:1];
-	[crap drawWithRect:NSMakeRect(X,Y, 0, 0) options:0 attributes:attrib];
+	[crap drawWithRect:NSMakeRect(X,Y+[theFont ascender], 0, 0) options:0 attributes:attrib];
 	
 	// redraw the character offset by 1 pixel, this is faster than real bold
 	if(renderBold) {
-		[crap drawWithRect:NSMakeRect(X+1,Y, 0, 0) options:0 attributes:attrib];
+		[crap drawWithRect:NSMakeRect(X+1,Y+[theFont ascender], 0, 0) options:0 attributes:attrib];
 	}
 }
 
@@ -2934,9 +2933,6 @@ static NSCursor* textViewCursor =  nil;
 		anIndex += foundRange.length - 1;
 		endX = anIndex % [dataSource width];
 		endY = anIndex/[dataSource width];
-
-		// Lock scrolling after finding text
-		[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:YES];
 
 		[self _scrollToLine:endY];
 		[self setNeedsDisplay:YES];
