@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>iTerm</string>
 	<key>CFBundleGetInfoString</key>
-	<string>0.11.svn5</string>
+	<string>0.11.svn17</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -15,10 +15,10 @@
 	<key>CFBundlePackageType</key>
 	<string>FMWK</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.11.svn5</string>
+	<string>0.11.svn17</string>
 	<key>CFBundleSignature</key>
 	<string>ITRM</string>
 	<key>CFBundleVersion</key>
-	<string>0.11.svn5</string>
+	<string>0.11.svn17</string>
 </dict>
 </plist>

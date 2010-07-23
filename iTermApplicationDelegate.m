@@ -34,7 +34,7 @@
 #import <iTerm/PseudoTerminal.h>
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Terminal.h>
-#import <iTerm/FindPanelWindowController.h>
+#import <iTerm/FindCommandHandler.h>
 #import <iTerm/PTYWindow.h>
 #import <iTermProfileWindowController.h>
 #import <iTermBookmarkController.h>
@@ -738,7 +738,7 @@ static BOOL usingAutoLaunchScript = NO;
 
 - (IBAction) showFindPanel: (id) sender
 {
-    [[FindPanelWindowController sharedInstance] showWindow:self];
+	[[iTermController sharedInstance] showHideFindBar];
 }
 
 - (IBAction) findNext: (id) sender

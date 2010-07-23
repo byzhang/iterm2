@@ -36,7 +36,7 @@
 #import <iTerm/PseudoTerminal.h>
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Screen.h>
-#import <iTerm/FindPanelWindowController.h>
+#import <iTerm/FindCommandHandler.h>
 #import <iTerm/PreferencePanel.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTask.h>

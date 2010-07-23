@@ -155,6 +155,11 @@ static BOOL initDone = NO;
     [self launchBookmark:[sender representedObject] inTerminal:FRONT];
 }
 
+- (void) showHideFindBar
+{
+	[[self currentTerminal] showHideFindBar];
+}
+
 - (void)newSessionInWindowAtIndex: (id) sender
 {
     [self launchBookmark:[sender representedObject] inTerminal:nil];

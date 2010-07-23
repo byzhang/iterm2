@@ -33,6 +33,13 @@
 
 @class PTYSession, iTermController, PTToolbarController, PSMTabBarControl;
 
+@interface FindBarView : NSView
+{
+}
+- (void)drawRect:(NSRect)dirtyRect;
+
+@end
+
 @interface PseudoTerminal : NSWindowController <PTYTabViewDelegateProtocol, PTYWindowDelegateProtocol>
 {
 	
@@ -43,7 +50,15 @@
 	IBOutlet NSPanel     *parameterPanel;
 	IBOutlet NSTextField *parameterValue;
 	IBOutlet NSTextField *parameterPrompt;
+
+	IBOutlet NSView*      findBarSubview;
+	IBOutlet NSTextField* findBarTextField;
+	IBOutlet NSButton*    findBarNextButton;
+	IBOutlet NSButton*    findBarPreviousButton;
+	IBOutlet NSButton*    ignoreCase;
 	
+	NSView* findBar;
+
     /// tab view
     PTYTabView *TABVIEW;
 	PSMTabBarControl *tabBarControl;
@@ -110,6 +125,7 @@
                   arguments:(NSArray *)prog_argv
                 environment:(NSDictionary *)prog_env;
 - (void)setWindowSize;
+- (void)setWindowSizeWithVisibleFrame: (NSRect)visibleFrame;
 - (void)setWindowTitle;
 - (void)setWindowTitle: (NSString *)title;
 - (void)setFont:(NSFont *)font nafont:(NSFont *)nafont;
@@ -144,6 +160,10 @@
 - (void) disableBlur;
 - (BOOL) tempTitle;
 - (void) resetTempTitle;
+
+- (IBAction)searchPrevious:(id)sender;
+- (IBAction)searchNext:(id)sender;
+- (IBAction)closeFindBar:(id)sender;
 
 // controls which sessions see key events
 - (BOOL) sendInputToAllSessions;
@@ -204,6 +224,8 @@
 
 // Utility methods
 + (void) breakDown:(NSString *)cmdl cmdPath: (NSString **) cmd cmdArgs: (NSArray **) path;
+
+- (void) showHideFindBar;
 
 @end
 
