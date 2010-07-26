@@ -1,0 +1,10 @@
+#summary iTerm2 Wiki.
+
+= Introduction =
+
+iTerm2 is a replacement for the Terminal app for Mac OSX.
+
+
+= Details =
+
+Please see the [http://groups.google.com/group/iterm2-discuss discussion group].
