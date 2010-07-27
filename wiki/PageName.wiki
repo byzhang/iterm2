@@ -2,7 +2,7 @@
 
 = Introduction =
 
-iTerm2 is a replacement for the Terminal app for Mac OSX.
+iTerm2 is a replacement for the Terminal app for Mac OSX. This is the developer site. If you're not a developer, you're probably looking for the [http://sites.google.com/site/iterm2home/home iTerm2] homepage.
 
 
 = Details =
