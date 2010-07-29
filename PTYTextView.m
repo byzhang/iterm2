@@ -36,7 +36,7 @@
 #import <iTerm/PseudoTerminal.h>
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Screen.h>
-#import <iTerm/FindPanelWindowController.h>
+#import <iTerm/FindCommandHandler.h>
 #import <iTerm/PreferencePanel.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTask.h>
@@ -82,6 +82,8 @@ static NSCursor* textViewCursor =  nil;
     self = [super initWithFrame: aRect];
     dataSource=_delegate=markedTextAttributes=NULL;
 
+	layoutManager = [[NSLayoutManager alloc] init];
+	
     [self setMarkedTextAttributes:
         [NSDictionary dictionaryWithObjectsAndKeys:
             [NSColor yellowColor], NSBackgroundColorAttributeName,
@@ -169,6 +171,7 @@ static NSCursor* textViewCursor =  nil;
     [defaultBoldColor release];
     [selectionColor release];
 	[defaultCursorColor release];
+	[layoutManager release];
 	
     [font release];
 	[nafont release];
@@ -425,7 +428,7 @@ static NSCursor* textViewCursor =  nil;
     sz = [@"W" sizeWithAttributes:dic];
 	
 	charWidthWithoutSpacing = sz.width;
-	charHeightWithoutSpacing = [aFont defaultLineHeightForFont];
+	charHeightWithoutSpacing = [layoutManager defaultLineHeightForFont:aFont];
 	
     [font release];
     [aFont retain];
@@ -2178,24 +2181,26 @@ static NSCursor* textViewCursor =  nil;
 
 - (void) findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase
 {
-	BOOL foundString;
-	int tmpX, tmpY;
+	BOOL found;
 	
-	foundString = [self _findString: aString forwardDirection: direction ignoringCase: ignoreCase wrapping:YES];
-	if(foundString == NO)
-	{
-		// start from beginning or end depending on search direction
-		tmpX = lastFindX;
-		tmpY = lastFindY;
-		lastFindX = lastFindY = -1;
-		foundString = [self _findString: aString forwardDirection: direction ignoringCase: ignoreCase wrapping:YES];
-		if(foundString == NO)
-		{
-			lastFindX = tmpX;
-			lastFindY = tmpY;
-		}
+	if (lastFindX == -1) {
+		lastFindX = 0;
+		lastFindY = [dataSource numberOfLines] + 1;
 	}
+
 	
+	found = [dataSource findString: aString forwardDirection: direction ignoringCase: ignoreCase startingAtX: lastFindX staringAtY: lastFindY
+						  atStartX: &startX atStartY: &startY atEndX: &endX atEndY: &endY];
+
+	if (found) {
+		// Lock scrolling after finding text
+		[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:YES];
+		
+		[self _scrollToLine:endY];
+		[self setNeedsDisplay:YES];
+		lastFindX = startX;
+		lastFindY = startY;
+	}
 }
 
 // transparency
@@ -2897,6 +2902,7 @@ static NSCursor* textViewCursor =  nil;
 	}
 	
 	// ok, now get the search body
+	// TODO: don't call contentFromX. Its worst-case is quadratic in the size of the buffer!
 	searchBody = [NSMutableString stringWithString:[self contentFromX: x1 Y: y1 ToX: x2 Y: y2 pad: YES]];
 	[searchBody replaceOccurrencesOfString:@"\n" withString:@"" options:NSLiteralSearch range:NSMakeRange(0, [searchBody length])];
 	
