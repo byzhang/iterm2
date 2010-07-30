@@ -36,7 +36,7 @@
 #import <iTerm/PseudoTerminal.h>
 #import <iTerm/PTYSession.h>
 #import <iTerm/VT100Screen.h>
-#import <iTerm/FindPanelWindowController.h>
+#import <iTerm/FindCommandHandler.h>
 #import <iTerm/PreferencePanel.h>
 #import <iTerm/PTYScrollView.h>
 #import <iTerm/PTYTask.h>
@@ -82,6 +82,8 @@ static NSCursor* textViewCursor =  nil;
     self = [super initWithFrame: aRect];
     dataSource=_delegate=markedTextAttributes=NULL;
 
+	layoutManager = [[NSLayoutManager alloc] init];
+	
     [self setMarkedTextAttributes:
         [NSDictionary dictionaryWithObjectsAndKeys:
             [NSColor yellowColor], NSBackgroundColorAttributeName,
@@ -169,6 +171,7 @@ static NSCursor* textViewCursor =  nil;
     [defaultBoldColor release];
     [selectionColor release];
 	[defaultCursorColor release];
+	[layoutManager release];
 	
     [font release];
 	[nafont release];
@@ -425,7 +428,7 @@ static NSCursor* textViewCursor =  nil;
     sz = [@"W" sizeWithAttributes:dic];
 	
 	charWidthWithoutSpacing = sz.width;
-	charHeightWithoutSpacing = [aFont defaultLineHeightForFont];
+	charHeightWithoutSpacing = [layoutManager defaultLineHeightForFont:aFont];
 	
     [font release];
     [aFont retain];
@@ -621,27 +624,38 @@ static NSCursor* textViewCursor =  nil;
 		// frame is extended due to scrolling, eg a new line appears in the
 		// terminal. To work around this we disable drawing during the frame
 		// resize and then manually expose the new portion of the frame.
-		float diff = height - frame.size.height;
-		NSRect old = [self visibleRect];
-		if(diff > 0) {
-			drawAllowed = NO;
-			[self displayIfNeeded];
-		}
+		
+		// The hack doesn't work during window resize if font size follows window is on,
+		// so we pay the price and do a full redraw then. Figuring out exactly what to draw
+		// in that case is really hard.
+		BOOL use_hack = ![[[dataSource session] parent] isResizeInProgress];
 
+		float diff = 0;
+		NSRect old;
+		if (use_hack) {
+			diff = height - frame.size.height;
+			old = [self visibleRect];
+			if(diff > 0) {
+				drawAllowed = NO;
+				[self displayIfNeeded];
+			}
+		}
 		// Resize the frame
 		frame.size.height = height;
 		[self setFrame:frame];
 
-		// XXX - resume hack
-		NSRect new = [self visibleRect];
-		if(diff > 0) {
-			[self display];
-			drawAllowed = YES;
+		if (use_hack) {
+			// XXX - resume hack
+			NSRect new = [self visibleRect];
+			if(diff > 0) {
+				[self display];
+				drawAllowed = YES;
 
-			NSRect dirty = new;
-			dirty.origin.y = old.origin.y + old.size.height;
-			dirty.size.height = new.origin.y + new.size.height - dirty.origin.y;
-			[self setNeedsDisplayInRect:dirty];
+				NSRect dirty = new;
+				dirty.origin.y = old.origin.y + old.size.height;
+				dirty.size.height = new.origin.y + new.size.height - dirty.origin.y;
+				[self setNeedsDisplayInRect:dirty];
+			}
 		}
 	}
 	else if(scrollbackOverflow > 0) {
@@ -757,6 +771,7 @@ static NSCursor* textViewCursor =  nil;
 	aFrame.size.width = [self frame].size.width;
 	aFrame.size.height = (endY - startY + 1) *lineHeight;
 	[self scrollRectToVisible: aFrame];
+	[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:YES];	
 }
 
 -(void) hideCursor
@@ -1262,7 +1277,7 @@ static NSCursor* textViewCursor =  nil;
         if (startX > -1 && ([event modifierFlags] & NSShiftKeyMask))
         {
             if (startY<y) {
-                endX = width - 1;
+                endX = width;
                 endY = y;
             }
             else {
@@ -1277,7 +1292,7 @@ static NSCursor* textViewCursor =  nil;
         else
         {
             startX = 0;
-            endX = width - 1;
+            endX = width;
             startY = endY = y;
         }            
 	}
@@ -1397,7 +1412,7 @@ static NSCursor* textViewCursor =  nil;
 	
     x = (locationInTextView.x - MARGIN) / charWidth;
 	if (x < 0) x = 0;
-	if (x>=width) x = width - 1;
+	if (x >= width) x = width - 1;
 	
     
 	y = locationInTextView.y/lineHeight;
@@ -1452,13 +1467,14 @@ static NSCursor* textViewCursor =  nil;
     }
     
 	// if we are on an empty line, we select the current line to the end
-	if(y>=0 && [self _isBlankLine: y])
-		x = width - 1;
+	if(y>=0 && [self _isBlankLine: y]) {
+		x = width;
+	}
 	
 	if(locationInTextView.x < MARGIN && startY < y)
 	{
 		// complete selection of previous line
-		x = width - 1;
+		x = width;
 		y--;
 	}
     if (y<0) y=0;
@@ -1466,7 +1482,7 @@ static NSCursor* textViewCursor =  nil;
     
     switch (selectMode) {
         case SELECT_CHAR:
-            endX=x;
+            endX=x+1;
             endY=y;
             break;
         case SELECT_WORD:
@@ -1495,13 +1511,13 @@ static NSCursor* textViewCursor =  nil;
         case SELECT_LINE:
             if (startY <= y) {
                 startX = 0;
-                endX = [dataSource width] - 1;
+                endX = [dataSource width];
                 endY = y;
             }
             else {
                 endX = 0;
                 endY = y;
-                startX = [dataSource width] - 1;
+                startX = [dataSource width];
             }
             break;
     }
@@ -1511,8 +1527,9 @@ static NSCursor* textViewCursor =  nil;
 }
 
 
-- (NSString *) contentFromX:(int)startx Y:(int)starty ToX:(int)endx Y:(int)endy pad: (BOOL) pad
+- (NSString *) contentFromX:(int)startx Y:(int)starty ToX:(int)nonInclusiveEndx Y:(int)endy pad: (BOOL) pad
 {
+	int endx = nonInclusiveEndx-1;
 	unichar *temp;
 	int j;
 	int width, y, x1, x2;
@@ -1577,7 +1594,7 @@ static NSCursor* textViewCursor =  nil;
 {
 	// set the selection region for the whole text
 	startX = startY = 0;
-	endX = [dataSource width] - 1;
+	endX = [dataSource width];
 	endY = [dataSource numberOfLines] - 1;
 	[self updateDirtyRects];
 }
@@ -1615,7 +1632,7 @@ static NSCursor* textViewCursor =  nil;
 	NSLog(@"%s(%d):-[PTYTextView content]", __FILE__, __LINE__);
 #endif
     	
-	return [self contentFromX:0 Y:0 ToX:[dataSource width]-1 Y:[dataSource numberOfLines]-1 pad: NO];
+	return [self contentFromX:0 Y:0 ToX:[dataSource width] Y:[dataSource numberOfLines]-1 pad: NO];
 }
 
 - (void) copy: (id) sender
@@ -1977,7 +1994,7 @@ static NSCursor* textViewCursor =  nil;
 			// How many lines do we need to draw?
 			numLines = visibleRect.size.height/lineHeight;
 			[self printContent: [self contentFromX: 0 Y: lineOffset 
-											   ToX: [dataSource width] - 1 Y: lineOffset + numLines - 1
+											   ToX: [dataSource width] Y: lineOffset + numLines - 1
 										pad: NO]];
 			break;
 		case 1: // text selection
@@ -2178,24 +2195,27 @@ static NSCursor* textViewCursor =  nil;
 
 - (void) findString: (NSString *) aString forwardDirection: (BOOL) direction ignoringCase: (BOOL) ignoreCase
 {
-	BOOL foundString;
-	int tmpX, tmpY;
+	BOOL found;
 	
-	foundString = [self _findString: aString forwardDirection: direction ignoringCase: ignoreCase wrapping:YES];
-	if(foundString == NO)
-	{
-		// start from beginning or end depending on search direction
-		tmpX = lastFindX;
-		tmpY = lastFindY;
-		lastFindX = lastFindY = -1;
-		foundString = [self _findString: aString forwardDirection: direction ignoringCase: ignoreCase wrapping:YES];
-		if(foundString == NO)
-		{
-			lastFindX = tmpX;
-			lastFindY = tmpY;
-		}
+	if (lastFindX == -1) {
+		lastFindX = 0;
+		lastFindY = [dataSource numberOfLines] + 1;
 	}
+
 	
+	found = [dataSource findString: aString forwardDirection: direction ignoringCase: ignoreCase startingAtX: lastFindX staringAtY: lastFindY
+						  atStartX: &startX atStartY: &startY atEndX: &endX atEndY: &endY];
+
+	if (found) {
+		// Lock scrolling after finding text
+		++endX; // make it half-open
+		[(PTYScroller*)([[self enclosingScrollView] verticalScroller]) setUserScroll:YES];
+		
+		[self _scrollToLine:endY];
+		[self setNeedsDisplay:YES];
+		lastFindX = startX;
+		lastFindY = startY;
+	}
 }
 
 // transparency
@@ -2285,7 +2305,7 @@ static NSCursor* textViewCursor =  nil;
 		NSRectFill(leftMargin);
 		NSRectFill(rightMargin);
 	}
-
+	
 	// Contiguous sections of background with the same colour
 	// are combined into runs and draw as one operation
 	int bgstart = -1;
@@ -2523,7 +2543,7 @@ static NSCursor* textViewCursor =  nil;
 	tmpY = y;
 	while(tmpX >= 0)
 	{
-		aString = [self contentFromX:tmpX Y:tmpY ToX:tmpX Y:tmpY pad: YES];
+		aString = [self contentFromX:tmpX Y:tmpY ToX:tmpX+1 Y:tmpY pad: YES];
 		if(([aString length] == 0 || 
 			[aString rangeOfCharacterFromSet: [NSCharacterSet alphanumericCharacterSet]].length == 0) &&
 		   [wordChars rangeOfString: aString].length == 0)
@@ -2566,7 +2586,7 @@ static NSCursor* textViewCursor =  nil;
 	tmpY = y;
 	while(tmpX < width)
 	{
-		aString = [self contentFromX:tmpX Y:tmpY ToX:tmpX Y:tmpY pad: YES];
+		aString = [self contentFromX:tmpX Y:tmpY ToX:tmpX+1 Y:tmpY pad: YES];
 		if(([aString length] == 0 || 
 			[aString rangeOfCharacterFromSet: [NSCharacterSet alphanumericCharacterSet]].length == 0) &&
 		   [wordChars rangeOfString: aString].length == 0)
@@ -2597,11 +2617,11 @@ static NSCursor* textViewCursor =  nil;
 	if(tmpY >= [dataSource numberOfLines])
 		tmpY = [dataSource numberOfLines] - 1;
 	if(endx)
-		*endx = tmpX;
+		*endx = tmpX+1;
 	if(endy)
 		*endy = tmpY;
 	
-	x2 = tmpX;
+	x2 = tmpX+1;
 	y2 = tmpY;
     
 	return ([self contentFromX:x1 Y:y1 ToX:x2 Y:y2 pad: YES]);
@@ -2636,7 +2656,7 @@ static NSCursor* textViewCursor =  nil;
 		if (x2>=w) y2++, x2=0;
     }
 
-    NSMutableString *url = [[[NSMutableString alloc] initWithString:[self contentFromX:startx Y:starty ToX:endx Y:endy pad: YES]] autorelease];
+    NSMutableString *url = [[[NSMutableString alloc] initWithString:[self contentFromX:startx Y:starty ToX:endx+1 Y:endy pad: YES]] autorelease];
 	
     
     // Grab the addressbook command
@@ -2704,7 +2724,7 @@ static NSCursor* textViewCursor =  nil;
 		if (level<0) {
 			startX = x1;
 			startY = y1;
-			endX = X;
+			endX = X+1;
 			endY = Y;
 
 			return YES;
@@ -2730,7 +2750,7 @@ static NSCursor* textViewCursor =  nil;
 		if (level<0) {
 			startX = X;
 			startY = Y;
-			endX = x1;
+			endX = x1+1;
 			endY = y1;
 			
 			return YES;
@@ -2780,7 +2800,7 @@ static NSCursor* textViewCursor =  nil;
 	char blankString[1024];	
 	
 	
-	lineContents = [self contentFromX: 0 Y: y ToX: [dataSource width] - 1 Y: y pad: YES];
+	lineContents = [self contentFromX: 0 Y: y ToX: [dataSource width] Y: y pad: YES];
 	memset(blankString, ' ', 1024);
 	blankString[[dataSource width]] = 0;
 	blankLine = [NSString stringWithUTF8String: (const char*)blankString];
@@ -2897,7 +2917,8 @@ static NSCursor* textViewCursor =  nil;
 	}
 	
 	// ok, now get the search body
-	searchBody = [NSMutableString stringWithString:[self contentFromX: x1 Y: y1 ToX: x2 Y: y2 pad: YES]];
+	// TODO: don't call contentFromX. Its worst-case is quadratic in the size of the buffer!
+	searchBody = [NSMutableString stringWithString:[self contentFromX: x1 Y: y1 ToX: x2+1 Y: y2 pad: YES]];
 	[searchBody replaceOccurrencesOfString:@"\n" withString:@"" options:NSLiteralSearch range:NSMakeRange(0, [searchBody length])];
 	
 	if([searchBody length] <= 0)
@@ -2932,7 +2953,7 @@ static NSCursor* textViewCursor =  nil;
 
 		// end of found range
 		anIndex += foundRange.length - 1;
-		endX = anIndex % [dataSource width];
+		endX = (anIndex % [dataSource width]) + 1;
 		endY = anIndex/[dataSource width];
 
 		// Lock scrolling after finding text
@@ -3016,10 +3037,10 @@ static NSCursor* textViewCursor =  nil;
         t=_startX; _startX=_endX; _endX=t;
 	}
 	if(row == _startY && _startY == _endY) {
-		return (col >= _startX && col <= _endX);
+		return (col >= _startX && col < _endX);
 	} else if(row == _startY && col >= _startX) {
 		return YES;
-	} else if(row == _endY && col <= _endX) {
+	} else if(row == _endY && col < _endX) {
 		return YES;
 	} else if(row > _startY && row < _endY) {
 		return YES;
