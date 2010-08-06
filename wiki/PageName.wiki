@@ -4,6 +4,17 @@
 
 iTerm2 is a replacement for the Terminal app for Mac OSX. This is the developer site. If you're not a developer, you're probably looking for the [http://sites.google.com/site/iterm2home/home iTerm2] homepage.
 
+= Building iTerm =
+
+Follow the directions on the [http://code.google.com/p/iterm2/source/checkout Source page] to check out the code. Make sure your Xcode has these settings:
+
+  * Set Architectures to 32-bit Universal
+  * Set Base SDK to Mac OS X 10.5
+  * Set Mac OS X Deployment Target to Mac OS X 10.5
+  * Set Valid Architectures to i386
+  * Set C Language Dialect to GNU99
+  * Set Other Linker Flags to -lncurses
+
 
 = Details =
 
