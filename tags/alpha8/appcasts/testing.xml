@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"  xmlns:dc="http://purl.org/dc/elements/1.1/">
+	<channel>
+		<title>iTerm2 Changelog - Test releases</title>
+		<link>http://iterm2.googlecode.com/svn/trunk/appcasts/testing.xml</link>
+		<description>Most recent changes with links to updates.</description>
+		<language>en</language>
+                <item>
+                        <title>Version 0.20.20100905</title>
+                        <sparkle:releaseNotesLink>
+                                http://iterm2.googlecode.com/svn/trunk/appcasts/testing_changes.html
+                        </sparkle:releaseNotesLink>
+                        <pubDate>Sun, 05 Sep 2010 22:06:52 -0500</pubDate>
+                        <enclosure url="http://iterm2.googlecode.com/files/iTerm2-alpha8.zip"
+                                sparkle:version="0.20.20100905" length="2394931" type="application/octet-stream"
+                                sparkle:dsaSignature="MCwCFE6QVnBllTnS8Yv6XBboWRg6a9mrAhQvFNp6dQp3Hs6kUlW1MqNf+fa3cQ==" />
+                </item>
+	</channel>
+</rss>
+
