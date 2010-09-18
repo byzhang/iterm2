@@ -1,0 +1,40 @@
+iTerm features AppleScript support. It is documented here. Someone who doesn't hate AppleScript should improve this page :)
+
+Note: See trunk/iTerm.scriptSuite for a schema of the supported objects.
+
+= Example =
+<pre>
+
+
+tell application "iTerm"
+	activate
+	
+	-- Create a new terminal window...
+	set myterm to (make new terminal)
+	
+	-- ... and go on within this one.
+	tell myterm
+		
+		-- Set the terminal size constraints.
+		set number of columns to 30
+		set number of rows to 30
+		
+		-- Array/List which will hold all our sessions (empty
+		-- by default OFC).
+		set sessionList to {}
+		
+		-- Create a few blank new sessions (will be replaced by
+		-- automatic calculations later, so that we'll have a
+		-- nice bar full with new tabs.)
+		repeat with i from 1 to 2 by 1
+			launch session "Default"
+		end repeat
+		
+		-- DEBUG: print the session list.
+		return sessionList
+		
+	end tell
+	
+	-- set the bounds of the first window to {w, x, y, z}
+end tell
+</pre>
