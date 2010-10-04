@@ -481,6 +481,11 @@ setup_tty_param(
 			}
 		}
 		chdir([[[env objectForKey:@"PWD"] stringByExpandingTildeInPath] UTF8String]);
+        
+        FILE* f = fopen("/tmp/george2.path","w");
+        fwrite(getenv("PATH"), strlen(getenv("PATH")), 1, f);
+        fclose(f);
+        
 		sts = execvp(argpath, (char* const*)argv);
 
 		/* exec error */

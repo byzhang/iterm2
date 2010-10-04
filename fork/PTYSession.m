@@ -228,7 +228,7 @@ static NSImage *warningImage;
 		   arguments:(NSArray *)prog_argv
 		 environment:(NSDictionary *)prog_env
 {
-    NSString *path = program;
+        NSString *path = program;
     NSMutableArray *argv = [NSMutableArray arrayWithArray:prog_argv];
     NSMutableDictionary *env = [NSMutableDictionary dictionaryWithDictionary:prog_env];
 	
