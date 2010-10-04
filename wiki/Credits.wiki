@@ -15,6 +15,7 @@ This page offers the credits for the current application, as well as the old iTe
 
   * Mihai Moldovan
   * egmont
+  * leafy7382
   * Tom Long
   * Marc Haisenko
   * Akinori Musha
