@@ -14,6 +14,7 @@ This page offers the credits for the current application, as well as the old iTe
 == Contributors ==
 
   * Mihai Moldovan
+  * egmont
   * Tom Long
   * Marc Haisenko
   * Akinori Musha
