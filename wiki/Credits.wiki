@@ -30,6 +30,7 @@ This page offers the credits for the current application, as well as the old iTe
   * macosxguy from mitbbs.com
   * Dean Scarff
   * Greg Darke
+  * muraken
 
 == Localization Contributors ==
 
