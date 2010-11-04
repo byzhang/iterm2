@@ -34,4 +34,6 @@ with breaking up method invocations like:
 [foo bar:[baz frotz:[blah spoo]]]
 }}}
 
+Also, use 4 space indents instead of the 2-space indents in the style guide.
+
 A lot of the code does not meet the style guide, but I fix it up as I go.
