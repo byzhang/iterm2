@@ -30,8 +30,8 @@ I've been using this:
 But the line length limit is relaxed because Xcode doesn't work well
 with breaking up method invocations like:
 
-<pre>
+{{{
 [foo bar:[baz frotz:[blah spoo]]]
-</pre>
+}}}
 
 A lot of the code does not meet the style guide, but I fix it up as I go.
