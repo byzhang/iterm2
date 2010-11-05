@@ -1,0 +1,18 @@
+#summary External iTerm2 press and blog posts.
+
+= Introduction =
+
+This page is a running collection of press and blog posts about iTerm2.
+
+
+= Details =
+
+  * [http://pe.ppy.sh/2010/11/308/ A Peppy Blog]
+  * [http://hints.macworld.com/article.php?story=20100906001958358 Mac OS X Hints]
+  * [http://www.tuaw.com/2010/09/02/iterm-2-in-early-development TUAW]
+
+= Quotes =
+
+  * "Instant Replay in iTerm2 Alpha 12, fantastic." - @amadeo
+  * "I'm finding that iTerm2's fullscreen mode and VimRoom together are _better_ than WriteRoom" - @mikewest
+  * "anyone on Mac OSX should try iTerm2. A terminal emulator that doesn't suck" - @alfredodeza
