@@ -31,6 +31,7 @@ This page offers the credits for the current application, as well as the old iTe
   * Dean Scarff
   * Greg Darke
   * muraken
+  * juhagman
 
 == Localization Contributors ==
 
