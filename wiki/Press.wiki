@@ -18,3 +18,5 @@ This page is a running collection of press and blog posts about iTerm2.
   * "anyone on Mac OSX should try iTerm2. A terminal emulator that doesn't suck" - @alfredodeza
   * "Really loving iTerm2's autocomplete. Have been wishing for this feature for far too many years" - @juripakaste
   * "Really loving iTerm2. Seems to be the only decent terminal for OS X." - @jstew1974
+  * "iTerm 2 keeps getting better and better. <3 this project." - @izs
+  * "If you're using OSX: http://code.google.com/p/iterm2/ is now the best terminal emulator available..." - @yacoob
