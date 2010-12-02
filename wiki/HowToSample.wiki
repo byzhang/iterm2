@@ -1,0 +1,6 @@
+#summary How to get an activity sample
+
+  * Open /Applications/Utilities/Activity Monitor
+  * Select iTerm2
+  * Press "Sample process"
+  * Save the file and attach it to a [http://code.google.com/p/iterm2/issues/entry new issue.]
