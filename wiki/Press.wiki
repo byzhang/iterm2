@@ -10,6 +10,7 @@ This page is a running collection of press and blog posts about iTerm2.
   * [http://pe.ppy.sh/2010/11/308/ A Peppy Blog]
   * [http://hints.macworld.com/article.php?story=20100906001958358 Mac OS X Hints]
   * [http://www.tuaw.com/2010/09/02/iterm-2-in-early-development TUAW]
+  * [http://tangledhelix.com/archive/iterm2-iterm Tangled Helix Blog]
 
 = Quotes =
 
