@@ -1,0 +1,20 @@
+#summary Test Veritcally Split Panes.
+
+= Introduction =
+
+I just checked in a change that enables vertically split panes in iTerm2. Here's a screenshot: http://twitpic.com/3eje2w/full
+
+
+= Details =
+
+This feature touched a lot of code and I want to make sure that things are generally working for other people. It's stable for me, but before putting it in an official release, I'd love to have some early adopters beat on it for a while. If you're feeling brave, you can download it here:
+
+http://code.google.com/p/iterm2/downloads/detail?name=iTerm2-svn394.zip
+
+Surgeon General's Warnings:
+  * Only vertical splits are implemented so far.
+  * You can switch panes with cmd-opt-left/right arrow key, but unfortunately the default keybindings in some bookmarks will override this so you have to remove those if you'd like to have keyboard control.
+  * Cmd-D opens a new pane with the default bookmark.
+  * Use the bookmark window to open other bookmarks in panes.
+  * Cmd-Opt-W closes the current pane.
+  * Do not run emacs and vim as I did in the screen shot. You will become confused and possibly insane.
