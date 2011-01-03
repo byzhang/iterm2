@@ -11,6 +11,7 @@ This page is a running collection of press and blog posts about iTerm2.
   * [http://hints.macworld.com/article.php?story=20100906001958358 Mac OS X Hints]
   * [http://www.tuaw.com/2010/09/02/iterm-2-in-early-development TUAW]
   * [http://tangledhelix.com/archive/iterm2-iterm Tangled Helix Blog]
+  * [http://osxdaily.com/2011/01/03/split-terminal-mac-iterm2 OS X Daily]
 
 = Quotes =
 
