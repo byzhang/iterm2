@@ -34,6 +34,7 @@ This page offers the credits for the current application, as well as the old iTe
   * Greg Darke
   * muraken
   * peppyhax
+  * Zonble
 
 == Localization Contributors ==
 
