@@ -24,3 +24,4 @@ This page is a running collection of press and blog posts about iTerm2.
   * "If you're using OSX: http://code.google.com/p/iterm2/ is now the best terminal emulator available..." - @yacoob
   * "iterm2 is out. i love iterm. id get it pregnant if i knew how"  - @soederpop
   * "Iterm2 now supports vertical split planes. Best mac app of the year." - @rauchg
+  * "Holy crap! iTerm2 is the best thing ever, thanks @gnachman for an OS X terminal emulator that works!" - @k4y
