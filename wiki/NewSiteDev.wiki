@@ -20,3 +20,5 @@
  * Twitter feed?
  * Need to place the donate button somewhere.
  * We shouldn't use the code that's up now - it's all ripped off from another site
+ * Use Github issues to discuss site development
+ * Store documentation in Github wiki and use a git import to add them to the site. That way, the same content is available on the site and on the wiki
