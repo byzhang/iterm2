@@ -1,0 +1,22 @@
+#summary Discussion on new site design
+
+=TODO=
+ * georgen: Publish the mock .psd file
+
+=Official Plan=
+ * The site should be hosted on Dreamhost
+ * The site should be usable on iPhone, but we shouldn't expend a huge effort on making it perfect.
+ * Google Analytics will be used
+ * The features section will have a left navbar that shows different screenshots in the content area with accompanying text.
+ * The support section will have a FAQ and various text documents
+ * The dev section will have offsite links to googlecode, etc.
+ * Chrome, Firefox, and Safari are the key targets.
+
+=Proposals=
+ * Jekyll for templating?
+ * try to use CSS3 transitions for browsers that support it
+ * fall back to jQuery UI to do the slide transitions for browsers that don't (or if we can't get CSS3 transitions to work)
+ * fall back to static page links for JS-less and CSS3-less browsers
+ * Twitter feed?
+ * Need to place the donate button somewhere.
+ * We shouldn't use the code that's up now - it's all ripped off from another site
