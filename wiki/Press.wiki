@@ -25,3 +25,4 @@ This page is a running collection of press and blog posts about iTerm2.
   * "iterm2 is out. i love iterm. id get it pregnant if i knew how"  - @soederpop
   * "Iterm2 now supports vertical split planes. Best mac app of the year." - @rauchg
   * "Holy crap! iTerm2 is the best thing ever, thanks @gnachman for an OS X terminal emulator that works!" - @k4y
+  * "I've never used tabs for anything other than browsers, but I love love love (loop repeat) being able to split panes." - TJ Luoma
