@@ -12,7 +12,7 @@ This page is a running collection of press and blog posts about iTerm2.
   * [http://www.tuaw.com/2010/09/02/iterm-2-in-early-development TUAW]
   * [http://tangledhelix.com/archive/iterm2-iterm Tangled Helix Blog]
   * [http://osxdaily.com/2011/01/03/split-terminal-mac-iterm2 OS X Daily]
-
+  * [http://blog.ronvalente.net/post/2678668659/iterm-2-awesome blog.ronvalente.net]
 = Quotes =
 
   * "Instant Replay in iTerm2 Alpha 12, fantastic." - @amadeo
