@@ -28,3 +28,4 @@ This page is a running collection of press and blog posts about iTerm2.
   * "I've never used tabs for anything other than browsers, but I love love love (loop repeat) being able to split panes." - TJ Luoma
   * "So iTerm 2 is actually quite fantastic, I have never been a fan of iTerm. This new version blows it away!" - @ronaldvalente
   * "If you have a mac and have ever used terminal you just HAVE to install iterm2" - @heimdull
+  * "I've never seen unicode entry support this good in a terminal emulator." - @ixplode
