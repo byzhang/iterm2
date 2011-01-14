@@ -1,0 +1,14 @@
+#summary Community-Contributed iTerm2 Color Schemes
+
+= Introduction =
+
+This page links to color schemes that users have created and chosen to share.
+
+= Instructions =
+
+After downloading, go to Preferences->Bookmarks->Colors. Click on *Load presets...* and select *Import...*, pick the files you downloaded, and select OK. These files will be added to the *Load presets...* menu.
+
+
+= Color Schemes =
+
+  * [http://ecto-plazm.deviantart.com/gallery/ Bastien Dejean's Collection]
