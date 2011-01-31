@@ -16,6 +16,8 @@ This page is a running collection of press and blog posts about iTerm2.
   * [http://blog.rjshade.com/iterm2 rjshade.com]
   * [http://www.worldgoneweb.com/2011/iterm2-advanced-features/ World Gone Web]
   * [http://chris.chowie.net/2011/01/28/Simplifying-my-work-environment-with-iTerm2-and-zsh/ クリス]
+  * [http://www.thurn.ca/ten_mac_osx_applications_i_couldnt_live_without Ten Mac OSX Applications I couldn't live without]
+
 = Quotes =
 
   * "Instant Replay in iTerm2 Alpha 12, fantastic." - @amadeo
