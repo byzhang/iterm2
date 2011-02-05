@@ -2,7 +2,7 @@
 
 = Introduction =
 
-This page links to color schemes that users have created and chosen to share.
+This page links to color schemes that users have created and chosen to share. Alpha 17 will support importing them; if you can't wait, build a binary from the SVN trunk.
 
 = Instructions =
 
