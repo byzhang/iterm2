@@ -12,4 +12,3 @@ After downloading, go to Preferences->Bookmarks->Colors. Click on *Load presets.
 = Color Schemes =
 
   * [http://ecto-plazm.deviantart.com/gallery/ Bastien Dejean's Collection]
-  * [https://github.com/baskerville/iTerm-2-Color-Themes baserkville's Collection]
