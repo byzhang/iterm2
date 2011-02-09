@@ -35,6 +35,7 @@ This page offers the credits for the current application, as well as the old iTe
   * muraken
   * peppyhax
   * Zonble
+  * Kekoa Proudfoot
   * jvolkman
 
 == Localization Contributors ==
