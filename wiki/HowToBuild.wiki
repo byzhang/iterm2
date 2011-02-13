@@ -1,0 +1,23 @@
+#summary How to build from SVN.
+
+= Introduction =
+
+These instructions are for people who want to build the latest code from SVN. Expect it to be buggier than releases. Once in a while it might not compile if I mess up (but please let me know!)
+
+
+= Details =
+
+  * [http://developer.apple.com/technologies/xcode.html Download XCode]. It's free but you have to create a free account with the Mac Dev Center.
+  * Start installing XCode.
+  * Go get a cup of coffee.
+  * Download the source with this command:
+{{{
+svn checkout http://iterm2.googlecode.com/svn/trunk/ iterm2-read-only
+}}}
+  * Start XCode.
+  * File->Open iterm2-read-only/iterm.xcodeproj
+  * A window will open with the project files. In the top left is a pulldown menu that might say "Development | iTerm". If so, open it and select "Deployment". This just makes it go faster.
+  * Select Run->Run - breakpoints off.
+  * Get a small cup of coffee.
+  * If it launches, congratulations. If not, select Build->Build Results to see any errors.
+  * The binary is left in iterm2-read-only/build/Deployment/iTerm.app if you want to copy it to your /Applications folder.
