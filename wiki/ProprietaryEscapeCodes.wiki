@@ -1,0 +1,48 @@
+#summary Proprietary escape codes in iTerm2.
+
+= Introduction =
+
+This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
+
+
+== Set window title and tab chrome background color ==
+
+To set the window title and tab color use this escape sequence:
+
+{{{
+^[]6;1;bg;red;brightness;N^G
+^[]6;1;bg;green;brightness;N^G
+^[]6;1;bg;blue;brightness;N^G
+}}}
+
+Replace N with a decimal value in 0 to 255.
+
+Example in bash that turns the background purple:
+{{{
+echo -e "\033]6;1;bg;red;brightness;255\a"
+echo -e "\033]6;1;bg;green;brightness;0\a"
+echo -e "\033]6;1;bg;blue;brightness;255\a"
+}}}
+
+== Change the color palette ==
+
+{{{
+^[]Pnrrggbb^[\
+}}}
+
+Replace "n" with:
+ *  0-f (hex) = ansi color
+ *  g = foreground
+ *  h = background
+ *  i = bold color
+ *  j = selection color
+ *  k = selected text color
+ *  l = cursor
+ *  m = cursor text
+
+rr, gg, bb are 2-digit hex value (for example, "ff").
+
+Example in bash that changes the foreground color blue:
+{{{
+echo -e "\033]Pg4040ff\033\\"
+}}}
