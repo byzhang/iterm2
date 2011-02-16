@@ -7,6 +7,8 @@ This page documents all iTerm2-specific escape codes. These may not work properl
 
 == Set window title and tab chrome background color ==
 
+Support added in Alpha 17 (for now get the latest nightly build).
+
 To set the window title and tab color use this escape sequence:
 
 {{{
@@ -25,6 +27,8 @@ echo -e "\033]6;1;bg;blue;brightness;255\a"
 }}}
 
 == Change the color palette ==
+
+Support added in Alpha 17 (for now get the latest nightly build).
 
 {{{
 ^[]Pnrrggbb^[\
