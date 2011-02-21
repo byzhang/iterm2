@@ -8,7 +8,9 @@ This page links to color schemes that users have created and chosen to share. Al
 
 After downloading, go to Preferences->Bookmarks->Colors. Click on *Load presets...* and select *Import...*, pick the files you downloaded, and select OK. These files will be added to the *Load presets...* menu.
 
+To make your own color file, follow the instructions above but select "Export...". The name you give the file determines the name of the scheme that people see when they import it. Edit this page and post a link to it in the Color Schemes section. You may find [http://iterm2.googlecode.com/svn/trunk/tests/colors.sh this bash script] useful for previewing the color combinations.
 
 = Color Schemes =
 
   * [http://ecto-plazm.deviantart.com/gallery/ Bastien Dejean's Collection]
+  * [https://github.com/hardcore/iTerm-colors hardcore's iTerm color scheme (dark bg with light colors)]
