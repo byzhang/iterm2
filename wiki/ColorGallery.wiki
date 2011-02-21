@@ -2,13 +2,13 @@
 
 = Introduction =
 
-This page links to color schemes that users have created and chosen to share. Alpha 17 will support importing them; if you can't wait, build a binary from the SVN trunk.
+This page links to color schemes that users have created and chosen to share. Alpha 17 will support importing and exporting them; if you can't wait, download the latest nightly build.
 
 = Instructions =
 
-After downloading, go to Preferences->Bookmarks->Colors. Click on *Load presets...* and select *Import...*, pick the files you downloaded, and select OK. These files will be added to the *Load presets...* menu.
+After downloading a color scheme file, go to Preferences->Address Book->Colors. Click on *Load presets...* and select *Import...*, pick the files you downloaded, and select OK. These files will be added to the *Load presets...* menu.
 
-To make your own color file, follow the instructions above but select "Export...". The name you give the file determines the name of the scheme that people see when they import it. Edit this page and post a link to it in the Color Schemes section. You may find [http://iterm2.googlecode.com/svn/trunk/tests/colors.sh this bash script] useful for previewing the color combinations.
+To share your colors with others, follow the instructions above but select "Export...". You'll be prompted to save. Pick the name carefully, as the name you give the file determines the name of the preset that people see when they import it. Edit this page and post a link to it in the *Color Schemes* section. You may find [http://iterm2.googlecode.com/svn/trunk/tests/colors.sh this bash script] useful for previewing the color combinations.
 
 = Color Schemes =
 
