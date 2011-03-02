@@ -1,0 +1,147 @@
+// -*- mode:objc -*-
+/*
+ **  SessionView.m
+ **
+ **  Copyright (c) 2010
+ **
+ **  Author: George Nachman
+ **
+ **  Project: iTerm2
+ **
+ **  Description: This view contains a session's scrollview.
+ **
+ **  This program is free software; you can redistribute it and/or modify
+ **  it under the terms of the GNU General Public License as published by
+ **  the Free Software Foundation; either version 2 of the License, or
+ **  (at your option) any later version.
+ **
+ **  This program is distributed in the hope that it will be useful,
+ **  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ **  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ **  GNU General Public License for more details.
+ **
+ **  You should have received a copy of the GNU General Public License
+ **  along with this program; if not, write to the Free Software
+ **  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+#import "SessionView.h"
+#import "PTYSession.h"
+#import "PTYTab.h"
+#import "PTYTextView.h"
+
+static const float kTargetFrameRate = 1.0/60.0;
+
+@implementation SessionView
+
+- (id)initWithFrame:(NSRect)frame session:(PTYSession*)session
+{
+    self = [self initWithFrame:frame];
+    if (self) {
+        session_ = [session retain];
+    }
+    return self;
+}
+
+- (void)dealloc
+{
+    [session_ release];
+    [super dealloc];
+}
+
+- (PTYSession*)session
+{
+    return session_;
+}
+
+- (void)setSession:(PTYSession*)session
+{
+    [session_ autorelease];
+    session_ = [session retain];
+}
+
+- (void)fadeAnimation
+{
+    timer_ = nil;
+    float elapsed = [[NSDate date] timeIntervalSinceDate:previousUpdate_];
+    float newDimmingAmount = currentDimmingAmount_ + elapsed * changePerSecond_;
+    [previousUpdate_ release];
+    if ((changePerSecond_ > 0 && newDimmingAmount > targetDimmingAmount_) ||
+        (changePerSecond_ < 0 && newDimmingAmount < targetDimmingAmount_)) {
+        currentDimmingAmount_ = targetDimmingAmount_;
+        [[session_ TEXTVIEW] setDimmingAmount:targetDimmingAmount_];
+    } else {
+        [[session_ TEXTVIEW] setDimmingAmount:newDimmingAmount];
+        currentDimmingAmount_ = newDimmingAmount;
+        previousUpdate_ = [[NSDate date] retain];
+        timer_ = [NSTimer scheduledTimerWithTimeInterval:1.0/60.0
+                                                  target:self
+                                                selector:@selector(fadeAnimation)
+                                                userInfo:nil
+                                                 repeats:NO];
+    }
+}
+
+- (void)_dimShadeToDimmingAmount:(float)newDimmingAmount
+{
+    targetDimmingAmount_ = newDimmingAmount;
+    previousUpdate_ = [[NSDate date] retain];
+    const double kAnimationDuration = 0.250;
+    changePerSecond_ = (targetDimmingAmount_ - currentDimmingAmount_) / kAnimationDuration;
+    if (timer_) {
+        [timer_ invalidate];
+        timer_ = nil;
+    }
+    [self fadeAnimation];
+}
+
+- (double)dimmedDimmingAmount
+{
+    NSColor* backgroundColor = [session_ backgroundColor];
+    NSColor* rgb = [backgroundColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
+    double brightness = [rgb brightnessComponent];
+    // Map brightness onto dimming amount.
+    const double kMaxDimmingAmount = 0.35;
+    const double kMinDimmingAmount = 0.1;
+    const double kSpan = kMaxDimmingAmount - kMinDimmingAmount;
+    return kSpan * (1 - brightness) + kMinDimmingAmount;
+}
+
+- (void)setDimmed:(BOOL)isDimmed
+{
+    if (shuttingDown_) {
+        return;
+    }
+    if (isDimmed == dim_) {
+        return;
+    }
+    dim_ = isDimmed;
+    if (isDimmed) {
+        currentDimmingAmount_ = 0;
+        [[session_ TEXTVIEW] setDimmingAmount:0];
+        [self _dimShadeToDimmingAmount:[self dimmedDimmingAmount]];
+    } else {
+        [self _dimShadeToDimmingAmount:0];
+    }
+}
+
+- (void)cancelTimers
+{
+    shuttingDown_ = YES;
+    [timer_ invalidate];
+}
+
+- (void)rightMouseDown:(NSEvent*)event
+{
+    [[[self session] TEXTVIEW] rightMouseDown:event];
+}
+
+
+- (void)mouseDown:(NSEvent*)event
+{
+    if ([[[self session] TEXTVIEW] mouseDownImpl:event]) {
+        [super mouseDown:event];
+    }
+}
+
+@end
