@@ -22,8 +22,7 @@
 
 =Site Map=
 {{{
-- Home
-  Summary, download button, donate button.
+- Home [Summary, download button, donate button]
 - Features [each subsection includes a screenshot + blurb]
   + Split panes
   + Hotkey
