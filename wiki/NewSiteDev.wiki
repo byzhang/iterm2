@@ -1,7 +1,7 @@
 #summary Discussion on new site design
 
 =TODO=
- * james: Use header graphic from mock psd (jpg version: here [http://www.iterm2.com/dev/header.jpg http://www.iterm2.com/dev/header.jpg])
+ * james: Use header graphic from mock psd (jpg version at www.iterm2.com/dev/header.jpg )
  * james: Show indication of selected top-level menu
  * james: Add code to support second-level menus
  * george: create Download button
