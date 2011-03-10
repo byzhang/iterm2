@@ -1,7 +1,7 @@
 #summary Discussion on new site design
 
 =TODO=
- * james: Use header graphic from mock psd (jpg version: here http://www.iterm2.com/dev/header.jpg)
+ * james: Use header graphic from mock psd (jpg version: here [http://www.iterm2.com/dev/header.jpg http://www.iterm2.com/dev/header.jpg])
  * james: Show indication of selected top-level menu
  * james: Add code to support second-level menus
  * george: create Download button
@@ -14,7 +14,7 @@
  * The support section will have a FAQ and various text documents
  * The dev section will have offsite links to googlecode, etc.
  * Chrome, Firefox, and Safari are the key targets.
- * A mock PSD is here: http://www.iterm2.com/dev/mock.psd
+ * A mock PSD is here: [http://www.iterm2.com/dev/mock.psd http://www.iterm2.com/dev/mock.psd]
  * Jekyll for templating
  * try to use CSS3 transitions for browsers that support it
  * fall back to jQuery UI to do the slide transitions for browsers that don't (or if we can't get CSS3 transitions to work)
