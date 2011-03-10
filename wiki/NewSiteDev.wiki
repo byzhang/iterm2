@@ -1,5 +1,7 @@
 #summary Discussion on new site design
 
+Development is happening here: https://github.com/jamesarosen/iTerm2/tree/website
+
 =TODO=
  * james: Use header graphic from mock psd (jpg version at www.iterm2.com/dev/header.jpg )
  * james: Show indication of selected top-level menu
