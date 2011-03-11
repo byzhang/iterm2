@@ -4,10 +4,28 @@
 
 This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
 
+== Set cursor shape ==
+Beta 1 adds this:
+{{{
+^[]50;CursorShape=N^G
+}}}
+where N=0, 1, or 2.
+
+0: Block
+1: Vertical bar
+2: Underline
+
+Add this to your .vimrc to change cursor shape in insert mode:
+{{{
+let &t_SI = "\<Esc>]50;CursorShape=1\x7"
+let &t_EI = "\<Esc>]50;CursorShape=0\x7"
+}}}
+
+This is derived from [http://vim.wikia.com/wiki/Change_cursor_shape_in_different_modes Konsole].
 
 == Set window title and tab chrome background color ==
 
-Support added in Alpha 17 (for now get the latest nightly build).
+Support added in Alpha 17.
 
 To set the window title and tab color use this escape sequence:
 
