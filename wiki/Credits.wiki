@@ -37,6 +37,7 @@ This page offers the credits for the current application, as well as the old iTe
   * Zonble
   * Kekoa Proudfoot
   * jvolkman
+  * Tejas Dinkar
 
 == Localization Contributors ==
 
