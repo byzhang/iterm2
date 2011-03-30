@@ -15,4 +15,4 @@ To share your colors with others, follow the instructions above but select "Expo
   * [http://ecto-plazm.deviantart.com/gallery/ Bastien Dejean's Collection]
   * [https://github.com/hardcore/iTerm-colors hardcore's iTerm color scheme (dark bg with light colors)]
   * [https://gist.github.com/raw/850268/a486445dc41a51d8fc14d6df290931cd83a821d4/wez.itermcolors Wez Furlong's ANSI colors on a back background scheme, with tweaked ANSI colors that are actually readable].  [https://gist.github.com/850268 (mirror on Gist)]
-  * [http://www.iterm2.com/hostedcolors/SolarizedDark.itermcolors Solarized Dark], [http://www.iterm2.com/hostedcolors/SolarizedLight.itermcolors Solarized Light] From [https://github.com/altercation/solarized/tree/master/iterm2-colors-solarized altercation]'s github page.
+  * [http://www.iterm2.com/hostedcolors/SolarizedDark.itermcolors Solarized Dark], [http://www.iterm2.com/hostedcolors/Solarized Light.itermcolors Solarized Light] From [https://github.com/altercation/solarized/tree/master/iterm2-colors-solarized altercation]'s github page.
