@@ -1,0 +1,13 @@
+#summary How to report performance issues
+
+= Introduction =
+
+Some users complain of performance issues. I want to fix them. Having specific ways to reproduce these issues helps.
+
+
+= Details =
+
+  * Open a new issue
+  * Attach your ~/Library/Preferences/com.googlecode.iterm2.plist file to it
+  * Tell me what you were doing that was slow. Is it faster in Terminal.app?
+  * Create a session log using Shell->Log and attach that to the bug if it would be relevant.
