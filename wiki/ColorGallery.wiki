@@ -6,7 +6,7 @@ This page links to color schemes that users have created and chosen to share. Al
 
 = Instructions =
 
-After downloading a color scheme file, go to Preferences->Address Book->Colors. Click on *Load presets...* and select *Import...*, pick the files you downloaded, and select OK. These files will be added to the *Load presets...* menu.
+After downloading a color scheme file, go to Preferences->Profiles->Colors. Click on *Load presets...* and select *Import...*, pick the files you downloaded, and select OK. These files will be added to the *Load presets...* menu.
 
 To share your colors with others, follow the instructions above but select "Export...". You'll be prompted to save. Pick the name carefully, as the name you give the file determines the name of the preset that people see when they import it. Edit this page and post a link to it in the *Color Schemes* section. You may find [http://iterm2.googlecode.com/svn/trunk/tests/colors.sh this bash script] useful for previewing the color combinations.
 
