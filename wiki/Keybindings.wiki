@@ -8,15 +8,7 @@ This page deals with setting up your most favorite shell to work with the defaul
 
 = About key binding profiles =
 
-The "basic" key bindings shipped with iTerm2 will not overwrite the default key codes sent by the keyboard.
-This is useful if you just want to define key bindings for controlling iTerm2, i.e. control scrolling or tab handling.
-
-The "xterm" key bindings however specify a set of overriding escape sequences defined by the VT100/VT200 standard for specific keys.
-By doing that, standard compliant applications will work as expected.
-
-It is recommended to choose/load the "xterm" key bindings to make sure most applications recognize special keys (arrow keys, function keys etc.) or combinations of modifiers (e.g. ALT, CMD, CTRL etc.) with special keys.
-
-You should not change, delete or add key bindings of the shipped default "xterm" key bindings, unless you know what you are doing.
+The "xterm" key bindings however specify a set of overriding escape sequences defined by Xterm for specific keys. Standards-compliant apps should work as expected.
 
 = About readline =
  
@@ -39,9 +31,7 @@ As previously ruled out, it does not matter, where you define your settings, jus
 
 Readline can make use of Unicode or alternatively use the "8bit hack" to input/output non-ASCII characters.
 
-The default behavior is to not use this hack.
-
-It can be useful though, if you do not use a Unicode character encoding, like UTF-8, UTF-16, USC-2 etc.
+The default behavior is to not use this hack. It is not compatible with UTF-8, and is not recommended.
 
 Define:
 
@@ -67,6 +57,13 @@ A good compromise is thus using a modifier combination of CTRL and SHIFT with th
 "\e[1;6C": forward-word
 }}}
 
+For CTRL with left/right arrows, use this:
+
+{{{
+"\e[1;5D": backward-word
+"\e[1;5C": forward-word
+}}}
+
 == Line limits jumping ==
 
 Of course, you can also navigate the cursor to the very begin or very end of the current input line.
@@ -80,9 +77,9 @@ This should work by default already, but if not, check what escape sequence is s
 
 == Other ==
 
-There is a ton load of other features readline has and your shell may support. If you interested in this matter, read the readline documentation via {{{info readline}}}, or check the online documentation (see chapter [Keybindings#External_resources External resources]).
+There are a ton load of other features readline has and your shell may support. If you interested, read the readline documentation via {{{info readline}}}, or check the online documentation (see chapter [Keybindings#External_resources External resources]).
 
-If nothing is shown by either method, iTerm2 does not generate any escape sequence for the provided key combination. In this case, you can define a sequence in your Bookmark's settings. Please always add standard xterm sequences, if they exist for your desired key combination. If you find this key binding is worth shipping with iTerm2 by default, please file a Feature Request in our [http://code.google.com/p/iterm2/issues/entry Bug tracker].
+If nothing is shown by either method, iTerm2 does not generate any escape sequence for the provided key combination. In this case, you can define a sequence in your Profile's settings.
 
 = Escape sequence exploration =
 
