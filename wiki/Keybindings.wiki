@@ -33,7 +33,7 @@ Readline can make use of Unicode or alternatively use the "8bit hack" to input/o
 
 The default behavior is to not use this hack. It is not compatible with UTF-8, and is not recommended.
 
-Define:
+Define this in your inputrc:
 
 {{{
 set input-meta on
@@ -50,7 +50,7 @@ The default binding for this is ESC-f for forward jumping and ESC-b for backward
 Most users will find this inconvenient, as the escape key is far away from the default finger position.
 While iTerm2 can be configured to use the Option (ALT) key for entering escape sequences, it should be better used as the Meta key or for entering "special" characters like greek letters, symbols, umlauts etc.
 
-A good compromise is thus using a modifier combination of CTRL and SHIFT with the left/right arrow keys for word jumping. This can be defined as follows:
+A good compromise is thus using a modifier combination of CTRL and SHIFT with the left/right arrow keys for word jumping. This can be defined as follows in your inputrc:
 
 {{{
 "\e[1;6D": backward-word
