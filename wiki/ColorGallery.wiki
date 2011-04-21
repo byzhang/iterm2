@@ -18,3 +18,4 @@ To share your colors with others, follow the instructions above but select "Expo
   * [http://www.iterm2.com/hostedcolors/Solarized%20Dark.itermcolors Solarized Dark] From [https://github.com/altercation/solarized/tree/master/iterm2-colors-solarized altercation]'s github page.
   * [http://www.iterm2.com/hostedcolors/Solarized%20Light.itermcolors Solarized Light] From [https://github.com/altercation/solarized/tree/master/iterm2-colors-solarized altercation]'s github page.
   * [https://github.com/mbadolato/iTerm2-Color-Schemes Dark Pastel, Desert, Grass, Novel, Red Sands] by mbadolato
+  * [https://github.com/cap10morgan/solarized/tree/master/iterm2-colors-solarized cap10morgan's Solarized Fork]
