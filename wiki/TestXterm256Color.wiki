@@ -1,0 +1,22 @@
+#summary Fixing xterm-256color TERM
+
+= Introduction =
+
+OS X does not ship with the required files for the xterm-256color term. This document describes a proposed fix.
+
+
+= Details =
+
+1. Download [http://iterm2.com/terminfos/xterm-terminfo xterm-terminfo] from iterm2.com
+ 
+
+2. Open a shell and run:
+{{{
+cd ~/Downloads
+tic -e xterm-256color Downloads/xterm-terminfo*
+}}}
+You may see some errors about unknown capabilities, but they can be ignored.
+
+3. In iTerm2, go to preferences->profiles->terminal and set "report terminal type" to "xterm-256color".
+
+4. Open a new window and run vim or emacs. Verify that arrow keys and backspace work correctly.
