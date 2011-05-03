@@ -5,5 +5,6 @@
 The iTerm2 dev team is working with the tmux developer to design and implement a protocol that seamlessly integrates the two. This page holds information related to this task.
 
   * [http://tmux.sourceforge.net/ tmux Home Page]
+  * [http://www.iterm2.com/tmux.txt tmux UML diagram]
   * [https://docs.google.com/document/d/1ABI0kqUUxoAjxhWW3AsWFis6bgvMoEbcTcA2N21ncmU/edit?hl=en&authkey=COHZn78P Design Document for tmux to Terminal Emulator Protocol]
   * [http://wisconsinlinux.org/tmux-manpage-from-cvs/tmux.1.txt tmux man page]
