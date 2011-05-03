@@ -1,0 +1,23 @@
+#summary Things to do before releasing 1.0
+
+= To Do Before Building a Release Candidate =
+
+  * Verify that default config is sane
+  * Hide Debug Log option
+
+= Criteria for Declaring a Release Candidate =
+
+  * No fixable crashes
+  * No significant new bugs for two weeks
+  * Release binary will be the same as RC
+
+= Checklist for Release =
+
+  * Ensure online help is up to date
+  * Web site has same help as online help
+  * Check for memory leaks
+  * Valgrind
+  * 0% CPU when idle
+  * Put announcement on website
+  * Set as both test and non-test Sparkle release and verify this works
+  * Test that Sparkle will upgrade to next non-test release
