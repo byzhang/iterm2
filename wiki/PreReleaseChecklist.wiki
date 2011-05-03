@@ -4,6 +4,7 @@
 
   * Verify that default config is sane
   * Hide Debug Log option
+  * Audit NSLog statements, remove unnecessary ones (visor has lots)
 
 = Criteria for Declaring a Release Candidate =
 
