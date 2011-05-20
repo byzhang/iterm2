@@ -1,0 +1,42 @@
+#summary iTerm2 Architecture
+
+= Introduction =
+
+If you're interested in making a contribution, this document aims to describe the most important components of iTerm2's source.
+
+You may also want to read HowToBuild and HowToContribute.
+
+= Details =
+
+The key classes are PseudoTerminal, PTYTab, PTYSession, SessionView, PTYTextView, VT100Screen, LineBuffer, and VT100Terminal.
+
+PseudoTerminal is a window controller and is 1:1 with windows. It has a tabview, in which most of the content is displayed), and also contains the "bottom bar" (the instant replay UI) and links to the toolbar. It's the delegate (i.e., point-of-contact) for PSMTabBarControl, which runs the tab bar UI. It's also the NSWindow delegate.
+
+PTYTab is the "identifier" for an NSTabViewItem. It is 1:1 with tabs. It contains a collection of PTYSession objects. It has a tree called root_ whose intermediate nodes are NSSplitView and whose leaves are SessionView. The tree has only one level if there are no split panes. It is a tree because an NSSplitView is oriented either horizontally or vertically and iTerm2 allows nesting of split panes in either direction. PTYTab is the delegate for the NSSplitViews.
+
+PTYSession is a sort of glue object that is 1:1 with sessions. It owns the other objects that are 1:1 with sessions (PTYTextView, SessionView, VT100Screen, VT100Terminal).
+
+SessionView is an NSView subclass that wraps PTYTextView. In reality, there are several views between SessionView and PTYTextView (there's a scrollview subclass that doesn't do much, and within that is a TextViewWrapper that adds a margin to the top, and within that is the SessionView). SessionView controls dimming of inactive panes.
+
+PTYTextView is an NSView subclass. It is responsible for drawing text and responding to mouse clicks, handling selection, and a potpourri of other things. It is an extremely tall view--as tall as the screen plus the scrollback buffer. It's also flipped, which means that y=0 is at the bottom of the window. This causes lots of confusion but makes keeping the visible frame locked at the bottom very simple.
+
+VT100Screen is responsible for an N x M matrix of characters exactly the size of the visible region. It owns the cursor and manipulates screen content. It has a LineBuffer and transfers lines of text into it as the scroll off, or pulls them out when the window grows.
+
+VT100Terminal: Implements the VT100/xterm/whatever we really do line protocol. It sends commands to VT100Screen, mostly.
+ 
+LineBuffer is a scrollback buffer. It is an array of LineBlocks. A LineBlock is a big memory buffer plus an index into it. The index converts a line number into an offset into the memory buffer. The index can also be used to infer the length of one of these lines. The lines in the memory buffer do not take the width of the screen into account--they are as long as what was originally received from the host. LineBuffer is responsible for figuring out where lines are after wrapping them to the screen's width. It is also like a "stack" in that you can "pop" a portion of a line from the end (used when a window becomes taller, for instance). LineBuffer also implements part of the Find functionality. It exposes a way of referring to a location in the scrollback history via an integer, and offers conversion functions between that and an (x,y) coordinate for a given wrapping width.
+
+Some less important but noteworthy classes are:
+
+  * BookmarkModel: Stores the collection of address book entrees (née bookmarks)
+  * DVRxxx: Implements instant replay
+  * ITAddressBookMgr: Handles importing address books, bonjour
+  * iTermController: App-wide glue, including hotkey support
+  * iTermApplication: Overrides sendEvent, the lowest-level event handler, to do various high-priority things when when keys are pressed.
+  * iTermExpose, GlobalSearch: Implements Exposé All Tabs
+  * iTermKeyBindingMgr: Maintains key binding relationships for per-address book entry and global key bindings
+  * Popup: The infrastructure for popups, as implemented by Autocomplete and PasteboardHistory
+  * PreferencePanel: Handles all the preferences UI
+  * ProcessCache: Periodically polls the OS, in a separate thread, to get foreground job names that are displayed in tab/window titles.
+  * PTYTask: Implements a select() loop in another thread, fork(), exec(), wait(), and tty setup.
+  * ScreenChar: Utility functions for screen_char_t, the fundamental unit of a screen character.
