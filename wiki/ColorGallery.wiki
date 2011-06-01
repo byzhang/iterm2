@@ -20,3 +20,4 @@ To share your colors with others, follow the instructions above but select "Expo
   * [https://github.com/mbadolato/iTerm2-Color-Schemes Dark Pastel, Desert, Grass, Novel, Red Sands] by mbadolato
   * [https://github.com/cap10morgan/solarized/tree/master/iterm2-colors-solarized cap10morgan's Solarized Fork]
   * [https://gist.github.com/967609 Colors resembling Terminal's defaults by jasoncodes]
+  * [https://github.com/effkay/iTerm-argonaut Argonaut by effkay]
