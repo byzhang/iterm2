@@ -17,6 +17,7 @@ This page is a running collection of press and blog posts about iTerm2.
   * [http://www.worldgoneweb.com/2011/iterm2-advanced-features/ World Gone Web]
   * [http://chris.chowie.net/2011/01/28/Simplifying-my-work-environment-with-iTerm2-and-zsh/ クリス]
   * [http://www.thurn.ca/ten_mac_osx_applications_i_couldnt_live_without Ten Mac OSX Applications I couldn't live without]
+  * [http://lifehacker.com/5809790/iterm-2-is-a-beefed-up-feature+rich-terminal-replacement-for-os-x Lifehacker's Download of the Day]
 
 = Quotes =
 
