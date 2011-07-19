@@ -11,6 +11,7 @@ Non-critical differences to Github:
  * Better/worse repo size
 
 Disadvantages to Github:
+ * Can't attach files to issues
  * Some contributors would need to learn git
  * Moving sites makes us harder to find
  * SVN ships with MacOS, git does not
