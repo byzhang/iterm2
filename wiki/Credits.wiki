@@ -39,6 +39,7 @@ This page offers the credits for the current application, as well as the old iTe
   * jvolkman
   * Tejas Dinkar
   * Tom Feist
+  * jasonwea
 
 == Localization Contributors ==
 
