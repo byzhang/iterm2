@@ -40,6 +40,8 @@ This page offers the credits for the current application, as well as the old iTe
   * Tejas Dinkar
   * Tom Feist
   * jasonwea
+  * melbic @ github
+  * gordolio @ github
 
 == Localization Contributors ==
 
