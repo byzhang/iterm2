@@ -1,0 +1,16 @@
+#summary How to report bugs with typing particular characters.
+
+= Introduction =
+
+  * Quit iterm2.
+  * In Terminal, run:
+{{{
+defaults write com.googlecode.iterm2 DebugKeyDown -bool YES
+}}}
+  * Run /Applications/Utilities/Console.app.
+  * Set the "filter" field in Console to "keyDown".
+  * Run iterm2.
+  * Reproduce the bug by typing whatever isn't working right.
+  * Quit iterm2
+  * In console, press cmd-a to select all and do file->save selection as...
+  * Open an issue and attach that file to it.
