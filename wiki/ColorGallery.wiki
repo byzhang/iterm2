@@ -17,7 +17,6 @@ To share your colors with others, follow the instructions above but select "Expo
   * [https://gist.github.com/raw/850268/a486445dc41a51d8fc14d6df290931cd83a821d4/wez.itermcolors Wez Furlong's ANSI colors on a back background scheme, with tweaked ANSI colors that are actually readable].  [https://gist.github.com/850268 (mirror on Gist)]
   * [http://www.iterm2.com/hostedcolors/Solarized%20Dark.itermcolors Solarized Dark] From [https://github.com/altercation/solarized/tree/master/iterm2-colors-solarized altercation]'s github page.
   * [http://www.iterm2.com/hostedcolors/Solarized%20Light.itermcolors Solarized Light] From [https://github.com/altercation/solarized/tree/master/iterm2-colors-solarized altercation]'s github page.
-  * [https://gist.github.com/1015503 High Contrast Solarized Dark]  from helster at github.
   * [https://github.com/mbadolato/iTerm2-Color-Schemes Dark Pastel, Desert, Grass, Novel, Red Sands] by mbadolato
   * [https://github.com/cap10morgan/solarized/tree/master/iterm2-colors-solarized cap10morgan's Solarized Fork]
   * [https://gist.github.com/967609 Colors resembling Terminal's defaults by jasoncodes]
