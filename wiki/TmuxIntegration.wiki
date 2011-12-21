@@ -69,6 +69,7 @@ Most of these limitations will be fixed or improved soon.
   * The tmux changes have not yet been integrated into the tmux mainline. You need to download the tmux code from the iTerm2 site and build it yourself.
   * .tmuxrc files are untested and probably won't work well.
   * If you have hundreds of tmux windows, they all open. It would be nice to pick and choose.
+  * tmux windows open into windows, not tabs, at startup. This should be configurable.
 
 == Building tmux ==
 
