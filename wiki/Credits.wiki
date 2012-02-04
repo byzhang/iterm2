@@ -43,6 +43,7 @@ This page offers the credits for the current application, as well as the old iTe
   * melbic @ github
   * gordolio @ github
   * soul.cake.tuesday.duck
+  * andreax79
 
 == Localization Contributors ==
 
