@@ -64,12 +64,10 @@ Most of these limitations will be fixed or improved soon.
 
   * You can only be attached to a single tmux session at a time.
   * A tab with a tmux window may not contain non-tmux split panes.
-  * Exactly 1000 lines of history is always restored for each window.
   * The CSI DECSC and CSI DECRC codes are not handled the same between iTerm2 and tmux.
   * The tmux changes have not yet been integrated into the tmux mainline. You need to download the tmux code from the iTerm2 site and build it yourself.
   * .tmuxrc files are untested and probably won't work well.
-  * If you have hundreds of tmux windows, they all open. It would be nice to pick and choose.
-  * tmux windows open into windows, not tabs, at startup. This should be configurable.
+  * Maximizing panes isn't support by tmux
 
 == Building tmux ==
 
