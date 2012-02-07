@@ -1,5 +1,50 @@
 These release notes are for the development builds of iTerm2. The last stable release was 1.0.0.
 
+iTerm2 1.0.0.20120203
+This is primarily a bugfix release. If you're using the tmux integration, you'll need to install a newer version of tmux because the protocol has changed. It's available at http://goo.gl/WO2vp
+
+Enhancements
+- If no window is open, you can now select multiple items in the profiles and window and choose split horizontally/vertically to open a new window with the split.
+- Improve appearance of "Find Cursor".
+- Add a pointer action: smart selection ignoring hard newlines.
+- Add option to hide a session after it originates a tmux session.
+- Add tab colors to view menu and tab context menu (thanks, andreax79)
+- Various changes for updated tmux protocol.
+- Define VLNEXT and VDISCARD in the term by default.
+- Add 'move session to window' context menu item.
+- Add support for the "screen" terminal's way of setting the window title.
+- Make find text typed in one tab appear in all tabs' find bars.
+
+Bug fixes
+- Fix bug where no window would open at startup.
+- Fix bug where clicking on the dock wouldn't open a window.
+- Fix lion restore behavior.
+- Fix bug where new windows sometimes aren't focused.
+- Fix 10.5 support for tmux integration.
+- Fix broadcasting input for tmux sessions.
+- Fix cursor's appearance inside the find dropdown.
+- Fix bug where paste slowly didn't work right as a keybinding.
+- Fix bug where right click doesn't work if you do it too fast after a left click.
+- Fix bug where reordering tabs within a window caused them to stop responding correctly to the window resizing.
+- Fix various bugs related to moving a tmux originating session to another window.
+- Fix smart selection pointer command to also copy to pasteboard.
+- Fix bug where various escape codes were not responded to properly in tmux mode (e.g., reporting window state).
+- Don't do smart selection actions on right click if the selection is too big.
+- Fix various crashing bugs in toolbelt, one with growl notifications on broken pipe, and one in autocomplete.
+- Improve handling of fullscreen tmux windows.
+- Fix bug with handling tmux layouts that have a parent and child cell that split the same direction.
+- Tilde-expand the \1 path in semantic history.
+- Disable maximizing tmux panes, which didn't work.
+- Add option to make iTerm2 the default terminal for when you run a unix binary from finder.
+- Improve how client size is reported to tmux when a tab mvoes or closes.
+- Properly handle dragging a tmux split pane into the tab bar of another window.
+- Fix bug where dragging a tmux tab into a split opened a bogus window without content.
+- Set focus on textview after showing hotkey window
+- Don't create a tmux bookmark if you don't use tmux
+- Initialize session's bookmark name when restoring from arrangement so that it shows the right title
+- When you right click on a blank line, don't select the whole line of whitespace.
+
+
 iTerm2 1.0.0.20120123
 This is a tiny bugfix release for 1.0.0.20120108 (which, despite the name, was released 1/22/2012).
 - Fix crash when closing a window or toggling fullscreen while using the Jobs toolbelt tool.
