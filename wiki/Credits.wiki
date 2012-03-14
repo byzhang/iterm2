@@ -44,6 +44,7 @@ This page offers the credits for the current application, as well as the old iTe
   * gordolio @ github
   * soul.cake.tuesday.duck
   * andreax79
+  * Sidnicious @ github
 
 == Localization Contributors ==
 
