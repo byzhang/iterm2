@@ -27,3 +27,4 @@ To share your colors with others, follow the instructions above but select "Expo
   * [http://www.nightlion.net/themes/2011/iterm-2-ssh-dark-color-theme-for-mac-osx/ NightLion theme for iTerm2 by nightlion00]
   * [https://gist.github.com/1183140 A scheme that resamples the popular twilight color scheme, making, mvim and vim looks the same. By fritzsche.steffen]
   * [https://gist.github.com/1360453 A color scheme by bartek.danek]
+  * [https://github.com/markcho/iTerm2_LiquidCarbon Liquid Carbon Color Scheme by markcho]
