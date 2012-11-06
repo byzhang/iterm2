@@ -15,11 +15,11 @@ code review mechanism so branches can be reviewed before being integrated with t
 
   * What are the lowest targeted OS and developer tools versions?
 
-OS 10.5 is the SDK and oldest OS we support. I use Xcode 3.1.4 on my 10.5 machine and it still works, don't know about anything older.
+Use 10.6 or newer for development and XCode 4.x.
 
   * Can Objc 2.0 features (like properties and fast enumeration) be used?
 
-As long as it works in 10.5 it's ok. Fast enumeration is used in a few places.
+If you're doing something that won't work in 10.5 or newer, please let me know first. Otherwise, go nuts.
 
   * Is there a style guide to adhere to?
 
