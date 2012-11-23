@@ -7,7 +7,7 @@ We need 2x resolution images for all iTerm2 graphics. This requires artistic tal
 
 = Details =
 
-There are a bunch of images in the [https://github.com/gnachman/iTerm2/tree/master/images images folder on Github] that need to be upgraded to retina. The process is to create a version of the image at twice the resolution (and twice the detail) with @2 inserted before the extension. For example, foo.png gets a foo@2.png. This will require some level of artistic talent (otherwise I'd do it myself, hah!)
+There are a bunch of images in the [https://github.com/gnachman/iTerm2/tree/master/images images folder on Github] that need to be upgraded to retina. The process is to create a version of the image at twice the resolution (and twice the detail) with @2x inserted before the extension. For example, foo.png gets a foo@2x.png. This will require some level of artistic talent (otherwise I'd do it myself, hah!)
 
 Graphics that are frequently visible must be converted. Those are high priority. There are also rarely seen graphics, which should be converted but it's not urgent. These are low priority.
 
