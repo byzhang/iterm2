@@ -18,14 +18,6 @@ Want to volunteer? Make a comment saying which image you want to work on. File a
 
 === High Priority ===
 
- * IBarCursor.png
-
-Mouse cursor. Note: Must look good against both light and dark backgrounds.
-
- * IBarCursorXMR.png
-
-Mouse cursor when XCode Mouse Reporting is on.  Note: Must look good against both light and dark backgrounds.
-
  * PrefsGeneral.tiff
  * PrefsKeyboard.tiff
  * PrefsMouse.tiff (see PrefsMouse-big.tiff for a larger source image)
@@ -75,3 +67,13 @@ Shows in the toolbar to open "show info" window.
  * newwin.png
 
 Shows in toolbar to open a new window.
+
+=== Done ===
+
+ * IBarCursor.png
+
+Mouse cursor. Note: Must look good against both light and dark backgrounds.
+
+ * IBarCursorXMR.png
+
+Mouse cursor when XCode Mouse Reporting is on.  Note: Must look good against both light and dark backgrounds.
