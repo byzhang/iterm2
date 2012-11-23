@@ -27,10 +27,6 @@ Want to volunteer? Make a comment saying which image you want to work on. File a
 Icons in the prefs window.
 Also needs a new "profiles" icon because the system icon is now colored and looks wrong in 10.8.
 
- * important.png
-
-Bell icon shown in tab when the bell rings in a background tab.
-Note: It would be nice to have a more minimal, less "photographic" look for this.
  * star-gold24.png
 
 Indicates that a bookmark is the default.
@@ -77,3 +73,8 @@ Mouse cursor when XCode Mouse Reporting is on.  Note: Must look good against bot
  * closebutton.tif
 
 Tab close button.
+
+ * important.png
+
+Bell icon shown in tab when the bell rings in a background tab.
+Note: It would be nice to have a more minimal, less "photographic" look for this.
