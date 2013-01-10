@@ -78,6 +78,7 @@ Download the correct version of tmux from the iTerm2 download page. It will be n
 {{{
 sh autogen.sh
 ./configure
+make clean
 make
 sudo make install
 }}}
