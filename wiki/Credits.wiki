@@ -46,7 +46,7 @@ This page offers the credits for the current application, as well as the old iTe
   * andreax79
   * Sidnicious @ github
   * thomas.kupper
-  * saitoha @ github
+  * Hayaki Saito  (saitoha @ github)
 
 == Localization Contributors ==
 
