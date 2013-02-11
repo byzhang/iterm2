@@ -89,6 +89,7 @@ If you get an error like "undefined macro: AC_SEARCH_LIBS", run this:
 echo $(brew --prefix)/share/aclocal | sudo tee -a /usr/share/aclocal/dirlist
 }}}
 
+If that fails, you may need to install some of tmux's dependencies, which are available on the iTerm2 download site.
 
 == Development Info =
 
