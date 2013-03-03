@@ -1,5 +1,164 @@
 These release notes are for the development builds of iTerm2. The last stable release was 1.0.0.
 
+iTerm2 1.0.0.20130302
+This is the first release to be published on auto-update in a while, but there have been several builds that were not. If you haven't upgraded since the last auto-update, the changelogs for several builds below will affect you.
+
+Note: If you use the tmux integration, you should also download the tmux build that goes along with this version of iTerm2 (available on the download page).
+
+Bug fixes
+- Fixes an assert that occured when a non-ascii character was erased.
+- Fixes a bug where the toolbar was shown when exiting Lion fullscreen.
+- Fixes a crash when dragging past the bottom of a window in Screen Sharing.
+
+iTerm2 1.0.0.20130210
+Bugfix release.
+
+Enhancements
+- Performance improvements
+
+Bug fixes
+- When the screen grows, allow top/left/bottom-of screen windows to grow.
+- Turn off excessive tmux logging.
+- Set LC_TYPE when LANG can't be set
+- Fix bug where the title bar and tab backgorund colors change when the screen parameters change
+- Hide toolbar in Lion fullscreen windows.
+
+
+iTerm2 1.0.0.20130122
+This is a bugfix release.
+
+Bug fixes
+- Fix a bug where certain CSI ! codes caused a crash.
+- Fix a crash when printing binary stuff to the terminal.
+- Fix memory leaks.
+- Fix a problem where bringing up the context menu was slow when the selection was really big.
+- Improve DECSTR to reset wraparound mode.
+- Make resetting the terminal also reset the "report focus" mode.
+- Fix bug where the cursor wasn't redrawn immediately after its shape was changed with an escape code.
+- Support bonjour hosts with nonstandard ssh hosts.
+- Render most private-range unicode characters.
+- Allow cmd-clicks on URLs with IPv6 hostnames to open the browser.
+- Fix a crash in tmux integration when the tmux profile specifies 0 rows or columns.
+- When opening an ssh, telnet, etc. URL with no associated profile, use the default profile.
+- Support 3-finger taps (as opposed to clicks) by turning on hidden boolean preference "ThreeFingerTapEmulatesThreeFingerClick". Experimental.
+- Only ask about saving prefs to custom folder when feature is enabled and no folder is already specified.
+- Fix drawing of star in profile lists.
+- If you interact with the terminal by typing or closing a window or a tab the 10-second safety valve that prevents iTerm2 from quitting when the last window is closed is disabled.
+
+
+iTerm2 1.0.0.20121224
+This release is primarily a bugfix release. It includes a few security improvements, better retina support, and better 10.8 support.
+The previous release (described below) was not published on auto-update and its changes will be new for many users.
+(this release was never distributed through the auto-update mechanism)
+
+Enhancements
+- Add support for OSC 52 (clipboard integration--thanks, saitoha!). 
+- Press cmd-9 to go to the last tab.
+- Add "Left of screen" window style (thanks, Mike Lapinsky!).
+- Disable title reporting unless hidden pref AllowInsecureTitleReporting is set to true.
+- Performance improvements when using dimmed split panes.
+- Add menu item to toggle broadcasting input to the current pane (make pane-by-pane toggling available to focus-follows-mouse users who couldn't open a context menu in a deselected pane)
+- Add support for DECSCUSR which lets the terminal change the cursor shape and blink.
+- Add colors to trigger highlights
+- Add general preference "Adjust window for font size change". Turn it off so that the window size stays fixed as the font grows or shrinks (thanks, keeyipchan!).
+- Improvements to tmux protocol.
+- Add retina images for various bits of the UI.
+- Add hidden preference PinchToChangeFontSizeDisabled to turn off pinch to change font size
+- Add support for DECSTR (esc [!p)
+- Fix smart window layout in the presence of spaces on 10.8
+- Remove some errors logged when iTerm2 is started from commmand line (thanks, James!)
+- Fix redraw-bug in split-panes on Retina displays (thanks, Kenneth Vestergaard!)
+- Ask for confirmation before deleting a profile.
+
+Bug Fixes
+- Show the desired status for secure input in the iTerm>Secure Keyboard Entry checkbox (other apps may cause it to be on, which used to cause it to be checked)
+- Alt+click no longer moves the cursor position when mouse reporting is on (it prevented users from making selections).
+- Fix bug where find on page matches aren't highlighted when there is a background image
+- When using the tmux integration, do not log keystrokes to console.
+- Fix bug where you couldn't toggle a fullscreen window back to normal after changing the "Use lion fullscreen" preference
+- Allow "top of screen" and "bottom of screen" windows to draw borders.
+- Fix bug where esc k esc \ was not handled properly (one extra char was counted); now it should be ignored
+- Fix bug where emojis draw a transparent "hole" in the window
+- Fix some accessibility bugs in 10.8
+- Fix bug where, when using a custom folder for prefs, they are sometimes not saved on os 10.8.
+- Fix a bug where a triple click followed by a drag corrupted the selection.
+- Allow keys bound to actions to run in a session that's a tmux gateway
+- Improve reliability of opening SublimeText
+- Fix bug where the "send text" action didn't handle double backslashes properly
+- Fix bug where resizing a window while a full line selection exists caused the selection to change crazily
+- When clearing the scrollback buffer, also clear highlighted find results.
+- Disable scroll animations, removing crazy scrolling for 10.8 users.
+- If Library/App Support/iTerm/quiet exists and can be deleted when iTerm2 is launched, then run without opening any windows (workaround for Alfred)
+- Preserve selections in alternate screen mode when resizing a session
+- Trim trailing whitespace on copy, by default. Use hidden setting TrimWhitespaceOnCopy to disable
+- Shell-escape filenames on pasting a file
+- URL or shell-escape replacements for context menu actions
+- Fix a bug where highlights set by triggers had random colors
+- Fix scrollbar appearance for retina users
+- Do not set LC_CTYPE by default. Set hidden pref SetCtype to revert to the previous behavior.
+- Fix three-finger-tap emulates middle button (at least, mostly fixes it).
+
+
+
+iTerm2 1.0.0.20120726
+This release adds Mountain Lion and Retina compatibility, plus fixes some bugs.
+(this release was never distributed through the auto-update mechanism)
+
+Enhancements
+- This release is signed to run on Mountain Lion.
+- When a file or folder is dragged onto the dock icon, open it in a new tab (not a new window).
+- Support tmux "mode" flags (mouse reporting, insert, cursor, keypad, etc.)
+- When closing a session, free its scrollback buffer in a background thread to avoid hanging.
+- Make tabs look nicer when colored. Don't color title bar, tabbar background unless there's only one tab.
+- Alt-click moves the cursor to the click position.
+- Streamline font panel.
+- Debug logging reinstated.
+- Add space for long font names in prefs.
+- Add tilde to default URL pattern for smart selection.
+- Fix "cycle tabs" to work with any modifier.
+- Make cursor the full height of the line when vertical text spacing is modified in font panel.
+- Support SGR (1006) mouse reporting.
+- Allow OSC 4 to set color of first 16 palette entries.
+
+Bug Fixes
+- Fix bug on retina displays where it hangs when switching panes with keyboard.
+- Fix bug where selected text wasn't always in the selection color.
+- Fix bug where trigger parameters were sometimes forgotten.
+- Hide the "remove profile" button in prefs when only one profile exists.
+- Fix hang on esc-k with no closing escape code.
+- Fix bug where default window is always opened on OSes less than 10.7
+- When the screen is resized while in alternate screen mode, also resize the main screen.
+- Fix bug where restoring a window after a screen resolution change might open it at the wrong size.
+- Fix cmd-opt-ctrl-number to open a profile in a new window.
+- Make backspace wrap to the previous line.
+- Make fullscreen arrow in toolbar respect lion fullscreen preference.
+- Disable adding a profile when there is a search filter.
+- Handle moving a split pane into its own window correctly for top and bottom of screen style windows.
+- Handle esc _ ... esc backslash codes correctly.
+- Check for validity of iTerm 0.x files before importing them.
+- Fix crash on bogus character encodings.
+- Work around screen setting the title to empty (http://www.gnu.org/software/screen/manual/screen.html#Dynamic-Titles)
+- Fix parsing of consecutive spaces in command arguments.
+- Change blur logic to blur a window if any pane is blurred, rather than most. Disable blur if transparency is off.
+- Fix centering of gear icon in pane title bar.
+- Give input field of save arrangement dialog focus when it opens
+- Improve how the screen is adjusted when a session is resized to keep the same number of lines of text on the screen if possible.
+- Fix a bug where increasing the font size in fullscreen with only a few lines in the buffer made lines at the top scroll off.
+- Fix a bug where resizing in alternate screen mode made a mess of the base screen.
+- Properly escape characters when a file is dragged in.
+- Limit max blur to 15 to reduce performance problems.
+- Fix bug where smart window placement didn't work when a window was as tall or wide as the screen.
+- Close find cursor window when a session ends or the current tab switches.
+- Fixes a bug where fullscreen windows wouldn't hide the menu on 10.7.
+- Silently swallow unsupported esc ] ... ^G escape codes.
+- Be more robust about corrupted saved arrangements.
+- Unicode handling improvements.
+- Fix bug where gray lines appear in terminal window after opening view menu.
+- Fix bug where values in fields in smart selection action and trigger panels were sometimes lost.
+- Ignore first of two consecutive esc chars.
+- Prevent DoS with SU/SD's large repeat counts.
+
+
 iTerm2 1.0.0.20120203
 This is primarily a bugfix release. If you're using the tmux integration, you'll need to install a newer version of tmux because the protocol has changed. It's available at http://goo.gl/WO2vp
 
