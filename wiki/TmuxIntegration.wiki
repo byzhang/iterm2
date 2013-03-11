@@ -5,7 +5,7 @@
 iTerm2 is integrated with tmux. What does this mean?
 
 Normally, when you use tmux, multiple virtual windows are displayed in a single "physical" window. You can manipulate the environment by issuing commands to tmux. This poses a few problems:
-  * Some keystroke must be dedicated to tmux to enter its command mode.
+  * Some keystroke must be dedicated to tmux to enter its command mode (^B, by default, which means moving the cursor to the left in emacs or an interactive shell becomes more difficult).
   * You have to ssh to the remote host more than once to get more than one view of your tmux session's window.
   * You have to learn tmux commands.
   * To adjust split panes, you have to enable mouse reporting, even if you don't want it otherwise.
@@ -15,7 +15,7 @@ For many users, a terminal multiplexer would be a great way to work, but they do
 
 iTerm2's tmux integration solves these problems.
 
-When you run "tmux -C", a new tmux session is created. An iTerm2 window opens and it acts like a normal iTerm2 window. The difference is that when iTerm2 quits or the ssh session is lost, tmux keeps running. You can return to the host you were ssh'ed into and run "tmux -C attach" and the iTerm2 windows will reopen in the same state they were in before. A few use cases come to mind:
+When you run "tmux -CC", a new tmux session is created. An iTerm2 window opens and it acts like a normal iTerm2 window. The difference is that when iTerm2 quits or the ssh session is lost, tmux keeps running. You can return to the host you were ssh'ed into and run "tmux -CC attach" and the iTerm2 windows will reopen in the same state they were in before. A few use cases come to mind:
 
 For users who do most of their work in ssh:
   * Restore the environment you had at work when you get home.
@@ -27,12 +27,12 @@ For everyone:
 
 == Usage ==
 
-You should be able to use tmux as always. Just add the -C argument to its invocation. The most tested ways of running it are:
+You should be able to use tmux as always. Just add the -CC argument to its invocation. In practice, this means running one of these commands:
 
-  * tmux -C
-  * tmux -C attach
+  * tmux -CC
+  * tmux -CC attach
 
-When you run tmux -C, what you'll see on that terminal is a menu:
+When you run tmux -CC, what you'll see on that terminal is a menu:
 {{{
 ** tmux mode started **
 
@@ -45,7 +45,7 @@ esc    Detach cleanly.
 }}}
 
   * If you press esc, the tmux windows will close and the tmux client will exit.
-  * If you press esc and nothing happens, then the tmux client may have crashed or something else has gone wrong. Press "X" to force iTerm2 to exit tmux mode. You may need to run "stty sane" to restore your termina's state if the tmux client did crash.
+  * If you press esc and nothing happens, then the tmux client may have crashed or something else has gone wrong. Press "X" to force iTerm2 to exit tmux mode. You may need to run "stty sane" to restore your terminal's state if the tmux client did crash.
   * If you want to report a bug, press L and reproduce the issue. The tmux protocol commands will be written to the screen.
   * If you want to run a tmux command that isn't available through the menus, you can press C. A dialog box opens and you can enter a command. For example, "new-window".
 
@@ -54,9 +54,9 @@ In general, you don't need to run commands to perform the most common actions. T
   * Close a session, tab, or window: Kills the tmux session or window.
   * Split a pane: Splits the tmux window using the split-window command.
   * Resize a split pane: Resizes tmux split panes using the resize-pane command.
-  * Resize a window: Tells tmux that the client size has changed, causing all windows to resize. Windows are never larger than the smallest attached client. A "linen" texture may indicate that a physical window is larger than the maximum allowed tmux window size.
+  * Resize a window: Tells tmux that the client size has changed, causing all windows to resize. Windows are never larger than the smallest attached client. A gray area on the right or bottom of a window indicates that a physical window is larger than the maximum allowed tmux window size. One consequence of this rule is that all tmux windows/tabs will contain the same number of rows and columns.
   * Create a window or tab using the Shell->tmux menu: Creates a new tmux window.
-  * Detach using Shell->tmux->Detach: Detaches from the tmux session. All tmux windows are closed. You can get them back with tmux -C attach.
+  * Detach using Shell->tmux->Detach: Detaches from the tmux session. All tmux windows are closed. You can get them back with tmux -CC attach.
 
 == Limitations ==
 
@@ -64,14 +64,10 @@ Most of these limitations will be fixed or improved soon.
 
   * You can only be attached to a single tmux session at a time.
   * A tab with a tmux window may not contain non-tmux split panes.
-  * The CSI DECSC and CSI DECRC codes are not handled the same between iTerm2 and tmux.
-  * The tmux changes have not yet been integrated into the tmux mainline. You need to download the tmux code from the iTerm2 site and build it yourself.
   * .tmuxrc files are untested and probably won't work well.
   * Maximizing panes isn't support by tmux
 
 == Building tmux ==
-
-When you run tmux -C it performs a handshake with iTerm2. If tmux advertises a protocol version that iTerm2 doesn't support, it will print an error and exit. Practically, this means that until my tmux patch is integrated into tmux's svn mainline, you'll need to rebuild tmux with each test release of iTerm2.
 
 Download the correct version of tmux from the iTerm2 download page. It will be named by the iTerm2 version that it goes with. Instructions to build will be on the download page. In general, do this:
 
@@ -91,13 +87,18 @@ echo $(brew --prefix)/share/aclocal | sudo tee -a /usr/share/aclocal/dirlist
 
 If that fails, you may need to install some of tmux's dependencies, which are available on the iTerm2 download site.
 
+Soon, tmux 1.8 will be released and you won't need to download a customized version of tmux.
+
 == Development Info =
 
 The iTerm2 dev team is working with the tmux developer to design and implement a protocol that seamlessly integrates the two. This page holds information related to this task.
 
   * [http://tmux.sourceforge.net/ tmux Home Page]
+
+These links are kept for historical purposes, but are obsolete to various degrees.
+
   * [http://www.iterm2.com/tmux.txt tmux UML diagram]
   * [http://www.iterm2.com/tmux_relations.txt Relations between tmux objects]
   * [https://docs.google.com/document/d/1ABI0kqUUxoAjxhWW3AsWFis6bgvMoEbcTcA2N21ncmU/edit?hl=en&authkey=COHZn78P Design Document for tmux to Terminal Emulator Protocol]
   * [http://wisconsinlinux.org/tmux-manpage-from-cvs/tmux.1.txt tmux man page]
-  * [https://github.com/gnachman/tmux2 Github for hacking tmux] - Use the command_mode branch
+  * [https://github.com/gnachman/tmux2 Github for hacking tmux] - Use the v1.8 branch
