@@ -1,5 +1,28 @@
 These release notes are for the development builds of iTerm2. The last stable release was 1.0.0.
 
+iTerm2 1.0.0.20130319
+More bug fixes. If you use the tmux integration, make sure to install the latest tmux (downloadable separately). Also note that the usage has changed from tmux -C to tmux -CC. My fork of tmux is no longer needed--tmux integration mode is now compatible with the code at the head of the tmux source tree! This build is for OS 10.6 and later and support only x86 CPUs.
+
+Enhancements
+- Add boolean hidden pref, OpenFileInNewWindows. When you open a file (e.g., a shell script) in finder with iTerm2, this controls whether it opens in a new window or tab.
+
+Bug fixes
+- Fix bug where toolbelt dividers weren't visible in Lion fullscreen.
+- Update tmux protocol to no longer require a forked version of tmux.
+- Fix a bug where restoring a left-of-screen window at app startup caused it to have zero width.
+- Fix a bug where a terminal got stuck in applicaiton keypad mode.
+- Display tmux window name in tab/window title bar.
+- Fix bug where utf-8 chars broke tmux integration.
+- Fix a bug where cmd-clicking on a filename, when configured to open in Sublime Text 2, would always open a new instance of Sublime Text 2.
+- Fix a crash when right-clicking on profiles in the toolbelt.
+- Fix a leak in the tmux integration.
+- Fix a bug where tmux protocol commands would be written after the last window in a tmux session quits.
+- Parse (but do not handle) CSI > m and CSI > n codes.
+- Fix a bug where there were two copies of the Growl libraries (thanks, Thijs!)
+- Fix a bug where a tmux window with two tmux tabs resized incorrectly.
+- Fix a bug where a tmux window wasn't resized properly when exiting Lion fullscreen.
+
+
 iTerm2 1.0.0.20130302
 This is the first release to be published on auto-update in a while, but there have been several builds that were not. If you haven't upgraded since the last auto-update, the changelogs for several builds below will affect you.
 
