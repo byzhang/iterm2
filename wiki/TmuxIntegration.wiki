@@ -69,7 +69,12 @@ Most of these limitations will be fixed or improved soon.
 
 == Building tmux ==
 
-Download the correct version of tmux from the iTerm2 download page. It will be named by the iTerm2 version that it goes with. Instructions to build will be on the download page. In general, do this:
+You should use tmux 1.8 or later. You can download the source  for tmux 1.8. If you use homebrew, run
+{{{
+brew install tmux
+}}}
+
+If you prefer to build it yourself, you can [http://sourceforge.net/projects/tmux/files/tmux/tmux-1.8/tmux-1.8.tar.gz/download?use_mirror=superb-dca2 download the tmux source here]. To build:
 
 {{{
 sh autogen.sh
@@ -86,19 +91,3 @@ echo $(brew --prefix)/share/aclocal | sudo tee -a /usr/share/aclocal/dirlist
 }}}
 
 If that fails, you may need to install some of tmux's dependencies, which are available on the iTerm2 download site.
-
-Soon, tmux 1.8 will be released and you won't need to download a customized version of tmux.
-
-== Development Info =
-
-The iTerm2 dev team is working with the tmux developer to design and implement a protocol that seamlessly integrates the two. This page holds information related to this task.
-
-  * [http://tmux.sourceforge.net/ tmux Home Page]
-
-These links are kept for historical purposes, but are obsolete to various degrees.
-
-  * [http://www.iterm2.com/tmux.txt tmux UML diagram]
-  * [http://www.iterm2.com/tmux_relations.txt Relations between tmux objects]
-  * [https://docs.google.com/document/d/1ABI0kqUUxoAjxhWW3AsWFis6bgvMoEbcTcA2N21ncmU/edit?hl=en&authkey=COHZn78P Design Document for tmux to Terminal Emulator Protocol]
-  * [http://wisconsinlinux.org/tmux-manpage-from-cvs/tmux.1.txt tmux man page]
-  * [https://github.com/gnachman/tmux2 Github for hacking tmux] - Use the v1.8 branch
