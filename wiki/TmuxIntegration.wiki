@@ -84,7 +84,7 @@ make
 sudo make install
 }}}
 
-If you get an error like "undefined macro: AC_SEARCH_LIBS", run this:
+If you use homebrew and get an error like "undefined macro: AC_SEARCH_LIBS", run this:
 
 {{{
 echo $(brew --prefix)/share/aclocal | sudo tee -a /usr/share/aclocal/dirlist
