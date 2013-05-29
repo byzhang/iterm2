@@ -4,8 +4,13 @@
 
 This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
 
+== Set Mark ==
+Sets the "mark" to the current scroll position. Same as "Edit>Set Mark".
+{{{
+^[]50;SetMark^G
+}}}
+
 == Set cursor shape ==
-Beta 1 adds this:
 {{{
 ^[]50;CursorShape=N^G
 }}}
@@ -25,8 +30,6 @@ This is derived from [http://vim.wikia.com/wiki/Change_cursor_shape_in_different
 
 == Set window title and tab chrome background color ==
 
-Support added in Alpha 17.
-
 To set the window title and tab color use this escape sequence:
 
 {{{
@@ -45,8 +48,6 @@ echo -e "\033]6;1;bg;blue;brightness;255\a"
 }}}
 
 == Change the color palette ==
-
-Support added in Alpha 17 (for now get the latest nightly build).
 
 {{{
 ^[]Pnrrggbb^[\
