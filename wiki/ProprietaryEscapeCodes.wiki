@@ -4,6 +4,16 @@
 
 This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
 
+== Set Profile ==
+Changes the current session's profile.
+
+{{{
+^[]50;CurrentDir=P^G
+^[]50;CurrentDir^G
+}}}
+
+If P is given, it is a profile name. If P is empty or not given, the default profile is used. If P is given and not the name of a profile, nothing is done.
+
 == Notify of Current Directory ==
 Notifies iTerm2 of the current directory. A cmd-click on a filename printed after this will assume it is in the given directory.
 
