@@ -4,7 +4,16 @@
 
 This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
 
-== Clear Scrollback History =
+== Notify of Current Directory ==
+Notifies iTerm2 of the current directory. A cmd-click on a filename printed after this will assume it is in the given directory.
+
+{{{
+^[]50;CurrentDir=P^G
+}}}
+
+where P is a path, such as /Users/georgen
+
+== Clear Scrollback History ==
 Erases the scrollback history.
 
 {{{
