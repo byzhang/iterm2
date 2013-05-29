@@ -4,6 +4,16 @@
 
 This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
 
+== Request Attention ==
+Makes the dock icon bounce if iTerm2 is not the current application.
+
+{{{
+^[]50;RequestAttention=P^G
+^[]50;RequestAttention^G
+}}}
+
+P is "true" or "false". If not given, "false" is used. If true, it is a "critical" request. Critical requests bounce until iTerm2 is foregrounded; non-critical requests bounce for one second.
+
 == Copy to Clipboard ==
 Copy text to one of the system's clipboards.
 
