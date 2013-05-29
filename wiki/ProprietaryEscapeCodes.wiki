@@ -4,6 +4,13 @@
 
 This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
 
+== Steal Focus ==
+Brings the current window to the front, activating iTerm2 if it is not the current app.
+
+{{{
+^[]50;StealFocus^G
+}}}
+
 == Set Mark ==
 Sets the "mark" to the current scroll position. Same as "Edit>Set Mark".
 {{{
