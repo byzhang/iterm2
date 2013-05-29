@@ -4,6 +4,23 @@
 
 This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
 
+== Copy to Clipboard ==
+Copy text to one of the system's clipboards.
+
+First, send one of:
+{{{
+^[]50;CopyToClipboard=P^G
+^[]50;CopyToClipboard^G
+}}}
+
+where P is the name of a clipboard. Legal values are "ruler", "find", "font", and "general". If P is not given, "general" is used.
+
+Text sent after this code is appended to the specified clipboard. To stop appending, send:
+
+{{{
+^[]50;EndCopy^G
+}}}
+
 == Set Profile ==
 Changes the current session's profile.
 
