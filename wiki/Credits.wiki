@@ -48,6 +48,7 @@ This page offers the credits for the current application, as well as the old iTe
   * thomas.kupper
   * Hayaki Saito  (saitoha @ github)
   * Thijs Alkemade
+  * Reda Lemeden
 
 == Localization Contributors ==
 
