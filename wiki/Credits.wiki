@@ -49,6 +49,8 @@ This page offers the credits for the current application, as well as the old iTe
   * Hayaki Saito  (saitoha @ github)
   * Thijs Alkemade
   * Reda Lemeden
+  * Thomas Lamb
+  * Jordan Lewis
 
 == Localization Contributors ==
 
