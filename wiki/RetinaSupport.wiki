@@ -17,15 +17,9 @@ Want to volunteer? Make a comment saying which image you want to work on. File a
 == Images ==
 
 === High Priority ===
-
- * PrefsGeneral.tiff
- * PrefsKeyboard.tiff
- * PrefsMouse.tiff (see PrefsMouse-big.tiff for a larger source image)
- * arrangement.png
- * arrangement.psd
+All high priority images are done.
 
 Icons in the prefs window.
-Also needs a new "profiles" icon because the system icon is now colored and looks wrong in 10.8.
 
 === Low Priority ===
 
@@ -38,9 +32,6 @@ Shown in the top right of a terminal when input is broadcast.
 
 Shown in the top right of a terminal when a coprocess is running.
 
- * bell.png
-
-Shown when the bell rings.
 
  * wrap_to_bottom.png (see wrap.psd for source image)
  * wrap_to_top.png
@@ -56,6 +47,18 @@ Shows in the toolbar to open "show info" window.
 Shows in toolbar to open a new window.
 
 === Done ===
+
+ * bell.png
+
+Shown when the bell rings.
+
+
+ * PrefsGeneral.tiff
+ * PrefsKeyboard.tiff
+ * PrefsMouse.tiff (see PrefsMouse-big.tiff for a larger source image)
+ * arrangement.png
+ * arrangement.psd
+Also needs a new "profiles" icon because the system icon is now colored and looks wrong in 10.8.
 
  * IBarCursor.png
 
