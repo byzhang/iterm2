@@ -6,5 +6,5 @@
   * Reproduce your bug (don't take too long, the log gets big fast).
   * Select "Toggle Debug Logging" again to turn off the log.
   * cd /tmp
-  * gzip debug_log.txt
-  * Attach tmp/debug_log.txt.gz to the issue.
+  * gzip debuglog.txt
+  * Attach tmp/debuglog.txt.gz to the issue.
