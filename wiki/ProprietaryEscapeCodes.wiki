@@ -35,8 +35,8 @@ Text sent after this code is appended to the specified clipboard. To stop append
 Changes the current session's profile.
 
 {{{
-^[]50;CurrentDir=P^G
-^[]50;CurrentDir^G
+^[]50;SetProfile=P^G
+^[]50;SetProfile^G
 }}}
 
 If P is given, it is a profile name. If P is empty or not given, the default profile is used. If P is given and not the name of a profile, nothing is done.
