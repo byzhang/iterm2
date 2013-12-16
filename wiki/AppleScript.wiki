@@ -116,3 +116,24 @@ tell application "iTerm"
 	
 end tell
 </pre>
+
+= Example of selecting a session by name =
+This finds and selects a tab named "Special".
+
+<pre>
+	tell application "iTerm"
+		activate
+		set myterm to (current terminal)
+		tell myterm
+			repeat with mysession in sessions
+				tell mysession
+					set the_name to get name
+					if the_name contains "Special" then
+						select mysession
+						return
+					end if
+				end tell
+			end repeat
+		end tell
+	end tell
+</pre>
