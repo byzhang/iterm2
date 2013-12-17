@@ -53,6 +53,7 @@ This page offers the credits for the current application, as well as the old iTe
   * Jordan Lewis
   * dmayle @ github
   * JTheAppleSeed
+  * Sam Doshi
 
 == Localization Contributors ==
 
