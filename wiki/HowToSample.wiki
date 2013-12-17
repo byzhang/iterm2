@@ -1,6 +1,15 @@
 #summary How to get an activity sample
 
+= On OS 10.8 and earlier =
   * Open /Applications/Utilities/Activity Monitor
-  * Select iTerm2
+  * Select iTerm
   * Press "Sample process"
-  * Save the file and attach it to a [http://code.google.com/p/iterm2/issues/entry new issue.]
+  * Save the file and attach it to a [http://code.google.com/p/iterm2/issues/entry new issue] or existing issue.
+
+= On OS 10.9 =
+  * Open /Applications/Utilities/Activity Monitor
+  * Click the CPU tab
+  * Select iTerm
+  * Click the (i) button near the top left
+  * Press "Sample"
+  * Save the file and attach it to a [http://code.google.com/p/iterm2/issues/entry new issue] or existing issue.
