@@ -29,3 +29,4 @@ To share your colors with others, follow the instructions above but select "Expo
   * [https://gist.github.com/1360453 A color scheme by bartek.danek]
   * [https://github.com/markcho/iTerm2_LiquidCarbon Liquid Carbon Color Scheme by markcho]
   * [https://github.com/zdj/themes zeejaysapps themes]
+  * [https://github.com/hukun01/iterm2.itermcolors hukun01's color scheme]
