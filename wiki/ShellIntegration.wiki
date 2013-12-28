@@ -68,6 +68,11 @@ This code is relatively new. If you are in a high-security environment, please k
 In this section, complete code will be provided for each shell to take advantage of the integration. The feature is not specific to any single shell, and contributions for missing shells are welcomed.
 
 ==tcsh==
-In tcsh, place the following in your .tcshrc:
+Place the following in your .tcshrc:
 
 {{{alias precmd 'printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'}}}
+
+==bash==
+Place the following in your .bashrc:
+
+{{{PROMPT_COMMAND='printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'}}}
