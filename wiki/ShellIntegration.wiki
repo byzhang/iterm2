@@ -19,6 +19,8 @@ You can use Cmd-Opt-{{{[}}} and ] to navigate "marks" in your terminal history (
 The mark is indicated visually with a small blue triangle in the left margin.
 http://www.iterm2.com/images/mark.png
 
+If you kick off a long-running command, Edit>Alert on next mark will post a notification (Growl or Notification Center) and bounce the dock icon when the command finishes.
+
 ===Notes===
 A mark with an annotation attached is called a note. You can add a note with:
 
