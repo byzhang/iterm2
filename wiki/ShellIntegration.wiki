@@ -37,7 +37,7 @@ _value_ is one of:
 
 _AddNote_ adds a note with a visible annotation, while _AddHiddenNote_ collapses the annotation automatically. Right-clicking on the annotation and selecting "Show Notes" will reveal the annotations. All annotations can be toggled with Edit>Show/Hide Notes.
 
-Notes can also be added manually by selecting a region of text and choosing "Annotation selection" in the context menu:
+Notes can also be added manually by selecting a region of text and choosing *Annotate selection* in the context menu:
 http://iterm2.com/images/notes.png
 
 ==Open local files==
