@@ -2,9 +2,7 @@
 
 = To Do Before Building a Release Candidate =
 
-  * Fix up tab order
-  * Merge v2 into master for iterm2-website
-  * Update Features page of website
+  * Make sure there are no serious bugs.
 
 = Checklist for Release =
 
