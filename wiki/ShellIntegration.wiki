@@ -12,7 +12,7 @@ Shell integration works with custom escape codes.
 ==Locate command prompts==
 
 ===Marks===
-You can use Cmd-Opt-{{{[}}} and ] to navigate "marks" in your terminal history (e.g., to find previous shell prompts).  Marks can be set with Shell>Set Mark, but more usefully, they can be set with an escape code:
+You can use Cmd-Shift-Up and Down Arrow to navigate "marks" in your terminal history (e.g., to find previous shell prompts).  Marks can be set with Shell>Set Mark, but more usefully, they can be set with an escape code:
 
 {{{\033]50;SetMark\007}}}
 
