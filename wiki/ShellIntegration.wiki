@@ -64,15 +64,7 @@ iTerm2 links in libssh2, and does not shell out to scp. It respects /etc/known_h
 This code is relatively new. If you are in a high-security environment, please keep this in mind.
 
 ===Base64 Downloads===
-Sometimes it's inconvenient or impossible to use SCP (for example, if you've sudo'ed to a user for whom you don't have the password). In that case, you can use a small script to download a file, as described in the DownloadFiles wiki page.
-
-Alternatively, you can add a smart selection action. In Prefs>Profiles>Advanced>Smart Selection, select "Word bounded by whitespace" and click "Edit Actions…." Add an action named "Send Command to Download \0", set the action to "Send text…", and set the parameter to:
-
-{{{
-pushd "\d"; (test -r "\0" && (printf '\\033]50;BeginFile='\0'\\n'; wc -c "\0" | awk '{print $1}'; printf '\\a'; base64 < "\0"; printf '\\033]50;EndFile\\a' ) || echo File does not exist or cannot be read.); popd\n
-}}}
-
-Right clicking on a filename will offer "Send Command to Download _filename_" in the context menu. Selecting that action will produce a shell command that starts a download of the file in-band.
+Sometimes it's inconvenient or impossible to use SCP (for example, if you've sudo'ed to a user for whom you don't have the password). In that case, you can use a small script to download a file, as described in the DownloadFiles wiki page. Alternatively, you can add a smart selection action that will send the commands to the remote shell which make it dump the file you want wrapped in the proper escape code. See how to do it in SmartSelectionBase64Downloads.
 
 =Putting it all together=
 
