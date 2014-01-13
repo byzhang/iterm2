@@ -1,0 +1,16 @@
+#summary How to add a Smart Selection action to send a command to download a file.
+
+= Introduction =
+
+This is the most convenient way to download a file from a host you're currently ssh'ed to.
+
+
+= Details =
+
+In Prefs>Profiles>Advanced>Smart Selection, select "Word bounded by whitespace" and click "Edit Actions…." Add an action named "Send Command to Download \0", set the action to "Send text…", and set the parameter to:
+
+{{{
+pushd "\d"; (test -r "\0" && (printf '\\033]50;BeginFile='\0'\\n'; wc -c "\0" | awk '{print $1}'; printf '\\a'; base64 < "\0"; printf '\\033]50;EndFile\\a' ) || echo File does not exist or cannot be read.); popd\n
+}}}
+
+Right clicking on a filename will offer "Send Command to Download _filename_" in the context menu. Selecting that action will produce a shell command that starts a download of the file in-band.
