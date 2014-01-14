@@ -4,6 +4,13 @@
 
 This is the most convenient way to download a file from a host you're currently ssh'ed to.
 
+= How it's used =
+
+# Right click on a file to open the context menu
+# Select "Send Command to Download _filename_"
+# iTerm2 enters a shell command that outputs the file wrapped in escape codes
+# The shell runs the command, starting a download
+# iTerm2 creates a "Downloads" item in the menu bar where you can track the progress of the download, open it, etc.
 
 = Details =
 
