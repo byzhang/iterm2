@@ -73,9 +73,23 @@ In this section, complete code will be provided for each shell to take advantage
 ==tcsh==
 Place the following in your .tcshrc:
 
-{{{alias precmd 'printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'}}}
+{{{
+alias precmd 'printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'
+}}}
 
 ==bash==
 Place the following in your .bashrc:
 
-{{{PROMPT_COMMAND='printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'}}}
+{{{
+PROMPT_COMMAND='printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'
+}}}
+
+==zsh==
+Place the following in your .zshrc:
+
+{{{
+precmd () {
+ FULL_HOST_NAME=`hostname -f`
+ print -n "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'$FULL_HOST_NAME'\007\033]50;CurrentDir=$PWD\007"
+}
+}}}
