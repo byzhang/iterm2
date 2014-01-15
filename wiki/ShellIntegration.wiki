@@ -21,6 +21,8 @@ http://www.iterm2.com/images/mark.png
 
 If you kick off a long-running command, *Edit>Alert on next mark* will post a notification (Growl or Notification Center) and bounce the dock icon when the command finishes.
 
+Note, however, that a more powerful (but complex) technique for setting marks is described below in _Command History_.
+
 ===Notes===
 A mark with an annotation attached is called a note. You can add a note with:
 
@@ -66,6 +68,34 @@ This code is relatively new. If you are in a high-security environment, please k
 ===Base64 Downloads===
 Sometimes it's inconvenient or impossible to use SCP (for example, if you've sudo'ed to a user for whom you don't have the password). In that case, you can use a small script to download a file, as described in the DownloadFiles wiki page. Alternatively, you can add a smart selection action that will send the commands to the remote shell which make it dump the file you want wrapped in the proper escape code. See how to do it in SmartSelectionBase64Downloads.
 
+==Command History==
+iTerm2 can track your command history. It may be saved to disk and is stored separately for each username+hostname combination. In order to save your command history, a number of escape codes will need to be sent before or after the shell prompt:
+
+  * Before the prompt
+{{{\033]133;A\007}}}
+  * After the prompt
+{{{\033]133;B\007}}}
+  * After a command finishes running, but before the prompt
+{{{\033]133;D;$?\007\033]50;RemoteHost='$USER'@localhost\007\033]50;CurrentDir=$PWD\007}}}
+  * Before executing a command
+{{{\033]133;C\007}}}
+
+These codes come from FinalTerm.
+
+By configuring your shell this way, iTerm2 knows:
+  * What commands you run
+  * Which host you're on, and which user you are logged in as
+  * The current directory at all times
+  * The return code of each command line
+
+The benefits are:
+  * Commands are added in their entirety to the autocomplete (cmd-;) menu
+  * A new command history menu (cmd-opt-y) lets you browse and search commands
+  * These commands are saved to disk (if allowed per a setting in prefs>general)
+  * A mark will be added to the line with the prompt for you.
+  * The mark's color will indicate success or failure
+  * By right clicking the mark, you can view the exact value of the return code and other information about the command.
+
 =Putting it all together=
 
 In this section, complete code will be provided for each shell to take advantage of the integration. The feature is not specific to any single shell, and contributions for missing shells are welcomed.
@@ -74,19 +104,24 @@ In this section, complete code will be provided for each shell to take advantage
 Place the following in your .tcshrc:
 
 {{{
-alias precmd 'printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'
+# Note that tcsh doesn't allow the prompt to end in an escape code so the terminal space here is required. iTerm2 ignores spaces after this code.
+set prompt='%{^[]133;A^G%}"$prompt"%{^[]133;B^G%} '
+alias precmd 'printf "\033]133;D;$?\007\033]50;RemoteHost='$USER'@localhost\007\033]50;CurrentDir=$PWD\007"'
+# This is necessary so the first command line will have a hostname and current directory.
+printf "\033]50;RemoteHost=$USER@localhost\007\033]50;CurrentDir=$PWD\007"
+alias postcmd 'printf "\033]133;C\007"'
 }}}
 
 ==bash==
 Place the following in your .bashrc:
-
+TODO: This section needs updating for the FinalTerm codes.
 {{{
 PROMPT_COMMAND='printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'
 }}}
 
 ==zsh==
 Place the following in your .zshrc:
-
+TODO: This section needs updating for the FinalTerm codes.
 {{{
 precmd () {
  FULL_HOST_NAME=`hostname -f`
