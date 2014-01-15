@@ -101,11 +101,11 @@ The benefits are:
 In this section, complete code will be provided for each shell to take advantage of the integration. The feature is not specific to any single shell, and contributions for missing shells are welcomed.
 
 ==tcsh==
-Place the following in your .tcshrc:
+Place the following at the end of your .tcshrc:
 
 {{{
 # Note that tcsh doesn't allow the prompt to end in an escape code so the terminal space here is required. iTerm2 ignores spaces after this code.
-set prompt='%{^[]133;A^G%}"$prompt"%{^[]133;B^G%} '
+set prompt="%{^[]133;A^G%}$prompt%{^[]133;B^G%} "
 alias precmd 'printf "\033]133;D;$?\007\033]50;RemoteHost='$USER'@localhost\007\033]50;CurrentDir=$PWD\007"'
 # This is necessary so the first command line will have a hostname and current directory.
 printf "\033]50;RemoteHost=$USER@localhost\007\033]50;CurrentDir=$PWD\007"
