@@ -92,6 +92,7 @@ The benefits are:
   * Commands are added in their entirety to the autocomplete (cmd-;) menu
   * A new command history menu (cmd-opt-y) lets you browse and search commands
   * A new toolbelt tool has been added which shows your commands. Selecting a command in the list will scroll to it; double-clicking will re-enter it for you.
+http://iterm2.com/images/CommandHistory.png
   * These commands are saved to disk (if allowed per a setting in prefs>general)
   * A mark will be added to the line with the prompt for you.
   * The mark's color will indicate success or failure
