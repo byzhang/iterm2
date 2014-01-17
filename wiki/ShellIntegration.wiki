@@ -126,10 +126,42 @@ PROMPT_COMMAND='printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname
 
 ==zsh==
 Place the following in your .zshrc:
-TODO: This section needs updating for the FinalTerm codes.
 {{{
-precmd () {
- FULL_HOST_NAME=`hostname -f`
- print -n "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'$FULL_HOST_NAME'\007\033]50;CurrentDir=$PWD\007"
+FULL_HOST_NAME=`hostname -f`
+
+before_cmd_executes() {
+  # iTerm2 inform terminal that command starts here
+  print -n "\033]133;C\007"
+}
+
+after_cmd_executes() {
+  # iTerm2 tell terminal to create a mark at this location
+  print -Pn "\033]50;SetMark\007"
+  # iTerm2 inform terminal of result of previous command
+  print -Pn "\033]133;D;$?\007"
+  # iTerm2 inform terminal of current user and full host name
+  print -Pn "\033]50;RemoteHost='$USER'@'$FULL_HOST_NAME'\007"
+  # iTerm2 inform terminal of current working directory
+  print -Pn "\033]50;CurrentDir=$PWD\007"
+}
+
+prompt_start() {
+  # iTerm2 mark start of prompt
+  print -Pn "\033]133;A\007"
+}
+
+prompt_end() {
+  # iTerm2 mark end of prompt
+  print -Pn "\033]133;B\007"
+}
+
+PS1="$(prompt_start)<whatever your prompt normally is>$(prompt_end) "
+
+precmd() {
+  after_cmd_executes
+}
+
+preexec() {
+  before_cmd_executes
 }
 }}}
