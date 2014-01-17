@@ -21,3 +21,6 @@ pushd "\d"; (test -r "\0" && (printf '\\033]50;BeginFile='\0'\\n'; wc -c "\0" | 
 }}}
 
 Right clicking on a filename will offer "Send Command to Download _filename_" in the context menu. Selecting that action will produce a shell command that starts a download of the file in-band.
+
+== Warning ==
+You'll also want to add an action to the smart selection rule for URLs to open them because this action will replace the default cmd-click behavior. Add a rule named "Open URL" with action "Open URL…" and parameter "\0".
