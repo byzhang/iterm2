@@ -8,7 +8,7 @@ The iTerm2 nightly builds from the master branch as of Jan 6, 2014 have the abil
 = Details =
 
 Use the following shell script:
-
+{{{
 #!/bin/bash
 if [ $# -ne 1 ]; then
   echo "Usage: download.sh file ..."
@@ -26,6 +26,7 @@ do
     echo File $fn does not exist or is not readable.
   fi
 done
+}}}
 Usage:
 
 {{{
