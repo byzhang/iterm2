@@ -118,10 +118,9 @@ endif
 }}}
 
 ==bash==
-Place the following in your .bashrc:
-TODO: This section needs updating for the FinalTerm codes.
+The bash code is adapted from FinalTerm. It is more polished than the other terminals' scripts but also much bigger. Run the following command to add it to your .bashrc:
 {{{
-PROMPT_COMMAND='printf "\033]50;SetMark\007\033]50;RemoteHost='$USER'@'`hostname -f`'\007\033]50;CurrentDir=$PWD\007"'
+curl -L iterm2.com/misc/bash_startup.in >> ~/.bashrc
 }}}
 
 ==zsh==
