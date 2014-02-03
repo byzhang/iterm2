@@ -1,5 +1,7 @@
 #summary New shell integration features in iTerm2
 
+=This page is out of date. Please see the most recent version at http://www.iterm2.com/shell_integration.html .=
+
 = Introduction =
 
 Version 3 of iTerm2 will include deeper integration with the unix shell. This page explains how it works and how to use it. These builds are currently available through the nightly builds at http://iterm2.com/nightly/latest.
@@ -97,70 +99,3 @@ http://iterm2.com/images/CommandHistory.png
   * A mark will be added to the line with the prompt for you.
   * The mark's color will indicate success or failure
   * By right clicking the mark, you can view the exact value of the return code and other information about the command.
-
-=Putting it all together=
-
-In this section, complete code will be provided for each shell to take advantage of the integration. The feature is not specific to any single shell, and contributions for missing shells are welcomed.
-
-==tcsh==
-Place the following at the end of your .tcshrc:
-
-{{{
-# Note that tcsh doesn't allow the prompt to end in an escape code so the terminal space here is required. iTerm2 ignores spaces after this code.
-
-if ( (! $?ENVONLY) && $?prompt ) then
-set prompt="%{^[]133;A^G%}"`echo "$prompt" | sed -e 's/ $//'`"%{^[]133;B^G%} "
-alias precmd 'printf "\033]133;D;$?\007\033]50;RemoteHost='$USER'@`hostname -f`\007\033]50;CurrentDir=$PWD\007"'
-# This is necessary so the first command line will have a hostname and current directory.
-printf "\033]50;RemoteHost=$USER@`hostname -f`\007\033]50;CurrentDir=$PWD\007"
-alias postcmd 'printf "\033]133;C\007"'
-endif
-}}}
-
-==bash==
-The bash code is adapted from FinalTerm. It is more polished than the other terminals' scripts but also much bigger. Run the following command to add it to your .bashrc:
-{{{
-curl -L iterm2.com/misc/bash_startup.in >> ~/.bashrc
-}}}
-
-==zsh==
-Place the following in your .zshrc:
-{{{
-FULL_HOST_NAME=`hostname -f`
-
-before_cmd_executes() {
-  # iTerm2 inform terminal that command starts here
-  print -n "\033]133;C\007"
-}
-
-after_cmd_executes() {
-  # iTerm2 tell terminal to create a mark at this location
-  print -Pn "\033]50;SetMark\007"
-  # iTerm2 inform terminal of result of previous command
-  print -Pn "\033]133;D;$?\007"
-  # iTerm2 inform terminal of current user and full host name
-  print -Pn "\033]50;RemoteHost='$USER'@'$FULL_HOST_NAME'\007"
-  # iTerm2 inform terminal of current working directory
-  print -Pn "\033]50;CurrentDir=$PWD\007"
-}
-
-prompt_start() {
-  # iTerm2 mark start of prompt
-  print -Pn "\033]133;A\007"
-}
-
-prompt_end() {
-  # iTerm2 mark end of prompt
-  print -Pn "\033]133;B\007"
-}
-
-PS1="$(prompt_start)<whatever your prompt normally is>$(prompt_end) "
-
-precmd() {
-  after_cmd_executes
-}
-
-preexec() {
-  before_cmd_executes
-}
-}}}
