@@ -1,6 +1,6 @@
 #summary New shell integration features in iTerm2
 
-=This page is out of date. Please see the most recent version at http://www.iterm2.com/shell_integration.html .=
+=This page is out of date (except for Annotations). Please see the most recent version at http://www.iterm2.com/shell_integration.html .=
 
 = Introduction =
 
@@ -25,21 +25,21 @@ If you kick off a long-running command, *Edit>Alert on next mark* will post a no
 
 Note, however, that a more powerful (but complex) technique for setting marks is described below in _Command History_.
 
-===Notes===
-A mark with an annotation attached is called a note. You can add a note with:
+===Annotations===
+A mark with text attached is called an Annotation. You can add an annotation with:
 
-{{{\033]50;AddNote=value\007}}}
+{{{\033]50;AddAnnotation=value\007}}}
 
 or
 
-{{{\033]50;AddHiddenNote=value\007}}}
+{{{\033]50;AddHiddenAnnotation=value\007}}}
 
 _value_ is one of:
   * _string_: A region beginning at the current cursor position and extending to the end of the line will be annotated with _string_.
   * _string|length_: A region beginning at the current cursor position and extending _length_ characters will be annotated with _string_.
   * _string|length|x|y_: A region beginning at _x_, _y_ and extending _length_ characters will be annotated with _string_. _x_ and _y_ are 0-based.
 
-_AddNote_ adds a note with a visible annotation, while _AddHiddenNote_ collapses the annotation automatically. Right-clicking on the annotation and selecting "Show Notes" will reveal the annotations. All annotations can be toggled with Edit>Show/Hide Notes.
+_AddAnnotation_ adds an annotation that is immediately visible, while _AddHiddenAnnotation_ collapses the annotation automatically. Right-clicking on the annotation and selecting "Show Annotations" will reveal the annotation. All annotations can be toggled with View>Toggle Annotations.
 
 Notes can also be added manually by selecting a region of text and choosing *Annotate selection* in the context menu:
 http://iterm2.com/images/notes.png
