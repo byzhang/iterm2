@@ -54,6 +54,7 @@ This page offers the credits for the current application, as well as the old iTe
   * dmayle @ github
   * JTheAppleSeed
   * Sam Doshi
+  * Ryan Goulden
 
 == Localization Contributors ==
 
