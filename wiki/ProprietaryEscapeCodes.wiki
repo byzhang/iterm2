@@ -12,7 +12,7 @@ Makes the dock icon bounce if iTerm2 is not the current application.
 ^[]50;RequestAttention^G
 }}}
 
-P is "true" or "false". If not given, "false" is used. If true, it is a "critical" request. Critical requests bounce until iTerm2 is foregrounded; non-critical requests bounce for one second.
+P is "true" or "false". If not given, "false" is used. If true, the request is canceled.
 
 == Copy to Clipboard ==
 Copy text to one of the system's clipboards.
