@@ -30,7 +30,19 @@ PseudoTerminal is a window controller and is 1:1 with windows. It has a tabview,
   * Providing interfaces for Applescript to manipulate tabs (which are unfortunately called sessions for historical reasons)
 
 
-PTYTab is the "identifier" for an NSTabViewItem. It is 1:1 with tabs. It contains a collection of PTYSession objects. It has a tree called root whose intermediate nodes are NSSplitView and whose leaves are SessionView. The tree has only one level if there are no split panes. It is a tree because an NSSplitView is oriented either horizontally or vertically and iTerm2 allows nesting of split panes in either direction. PTYTab is the delegate for the NSSplitViews.
+PTYTab is the "identifier" for an NSTabViewItem. It is 1:1 with tabs. It contains a collection of PTYSession objects. It has a tree called root whose intermediate nodes are NSSplitView and whose leaves are SessionView. The tree has only one level if there are no split panes. It is a tree because an NSSplitView is oriented either horizontally or vertically and iTerm2 allows nesting of split panes in either direction. PTYTab is the delegate for the NSSplitViews. Its responsibilities are:
+  * Managing navigation among split panes
+  * Managing the frames of subviews
+  * Managing the tree of subviews (nested PTYSplitView's with SessionViews hanging off them)
+  * Managing the tab title, bell icon, label color, and activity indicator in the tab bar (via methods that are key-value observed by the tab library)
+  * Managing the "current" (or active) session, including responding to user navigation actions
+  * Saving and restoring saved arrangements (at the tab level) and delegating same to each PTYSession
+  * Provides linkage between window and sessions for instant replay
+  * Is the delegate of PTYSplitView (a subview of NSSplitView). This is complicated.
+  * Produces a snapshot of the view hierarchy
+  * Figures the size of the corresponding tmux window in tmux integration mode
+  * Replicates the tmux pane structure in tmux integration mode
+  * Handles maximizing split panes
 
 PTYSession is a sort of glue object that is 1:1 with sessions. It owns the other objects that are 1:1 with sessions (PTYTextView, SessionView, VT100Screen, VT100Terminal).
 
