@@ -79,7 +79,7 @@ LineBuffer is a scrollback buffer. It is an array of LineBlocks. A LineBlock is 
 
 Some less important but noteworthy classes are:
 
-  * BookmarkModel: Stores the collection of address book entrees (née bookmarks)
+  * ProfileModel: Stores the collection of address book entrees (née bookmarks)
   * DVRxxx: Implements instant replay
   * ITAddressBookMgr: Handles importing address books, bonjour
   * iTermController: App-wide glue, including hotkey support
