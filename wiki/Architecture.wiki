@@ -44,7 +44,28 @@ PTYTab is the "identifier" for an NSTabViewItem. It is 1:1 with tabs. It contain
   * Replicates the tmux pane structure in tmux integration mode
   * Handles maximizing split panes
 
-PTYSession is a sort of glue object that is 1:1 with sessions. It owns the other objects that are 1:1 with sessions (PTYTextView, SessionView, VT100Screen, VT100Terminal).
+PTYSession is a sort of glue object that is 1:1 with sessions. It owns the other objects that are 1:1 with sessions (PTYTextView, SessionView, VT100Screen, VT100Terminal). Its responsibilities are:
+  * It runs a timer that causes PTYTextView to redraw periodically.
+  * Manages instant replay directly.
+  * Creates and restores saved arrangements at the session level
+  * Prompts before closing a session, if necessary
+  * Determines the command and working directory for sessions
+  * Shows the short-lived session warning
+  * Interfaces with PTYTask for reading, writing, and ending tasks.
+  * Converts keypresses to bound actions or dispatches them to VT100Output to generate the proper output
+  * Connects input to triggers
+  * Posts notifications for sessions that ended, idle, bell-ringing, and activity.
+  * Keeps a copy of the Profile and updates itself and child objects when the profile changes
+  * When Edit Current Session is used to change preferences, PTYSession remembers which prefs are customized and which are shared with the original profile.
+  * Manages session titles
+  * Defines the environment vars that are set
+  * Runs the anti-idle timer
+  * Handles session logging
+  * Handles changing profile and pushing modified settings up to the original profile
+  * Deals with details of font changing
+  * May act as a gateway to tmux integration
+  * Navigates marks/notes
+  * Provides applescript support at the session level
 
 SessionView is an NSView subclass that wraps PTYTextView. In reality, there are several views between SessionView and PTYTextView (there's a scrollview subclass that doesn't do much, and within that is a TextViewWrapper that adds a margin to the top, and within that is the SessionView). SessionView controls dimming of inactive panes.
 
