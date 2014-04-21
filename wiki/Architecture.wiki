@@ -8,9 +8,27 @@ You may also want to read HowToBuild and HowToContribute.
 
 = Details =
 
-The key classes are PseudoTerminal, PTYTab, PTYSession, SessionView, PTYTextView, VT100Screen, LineBuffer, and VT100Terminal.
+The key classes are PseudoTerminal, PTYTab, PTYSession, SessionView, PTYTextView, VT100Screen, VT100Grid, LineBuffer/LineBlock, and VT100Terminal (and related classes VT100Token and VT100*Parser).
 
-PseudoTerminal is a window controller and is 1:1 with windows. It has a tabview, in which most of the content is displayed), and also contains the "bottom bar" (the instant replay UI) and links to the toolbar. It's the delegate (i.e., point-of-contact) for PSMTabBarControl, which runs the tab bar UI. It's also the NSWindow delegate.
+PseudoTerminal is a window controller and is 1:1 with windows. It has a tabview, in which most of the content is displayed), and also contains links to the toolbar. It's the delegate for PSMTabBarControl, which runs the tab bar UI. It's also the NSWindow delegate. It has the following responsibilities:
+  * Manage window attributes (frame, whether to draw a border, controlling the appearance of the tab bar, and ensuring subviews are properly positioned).
+  * Managing the set of sessions to which input is broadcast
+  * Managing the toolbelt (which appears in either a drawer or a subview, depending on window style)
+  * Assisting with drag-drop operations of tabs and sessions.
+  * Managing the window title.
+  * Handling certain events, such as pinch-to-zoom to change font size and routing swipes.
+  * Managing and providing accessors to the tabs.
+  * Receiving and handling commands from the menu bar that go to the first responder (e.g., close session).
+  * Creating and restoring the window-specific parts of saved arrangements and delegating tab/session attributes to other classes, and helping to draw previews of saved arrangements in prefs>arrangements.
+  * Handling window delegate and window controller messages, such as confirming that a window should close; setting the frame when zooming; hiding the hotkey window when it loses first-responder status; ensuring the proper windows are dimmed; snapping the window size to a multiple of character size; etc.
+  * Updating window frame when the number of screens or screen configuration changes.
+  * Interfacing with other tmux-integration classes for window-related activities (such as saving window frames on the server, managing layout changes, etc.)
+  * Routing various changes down to the tab or session level (such as changes to scrollbar style)
+  * Toggling fullscreen mode (including traditional and native [aka Lion] mode)
+  * Routing and managing most instant-replay-related events.
+  * Managing popup windows (paste history, autocomplete, command history)
+  * Providing interfaces for Applescript to manipulate tabs (which are unfortunately called sessions for historical reasons)
+
 
 PTYTab is the "identifier" for an NSTabViewItem. It is 1:1 with tabs. It contains a collection of PTYSession objects. It has a tree called root whose intermediate nodes are NSSplitView and whose leaves are SessionView. The tree has only one level if there are no split panes. It is a tree because an NSSplitView is oriented either horizontally or vertically and iTerm2 allows nesting of split panes in either direction. PTYTab is the delegate for the NSSplitViews.
 
