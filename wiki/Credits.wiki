@@ -55,6 +55,7 @@ This page offers the credits for the current application, as well as the old iTe
   * JTheAppleSeed
   * Sam Doshi
   * Ryan Goulden
+  * Germán M. Bravo
 
 == Localization Contributors ==
 
