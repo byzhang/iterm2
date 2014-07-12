@@ -137,3 +137,27 @@ This finds and selects a tab named "Special".
 		end tell
 	end tell
 </pre>
+
+= Open tabs to various machines =
+<pre>
+(* set to the user of the box, ie "root" or "deployer" *)
+set box_user to "user"
+(* Add the hostnames or IP's of the boxes to connect to. As many as you need. *)
+set my_boxes to {"box1", "box2", "box3"}
+ 
+tell application "iTerm"
+	activate
+	set t to (make new terminal)
+	tell t
+		(* Loop over the boxes, create a new tab and connect. *)
+		repeat with box in my_boxes
+			activate current session
+			launch session "Default Session"
+			tell the last session
+				set conn to "ssh " & box_user & "@" & box
+				write text conn
+			end tell
+		end repeat
+	end tell
+end tell
+</pre>
