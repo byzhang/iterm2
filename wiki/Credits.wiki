@@ -57,6 +57,7 @@ This page offers the credits for the current application, as well as the old iTe
   * Ryan Goulden
   * Germán M. Bravo
   * Mathias Leppich
+  * Robin (Issue 3109)
 
 == Localization Contributors ==
 
