@@ -58,6 +58,13 @@ This page offers the credits for the current application, as well as the old iTe
   * Germán M. Bravo
   * Mathias Leppich
   * Robin (Issue 3109)
+  * ZeR0-Wu @ github
+  * luan @ github
+  * khwon @ github
+  * calmh @ github
+  * saikobee  @ github
+  * subhasis256  @ github
+  * rjeschmi  @ github
 
 == Localization Contributors ==
 
