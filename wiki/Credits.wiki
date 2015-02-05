@@ -65,6 +65,7 @@ This page offers the credits for the current application, as well as the old iTe
   * saikobee  @ github
   * subhasis256  @ github
   * rjeschmi  @ github
+  * allewun @ github
 
 == Localization Contributors ==
 
