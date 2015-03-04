@@ -1,0 +1,24 @@
+# Introduction #
+
+There are two different ways to debug keyboard problems depending on the version of iTerm2 you are running.
+
+## For release or beta builds ##
+  * Quit iterm2.
+  * In Terminal, run:
+```
+defaults write com.googlecode.iterm2 DebugKeyDown -bool YES
+```
+  * Run /Applications/Utilities/Console.app.
+  * Set the "filter" field in Console to "keyDown".
+  * Run iterm2.
+  * Reproduce the bug by typing whatever isn't working right.
+  * Quit iterm2
+  * In console, press cmd-a to select all and do file->save selection as...
+  * Open an issue and attach that file to it.
+
+## For nightly builds ##
+Create a debug log:
+  * Select iTerm&gt;Toggle debug log
+  * Reproduce the bug
+  * Select iTerm&gt;Toggle debug log to stop logging
+  * Open an issue (if needed) and attach /tmp/debuglog.txt to it.

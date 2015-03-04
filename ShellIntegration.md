@@ -1,0 +1,99 @@
+# This page is out of date (except for Annotations). Please see the most recent version at http://www.iterm2.com/shell_integration.html . #
+
+# Introduction #
+
+Version 3 of iTerm2 will include deeper integration with the unix shell. This page explains how it works and how to use it. These builds are currently available through the nightly builds at http://iterm2.com/nightly/latest.
+
+
+# Details #
+
+Shell integration works with custom escape codes.
+
+## Locate command prompts ##
+
+### Marks ###
+You can use Cmd-Shift-Up and Down Arrow to navigate "marks" in your terminal history (e.g., to find previous shell prompts).  Marks can be set with Shell>Set Mark, but more usefully, they can be set with an escape code:
+
+` \033]50;SetMark\007 `
+
+The mark is indicated visually with a small blue triangle in the left margin.
+![http://www.iterm2.com/images/mark.png](http://www.iterm2.com/images/mark.png)
+
+If you kick off a long-running command, **Edit>Alert on next mark** will post a notification (Growl or Notification Center) and bounce the dock icon when the command finishes.
+
+Note, however, that a more powerful (but complex) technique for setting marks is described below in _Command History_.
+
+### Annotations ###
+A mark with text attached is called an Annotation. You can add an annotation with:
+
+` \033]50;AddAnnotation=value\007 `
+
+or
+
+` \033]50;AddHiddenAnnotation=value\007 `
+
+_value_ is one of:
+  * _string_: A region beginning at the current cursor position and extending to the end of the line will be annotated with _string_.
+  * _string|length_: A region beginning at the current cursor position and extending _length_ characters will be annotated with _string_.
+  * _string|length|x|y_: A region beginning at _x_, _y_ and extending _length_ characters will be annotated with _string_. _x_ and _y_ are 0-based.
+
+_AddAnnotation_ adds an annotation that is immediately visible, while _AddHiddenAnnotation_ collapses the annotation automatically. Right-clicking on the annotation and selecting "Show Annotations" will reveal the annotation. All annotations can be toggled with View>Toggle Annotations.
+
+Annotations can also be added manually by selecting a region of text and choosing **Annotate selection** in the context menu:
+![http://iterm2.com/images/notes.png](http://iterm2.com/images/notes.png)
+
+## Open local files ##
+
+You can Cmd-Click on a filename in the terminal to open it. In order for this to work, iTerm2 needs to know your working directory at all times. Setting the window title via an escape code will fetch it from the local host, but you can also get set it with the following escape code:
+
+` \033]50;CurrentDir=$PWD\007 `
+
+The reason why this method is better will be come clear in the context of the next code.
+
+## SCP remote files ##
+
+If iTerm2 knows the name of the remote host you're connected to as well as your current directory on that host, it can download and upload files via scp. Use the following escape code:
+
+` \033]50;RemoteHost=$USER@$HOST\007 `
+
+When this is present, you can right click on a filename and select "Download with scp from $HOST". You can also drag files from finder into iTerm2 and it will upload them to the directory you were in on the line you dropped the file on.
+
+Once an upload or download is started, "Uploads" and "Downloads" are added to the menu bar where you may track progress of the transfers, stop them, open downloaded files, and reveal them in finder.
+
+### A note on SCP ###
+iTerm2 links in libssh2, and does not shell out to scp. It respects /etc/known\_hosts and ~/.ssh/known\_hosts, and will update them appropriately. Host fingerprints are verified. Password, keyboard-interactive, and public-key authentication (using ~/.ssh/id\_rsa, encrypted with an optional passphrase) are supported. Previously unknown hosts will be added to ~/.ssh/known\_hosts after a successful authentication.
+
+This code is relatively new. If you are in a high-security environment, please keep this in mind.
+
+### Base64 Downloads ###
+Sometimes it's inconvenient or impossible to use SCP (for example, if you've sudo'ed to a user for whom you don't have the password). In that case, you can use a small script to download a file, as described in the DownloadFiles wiki page. Alternatively, you can add a smart selection action that will send the commands to the remote shell which make it dump the file you want wrapped in the proper escape code. See how to do it in SmartSelectionBase64Downloads.
+
+## Command History ##
+iTerm2 can track your command history. It may be saved to disk and is stored separately for each username+hostname combination. In order to save your command history, a number of escape codes will need to be sent before or after the shell prompt:
+
+  * Before the prompt
+` \033]133;A\007 `
+  * After the prompt
+` \033]133;B\007 `
+  * After a command finishes running, but before the prompt
+` \033]133;D;$?\007\033]50;RemoteHost='$USER'@localhost\007\033]50;CurrentDir=$PWD\007 `
+  * Before executing a command
+` \033]133;C\007 `
+
+These codes come from FinalTerm.
+
+By configuring your shell this way, iTerm2 knows:
+  * What commands you run
+  * Which host you're on, and which user you are logged in as
+  * The current directory at all times
+  * The return code of each command line
+
+The benefits are:
+  * Commands are added in their entirety to the autocomplete (cmd-;) menu
+  * A new command history menu (cmd-opt-y) lets you browse and search commands
+  * A new toolbelt tool has been added which shows your commands. Selecting a command in the list will scroll to it; double-clicking will re-enter it for you.
+![http://iterm2.com/images/CommandHistory.png](http://iterm2.com/images/CommandHistory.png)
+  * These commands are saved to disk (if allowed per a setting in prefs>general)
+  * A mark will be added to the line with the prompt for you.
+  * The mark's color will indicate success or failure
+  * By right clicking the mark, you can view the exact value of the return code and other information about the command.

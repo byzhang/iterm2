@@ -1,0 +1,129 @@
+# Introduction #
+
+This page documents all iTerm2-specific escape codes. These may not work properly in tmux or screen, and may have unknown effects on other terminal emulators. Proceed with caution.
+
+## Request Attention ##
+Makes the dock icon bounce if iTerm2 is not the current application.
+
+```
+^[]50;RequestAttention=P^G
+^[]50;RequestAttention^G
+```
+
+P is "true" or "false". If not given, "false" is used. If true, the request is canceled.
+
+## Copy to Clipboard ##
+Copy text to one of the system's clipboards.
+
+First, send one of:
+```
+^[]50;CopyToClipboard=P^G
+^[]50;CopyToClipboard^G
+```
+
+where P is the name of a clipboard. Legal values are "ruler", "find", "font", and "general". If P is not given, "general" is used.
+
+Text sent after this code is appended to the specified clipboard. To stop appending, send:
+
+```
+^[]50;EndCopy^G
+```
+
+## Set Profile ##
+Changes the current session's profile.
+
+```
+^[]50;SetProfile=P^G
+^[]50;SetProfile^G
+```
+
+If P is given, it is a profile name. If P is empty or not given, the default profile is used. If P is given and not the name of a profile, nothing is done.
+
+## Notify of Current Directory ##
+Notifies iTerm2 of the current directory. A cmd-click on a filename printed after this will assume it is in the given directory.
+
+```
+^[]50;CurrentDir=P^G
+```
+
+where P is a path, such as /Users/georgen
+
+## Clear Scrollback History ##
+Erases the scrollback history.
+
+```
+^[]50;ClearScrollback^G
+```
+
+## Steal Focus ##
+Brings the current window to the front, activating iTerm2 if it is not the current app.
+
+```
+^[]50;StealFocus^G
+```
+
+## Set Mark ##
+Sets the "mark" to the current scroll position. Same as "Edit>Set Mark".
+```
+^[]50;SetMark^G
+```
+
+## Set cursor shape ##
+```
+^[]50;CursorShape=N^G
+```
+where N=0, 1, or 2.
+
+0: Block
+1: Vertical bar
+2: Underline
+
+Add this to your .vimrc to change cursor shape in insert mode:
+```
+let &t_SI = "\<Esc>]50;CursorShape=1\x7"
+let &t_EI = "\<Esc>]50;CursorShape=0\x7"
+```
+
+This is derived from [Konsole](http://vim.wikia.com/wiki/Change_cursor_shape_in_different_modes).
+
+## Set window title and tab chrome background color ##
+
+To set the window title and tab color use this escape sequence:
+
+```
+^[]6;1;bg;red;brightness;N^G
+^[]6;1;bg;green;brightness;N^G
+^[]6;1;bg;blue;brightness;N^G
+```
+
+Replace N with a decimal value in 0 to 255.
+
+Example in bash that turns the background purple:
+```
+echo -e "\033]6;1;bg;red;brightness;255\a"
+echo -e "\033]6;1;bg;green;brightness;0\a"
+echo -e "\033]6;1;bg;blue;brightness;255\a"
+```
+
+## Change the color palette ##
+
+```
+^[]Pnrrggbb^[\
+```
+
+Replace "n" with:
+  * 0-f (hex) = ansi color
+  * g = foreground
+  * h = background
+  * i = bold color
+  * j = selection color
+  * k = selected text color
+  * l = cursor
+  * m = cursor text
+
+rr, gg, bb are 2-digit hex value (for example, "ff").
+
+Example in bash that changes the foreground color blue:
+```
+echo -e "\033]Pg4040ff\033\\"
+```

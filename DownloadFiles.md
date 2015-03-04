@@ -1,0 +1,34 @@
+# Introduction #
+
+The iTerm2 nightly builds from the master branch as of Jan 6, 2014 have the ability to accept base64-encoded files and download them automatically.
+
+
+# Details #
+
+Use the following shell script:
+```
+#!/bin/bash
+if [ $# -ne 1 ]; then
+  echo "Usage: download.sh file ..."
+  exit 1
+fi
+for fn in "$@"
+do
+  if [ -r "$fn" ] ; then
+    printf '\033]50;File=name='`echo -n "$fn" | base64`";"
+    wc -c "$fn" | awk '{printf "size=%d",$1}'
+    printf ":"
+    base64 < "$fn"
+    printf '\a'
+  else
+    echo File $fn does not exist or is not readable.
+  fi
+done
+```
+Usage:
+
+```
+download.sh /file/to/download
+```
+
+iTerm2 will add the file to the Downloads menu, where its progress can be tracked. It's not as fast as secure copy, but it's very convenient.
